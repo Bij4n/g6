@@ -1,7 +1,7 @@
 {
-  "name": "gstack",
+  "name": "g6",
   "version": "1.40.0.0",
-  "description": "Garry's Stack — Claude Code skills + fast headless browser. One repo, one install, entire AI engineering workflow.",
+  "description": "Bij4n's Stack — Claude Code skills + fast headless browser. Private-by-default AI engineering workflow for solo builders.",
   "license": "MIT",
   "type": "module",
   "bin": {

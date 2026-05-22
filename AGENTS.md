@@ -1,8 +1,10 @@
-# gstack — AI Engineering Workflow
+# g6 — AI Engineering Workflow
 
-gstack is a collection of SKILL.md files that give AI agents structured roles for
+g6 is a collection of SKILL.md files that give AI agents structured roles for
 software development. Each skill is a specialist: CEO reviewer, eng manager,
-designer, QA lead, release engineer, debugger, and more.
+designer, QA lead, release engineer, security officer, privacy auditor, debugger, and more.
+
+Built by Bij4n (Capitalism Killed Software) — private-by-default AI engineering for solo builders.
 
 ## Available skills
 
@@ -84,6 +86,16 @@ Invoke them by name (e.g., `/office-hours`).
 | `/guard` | Activate both careful + freeze at once. |
 | `/unfreeze` | Remove directory edit restrictions. |
 | `/make-pdf` | Turn any markdown file into a publication-quality PDF. |
+
+### g6 originals — privacy, stack health, teaching
+
+| Skill | What it does |
+|-------|-------------|
+| `/privacy-audit` | Audit for phone-homes, PII exposure, data minimization, and self-hosting readiness. |
+| `/rails-health` | Rails 8 health dashboard: credentials, Sidekiq, N+1s, schema drift, gem CVEs. |
+| `/api-audit` | REST/FastAPI audit: auth coverage, rate limiting, key exposure, CORS, TILA compliance. |
+| `/stripe-audit` | Stripe security: webhook verification, key hygiene, idempotency, multi-product isolation. |
+| `/mentor` | Teaching mode — explains what just happened in plain language for learners. |
 
 ## Build commands
 
