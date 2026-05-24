@@ -32,25 +32,45 @@ Five new skills on top of gstack's 30+:
 4. Run `/cso` — full OWASP + STRIDE security audit
 5. Run `/review` on any branch before you push
 
-## Install — 30 seconds
+## Install — 2 minutes
 
-**Requirements:** [Claude Code](https://docs.anthropic.com/en/docs/claude-code), [Git](https://git-scm.com/), [Bun](https://bun.sh/) v1.0+
+### Prerequisites
+
+**1. Claude Code** — [install here](https://docs.anthropic.com/en/docs/claude-code)
+
+**2. Bun** — g6's build tool. Install it:
+```bash
+curl -fsSL https://bun.sh/install | bash
+source ~/.bashrc  # or restart your terminal
+```
+
+**3. Git** — already installed on most systems. Check with `git --version`.
 
 ### Step 1: Install globally
 
-Open Claude Code and paste this:
+Run this in your terminal (not inside Claude Code — just a regular terminal):
 
-> Install g6: run **`git clone --single-branch --depth 1 https://github.com/Bij4n/g6.git ~/.claude/skills/g6 && cd ~/.claude/skills/g6 && ./setup`** then add a "g6" section to CLAUDE.md that says to use the /browse skill from g6 for all web browsing, never use mcp\_\_claude-in-chrome\_\_\* tools, no Google services (Fonts, Analytics, reCAPTCHA) anywhere, and lists the available skills: /office-hours, /plan-ceo-review, /plan-eng-review, /plan-design-review, /review, /ship, /land-and-deploy, /canary, /qa, /qa-only, /cso, /privacy-audit, /rails-health, /api-audit, /stripe-audit, /mentor, /investigate, /retro, /design-review, /benchmark, /browse, /setup-browser-cookies, /setup-deploy, /document-release, /document-generate, /careful, /freeze, /guard, /unfreeze, /gstack-upgrade, /learn, /context-save, /context-restore, /health, /autoplan.
+```bash
+mkdir -p ~/.claude/skills && git clone --single-branch --depth 1 https://github.com/Bij4n/g6.git ~/.claude/skills/g6 && cd ~/.claude/skills/g6 && ./setup
+```
 
-### Step 2: Team mode — auto-update for shared repos
+That's it. Setup compiles the browser binary, downloads Chromium, and links all skills into Claude Code. Takes about 60 seconds.
 
-From inside your repo:
+### Step 2: Tell Claude about g6 (one time per machine)
+
+Open Claude Code and paste this prompt exactly:
+
+> Add a "g6" section to CLAUDE.md that says: use the /browse skill from g6 for all web browsing, never use mcp\_\_claude-in-chrome\_\_\* tools, no Google services (Fonts, Analytics, reCAPTCHA) anywhere. List these available skills: /office-hours, /plan-ceo-review, /plan-eng-review, /plan-design-review, /review, /ship, /land-and-deploy, /canary, /qa, /qa-only, /cso, /privacy-audit, /rails-health, /api-audit, /stripe-audit, /mentor, /investigate, /retro, /design-review, /benchmark, /browse, /setup-browser-cookies, /setup-deploy, /document-release, /document-generate, /careful, /freeze, /guard, /unfreeze, /g6-upgrade, /learn, /context-save, /context-restore, /health, /autoplan.
+
+### Step 3: Team mode — auto-update for shared repos (optional)
+
+If you want everyone working in a repo to get g6 automatically, run this from inside that repo:
 
 ```bash
 (cd ~/.claude/skills/g6 && ./setup --team) && ~/.claude/skills/g6/bin/gstack-team-init optional && git add .claude/ CLAUDE.md && git commit -m "add g6 AI workflow skills"
 ```
 
-This commits the skill config so everyone working in the repo gets g6 automatically.
+This commits the skill config. Any teammate who opens Claude Code in that repo gets g6 without doing anything.
 
 ## All skills
 
@@ -150,7 +170,7 @@ It works on any stack — these are just the defaults that inform the g6-origina
 
 ## Updating
 
-To pull the latest: `/gstack-upgrade` — checks and pulls from `Bij4n/g6`.
+To pull the latest: `/g6-upgrade` — checks and pulls from `Bij4n/g6`.
 
 To also pull upstream gstack improvements, merge from `garrytan/gstack`:
 
