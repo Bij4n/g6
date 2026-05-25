@@ -69,7 +69,7 @@ The sidebar opens automatically after loading. Click the g6 icon in the toolbar 
 
 Open Claude Code and paste this prompt exactly:
 
-> Add a "g6" section to CLAUDE.md that says: use the /browse skill from g6 for all web browsing, never use mcp\_\_claude-in-chrome\_\_\* tools, no Google services (Fonts, Analytics, reCAPTCHA) anywhere. List these available skills: /office-hours, /plan-ceo-review, /plan-eng-review, /plan-design-review, /plan-devex-review, /autoplan, /review, /codex, /investigate, /incident, /onboard, /design-consultation, /design-shotgun, /design-html, /design-review, /qa, /qa-only, /devex-review, /ship, /land-and-deploy, /canary, /setup-deploy, /document-release, /document-generate, /cso, /privacy-audit, /rails-health, /api-audit, /stripe-audit, /supabase-audit, /env-audit, /db-audit, /crypto-audit, /mentor, /retro, /health, /benchmark, /benchmark-models, /make-pdf, /learn, /context-save, /context-restore, /browse, /scrape, /skillify, /pair-agent, /open-g6-browser, /setup-browser-cookies, /careful, /freeze, /guard, /unfreeze, /g6-upgrade.
+> Add a "g6" section to CLAUDE.md that says: use the /browse skill from g6 for all web browsing, never use mcp\_\_claude-in-chrome\_\_\* tools, no Google services (Fonts, Analytics, reCAPTCHA) anywhere. List these available skills: /office-hours, /plan-ceo-review, /plan-eng-review, /plan-design-review, /plan-devex-review, /autoplan, /review, /codex, /investigate, /incident, /onboard, /design-consultation, /design-shotgun, /design-html, /design-review, /qa, /qa-only, /devex-review, /ship, /land-and-deploy, /canary, /setup-deploy, /document-release, /document-generate, /cso, /privacy-audit, /rails-health, /api-audit, /stripe-audit, /supabase-audit, /env-audit, /db-audit, /crypto-audit, /supabase-deploy, /multi-tenant-audit, /mentor, /retro, /health, /sidekiq-monitor, /benchmark, /benchmark-models, /make-pdf, /learn, /context-save, /context-restore, /browse, /scrape, /skillify, /pair-agent, /open-g6-browser, /setup-browser-cookies, /careful, /freeze, /guard, /unfreeze, /g6-upgrade.
 
 ### Step 3: Team mode — auto-update for shared repos (optional)
 
@@ -132,6 +132,8 @@ This commits the skill config. Any teammate who opens Claude Code in that repo g
 | `/api-audit` | ★ g6 original. REST/FastAPI: auth, rate limiting, key exposure, CORS, TILA compliance. |
 | `/stripe-audit` | ★ g6 original. Stripe: webhook verification, key hygiene, idempotency, multi-product isolation. |
 | `/supabase-audit` | ★ g6 original. RLS coverage, storage policies, service_role isolation, Edge Function auth, pg_cron. |
+| `/supabase-deploy` | ★ g6 original. Safe migration deployment: diff, flag destructive changes, confirm, apply, verify RLS post-deploy. |
+| `/multi-tenant-audit` | ★ g6 original. Cross-tenant leakage: DB scoping, RLS tenant filters, cache key isolation, IDOR checks. |
 | `/env-audit` | ★ g6 original. Env var hygiene: extract from code, diff against .env.example, find hardcoded secrets. |
 | `/db-audit` | ★ g6 original. Postgres: missing indexes, table bloat, connection pool sizing, N+1 patterns. |
 | `/crypto-audit` | ★ g6 original. Bitcoin/crypto: key generation entropy, seed phrase storage, wallet encryption. |
@@ -148,6 +150,7 @@ This commits the skill config. Any teammate who opens Claude Code in that repo g
 |-------|-------------|
 | `/retro` | Weekly retrospective with shipping streaks and per-project breakdowns. |
 | `/health` | Code quality dashboard (type checker, linter, tests, dead code). |
+| `/sidekiq-monitor` | ★ g6 original. Live Sidekiq: queue depths, busy workers, dead jobs, retry exhaustion, cron health. |
 | `/benchmark` | Performance regression detection (Core Web Vitals, page load). |
 | `/benchmark-models` | Cross-model benchmark: run the same prompt through Claude, Codex, and Gemini side-by-side. |
 | `/make-pdf` | Turn any markdown file into a publication-quality PDF (margins, TOC, page numbers, watermark). |
