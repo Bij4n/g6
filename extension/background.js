@@ -13,6 +13,31 @@ let authToken = null;
 let isConnected = false;
 let healthInterval = null;
 
+// ─── Browser Compatibility ─────────────────────────────────────
+// Firefox/LibreWolf use browser.sidebarAction; Chrome/Chromium use chrome.sidePanel.
+// All other chrome.* APIs work in Firefox via its built-in chrome alias.
+const isFirefox = typeof browser !== 'undefined' && typeof browser.sidebarAction !== 'undefined';
+
+const sidebarPanel = {
+  get isAvailable() {
+    return isFirefox || !!chrome.sidePanel;
+  },
+  async open(opts) {
+    if (isFirefox) {
+      return browser.sidebarAction.open().catch(() => {});
+    }
+    if (chrome.sidePanel?.open) {
+      return chrome.sidePanel.open(opts);
+    }
+  },
+  async setPanelBehavior(opts) {
+    if (!isFirefox && chrome.sidePanel?.setPanelBehavior) {
+      return chrome.sidePanel.setPanelBehavior(opts);
+    }
+    // Firefox: sidebar_action manifest key handles this automatically
+  },
+};
+
 // ─── Port Discovery ────────────────────────────────────────────
 
 async function loadPort() {
@@ -341,9 +366,9 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
 
   // Open side panel from content script pill click
   if (msg.type === 'openSidePanel') {
-    if (chrome.sidePanel?.open && sender.tab) {
-      chrome.sidePanel.open({ tabId: sender.tab.id }).catch((err) => {
-        console.warn('[gstack bg] Failed to open side panel:', err.message);
+    if (sidebarPanel.isAvailable && sender.tab) {
+      sidebarPanel.open({ tabId: sender.tab.id }).catch((err) => {
+        console.warn('[g6 bg] Failed to open side panel:', err.message);
       });
     }
     return;
@@ -475,33 +500,32 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
 
 // ─── Side Panel ─────────────────────────────────────────────────
 
-// Click extension icon → open side panel directly (no popup)
-if (chrome.sidePanel && chrome.sidePanel.setPanelBehavior) {
-  chrome.sidePanel.setPanelBehavior({ openPanelOnActionClick: true }).catch((err) => {
-    console.warn('[gstack bg] Failed to set panel behavior:', err.message);
-  });
-}
+// Click extension icon → open side panel directly (no popup).
+// Chrome/Chromium: setPanelBehavior wires icon click to open the panel.
+// Firefox/LibreWolf: sidebar_action manifest key handles this automatically.
+sidebarPanel.setPanelBehavior({ openPanelOnActionClick: true }).catch((err) => {
+  console.warn('[g6 bg] Failed to set panel behavior:', err.message);
+});
 
-// Auto-open side panel with retry. chrome.sidePanel.open() can fail silently
-// if the window/tab isn't fully ready yet. Retry up to 5 times with backoff.
+// Auto-open side panel on install/startup with retry.
+// Chrome/Chromium: chrome.sidePanel.open() can fail silently if window isn't ready.
+// Firefox/LibreWolf: browser.sidebarAction.open() handles it; no windowId needed.
 async function autoOpenSidePanel() {
-  if (!chrome.sidePanel?.open) return;
+  if (!sidebarPanel.isAvailable) return;
   for (let attempt = 0; attempt < 5; attempt++) {
     try {
       const wins = await chrome.windows.getAll({ windowTypes: ['normal'] });
       if (wins.length > 0) {
-        await chrome.sidePanel.open({ windowId: wins[0].id });
-        console.log(`[gstack] Side panel opened on attempt ${attempt + 1}`);
-        return; // success
+        await sidebarPanel.open({ windowId: wins[0].id });
+        console.log(`[g6] Side panel opened on attempt ${attempt + 1}`);
+        return;
       }
     } catch (e) {
-      // May throw if window isn't ready or user gesture required
-      console.log(`[gstack] Side panel open attempt ${attempt + 1} failed:`, e.message);
+      console.log(`[g6] Side panel open attempt ${attempt + 1} failed:`, e.message);
     }
-    // Backoff: 500ms, 1000ms, 2000ms, 3000ms, 5000ms
     await new Promise(r => setTimeout(r, [500, 1000, 2000, 3000, 5000][attempt]));
   }
-  console.log('[gstack] Side panel auto-open failed after 5 attempts');
+  console.log('[g6] Side panel auto-open failed after 5 attempts');
 }
 
 // Fire on install/update

@@ -56,6 +56,19 @@ mkdir -p ~/.claude/skills && git clone --single-branch --depth 1 https://github.
 
 That's it. Setup compiles the browser binary, downloads Chromium, and links all skills into Claude Code. Takes about 60 seconds.
 
+### Optional: Install the browser extension
+
+The extension adds a live sidebar to your browser — activity feed, CSS inspector, and a Claude terminal that can see what tab you're on.
+
+**Supports Firefox, LibreWolf, and Chromium. No Chrome required.**
+
+| Browser | How to load |
+|---|---|
+| **Firefox / LibreWolf** | Go to `about:debugging` → This Firefox → Load Temporary Add-on → pick `~/.claude/skills/g6/extension/manifest.json` |
+| **Chromium** | Go to `chrome://extensions` → Enable Developer mode → Load unpacked → pick `~/.claude/skills/g6/extension/` |
+
+The sidebar opens automatically after loading. Click the g6 icon in the toolbar to toggle it.
+
 ### Step 2: Tell Claude about g6 (one time per machine)
 
 Open Claude Code and paste this prompt exactly:

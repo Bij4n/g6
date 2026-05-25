@@ -46,15 +46,20 @@ function updateStatus(connected, data) {
   }
 }
 
-// Open side panel
+// Open side panel / sidebar.
+// Firefox/LibreWolf: use browser.sidebarAction.toggle() — no tabId needed.
+// Chrome/Chromium: use chrome.sidePanel.open() with the active tab.
 sidePanelBtn.addEventListener('click', async () => {
   try {
-    const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-    if (tab) {
-      await chrome.sidePanel.open({ tabId: tab.id });
-      window.close();
+    const isFirefox = typeof browser !== 'undefined' && typeof browser.sidebarAction !== 'undefined';
+    if (isFirefox) {
+      await browser.sidebarAction.toggle();
+    } else {
+      const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+      if (tab) await chrome.sidePanel.open({ tabId: tab.id });
     }
+    window.close();
   } catch (err) {
-    details.textContent = `Side panel error: ${err.message}`;
+    details.textContent = `Sidebar error: ${err.message}`;
   }
 });

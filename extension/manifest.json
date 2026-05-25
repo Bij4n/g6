@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
-  "name": "gstack browse",
+  "name": "g6 browse",
   "version": "0.1.0",
-  "description": "Live activity feed and @ref overlays for gstack browse",
+  "description": "Live activity feed and @ref overlays for g6 browse",
   "permissions": ["sidePanel", "storage", "activeTab", "scripting", "tabs"],
   "host_permissions": ["http://127.0.0.1:*/", "ws://127.0.0.1:*/"],
   "action": {
@@ -14,6 +14,15 @@
   },
   "side_panel": {
     "default_path": "sidepanel.html"
+  },
+  "sidebar_action": {
+    "default_panel": "sidepanel.html",
+    "default_title": "g6 browse",
+    "default_icon": {
+      "16": "icons/icon-16.png",
+      "48": "icons/icon-48.png",
+      "128": "icons/icon-128.png"
+    }
   },
   "background": {
     "service_worker": "background.js"
