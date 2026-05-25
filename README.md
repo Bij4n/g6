@@ -16,6 +16,7 @@ I'm [Bij4n](https://github.com/Bij4n). g6 is my fork of [garrytan/gstack](https:
 | `/env-audit` | Extract every env var from source, diff against `.env.example`, find hardcoded secrets, verify `.gitignore` coverage, and check Render/Vercel deployment completeness. |
 | `/db-audit` | Postgres health: missing indexes, table bloat, connection pool sizing, N+1 patterns at the DB level. Static analysis + live psql if available. |
 | `/crypto-audit` | Security audit for Bitcoin and cryptocurrency code: key generation entropy, seed phrase storage, private key exposure, wallet encryption. |
+| `/node-health` | Node.js/Express health dashboard: npm CVEs, security middleware (helmet, rate-limit, CORS, CSRF), SQL and MongoDB injection risks, auth hygiene, error handling gaps. |
 | `/mentor` | Teaching mode. Explains what just happened in plain language, calibrated to the learner's level. For the people I'm training. |
 
 **Auto-updates from this fork.** When you install g6, update checks point to `Bij4n/g6` — not upstream. You get Garry's improvements (I track upstream) plus g6's originals.
@@ -69,7 +70,7 @@ The sidebar opens automatically after loading. Click the g6 icon in the toolbar 
 
 Open Claude Code and paste this prompt exactly:
 
-> Add a "g6" section to CLAUDE.md that says: use the /browse skill from g6 for all web browsing, never use mcp\_\_claude-in-chrome\_\_\* tools, no Google services (Fonts, Analytics, reCAPTCHA) anywhere. List these available skills: /office-hours, /plan-ceo-review, /plan-eng-review, /plan-design-review, /plan-devex-review, /autoplan, /review, /codex, /investigate, /incident, /onboard, /design-consultation, /design-shotgun, /design-html, /design-review, /qa, /qa-only, /devex-review, /ship, /land-and-deploy, /canary, /setup-deploy, /document-release, /document-generate, /cso, /privacy-audit, /rails-health, /api-audit, /stripe-audit, /supabase-audit, /env-audit, /db-audit, /crypto-audit, /supabase-deploy, /multi-tenant-audit, /mentor, /retro, /health, /sidekiq-monitor, /benchmark, /benchmark-models, /make-pdf, /learn, /context-save, /context-restore, /browse, /scrape, /skillify, /pair-agent, /open-g6-browser, /setup-browser-cookies, /careful, /freeze, /guard, /unfreeze, /g6-upgrade.
+> Add a "g6" section to CLAUDE.md that says: use the /browse skill from g6 for all web browsing, never use mcp\_\_claude-in-chrome\_\_\* tools, no Google services (Fonts, Analytics, reCAPTCHA) anywhere. List these available skills: /office-hours, /plan-ceo-review, /plan-eng-review, /plan-design-review, /plan-devex-review, /autoplan, /review, /codex, /investigate, /incident, /onboard, /design-consultation, /design-shotgun, /design-html, /design-review, /qa, /qa-only, /devex-review, /ship, /land-and-deploy, /canary, /setup-deploy, /document-release, /document-generate, /cso, /privacy-audit, /rails-health, /api-audit, /stripe-audit, /supabase-audit, /env-audit, /db-audit, /crypto-audit, /supabase-deploy, /multi-tenant-audit, /node-health, /mentor, /retro, /health, /sidekiq-monitor, /benchmark, /benchmark-models, /make-pdf, /learn, /context-save, /context-restore, /browse, /scrape, /skillify, /pair-agent, /open-g6-browser, /setup-browser-cookies, /careful, /freeze, /guard, /unfreeze, /g6-upgrade.
 
 ### Step 3: Team mode — auto-update for shared repos (optional)
 
@@ -137,6 +138,7 @@ This commits the skill config. Any teammate who opens Claude Code in that repo g
 | `/env-audit` | ★ g6 original. Env var hygiene: extract from code, diff against .env.example, find hardcoded secrets. |
 | `/db-audit` | ★ g6 original. Postgres: missing indexes, table bloat, connection pool sizing, N+1 patterns. |
 | `/crypto-audit` | ★ g6 original. Bitcoin/crypto: key generation entropy, seed phrase storage, wallet encryption. |
+| `/node-health` | ★ g6 original. Node.js/Express: npm CVEs, security middleware (helmet, rate-limit, CORS, CSRF), SQL/MongoDB injection, auth hygiene, error handling. |
 
 ### Teaching
 
