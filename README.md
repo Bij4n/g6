@@ -12,7 +12,7 @@ What I've done is take that foundation and extend it for how I build: privacy-fi
 
 ## What g6 adds
 
-Five new skills on top of gstack's 30+:
+Nine new skills on top of gstack's 30+:
 
 | Skill | Why it exists |
 |-------|--------------|
@@ -20,6 +20,10 @@ Five new skills on top of gstack's 30+:
 | `/rails-health` | Rails 8 + Sidekiq dashboard: credentials, N+1s, schema drift, gem CVEs, Stripe webhook security. |
 | `/api-audit` | FastAPI/REST: auth coverage, rate limiting, key exposure, CORS, TILA compliance for financial APIs. |
 | `/stripe-audit` | Stripe security for solo operators running multiple products on one account. Catches the mistakes that cost real money. |
+| `/supabase-audit` | Supabase RLS coverage, storage bucket policies, service_role key isolation, Edge Function auth, and pg_cron security. One RLS gap exposes every user's records. |
+| `/env-audit` | Extract every env var from source, diff against `.env.example`, find hardcoded secrets, verify `.gitignore` coverage, and check Render/Vercel deployment completeness. |
+| `/db-audit` | Postgres health: missing indexes, table bloat, connection pool sizing, N+1 patterns at the DB level. Static analysis + live psql if available. |
+| `/crypto-audit` | Security audit for Bitcoin and cryptocurrency code: key generation entropy, seed phrase storage, private key exposure, wallet encryption. |
 | `/mentor` | Teaching mode. Explains what just happened in plain language, calibrated to the learner's level. For the people I'm training. |
 
 **Auto-updates from this fork.** When you install g6, update checks point to `Bij4n/g6` — not upstream. You get Garry's improvements (I track upstream) plus g6's originals.
@@ -73,7 +77,7 @@ The sidebar opens automatically after loading. Click the g6 icon in the toolbar 
 
 Open Claude Code and paste this prompt exactly:
 
-> Add a "g6" section to CLAUDE.md that says: use the /browse skill from g6 for all web browsing, never use mcp\_\_claude-in-chrome\_\_\* tools, no Google services (Fonts, Analytics, reCAPTCHA) anywhere. List these available skills: /office-hours, /plan-ceo-review, /plan-eng-review, /plan-design-review, /review, /ship, /land-and-deploy, /canary, /qa, /qa-only, /cso, /privacy-audit, /rails-health, /api-audit, /stripe-audit, /mentor, /investigate, /retro, /design-review, /benchmark, /browse, /setup-browser-cookies, /setup-deploy, /document-release, /document-generate, /careful, /freeze, /guard, /unfreeze, /g6-upgrade, /learn, /context-save, /context-restore, /health, /autoplan.
+> Add a "g6" section to CLAUDE.md that says: use the /browse skill from g6 for all web browsing, never use mcp\_\_claude-in-chrome\_\_\* tools, no Google services (Fonts, Analytics, reCAPTCHA) anywhere. List these available skills: /office-hours, /plan-ceo-review, /plan-eng-review, /plan-design-review, /review, /ship, /land-and-deploy, /canary, /qa, /qa-only, /cso, /privacy-audit, /rails-health, /api-audit, /stripe-audit, /supabase-audit, /env-audit, /db-audit, /crypto-audit, /mentor, /investigate, /incident, /retro, /design-review, /benchmark, /browse, /setup-browser-cookies, /setup-deploy, /document-release, /document-generate, /careful, /freeze, /guard, /unfreeze, /g6-upgrade, /learn, /context-save, /context-restore, /health, /autoplan.
 
 ### Step 3: Team mode — auto-update for shared repos (optional)
 
@@ -103,6 +107,7 @@ This commits the skill config. Any teammate who opens Claude Code in that repo g
 |-------|-------------|
 | `/review` | Pre-landing PR review. Finds bugs that pass CI but break in production. |
 | `/investigate` | Systematic root-cause debugging. No fixes without investigation. |
+| `/incident` | Production incident response: triage, scope, fix, communicate, post-mortem. For live fires. |
 | `/design-review` | Live-site visual audit + fix loop with atomic commits. |
 | `/qa` | Open a real browser, find bugs, fix them, re-verify. |
 | `/qa-only` | QA report only — no code changes. |
@@ -117,6 +122,7 @@ This commits the skill config. Any teammate who opens Claude Code in that repo g
 | `/canary` | Post-deploy monitoring loop using the browser daemon. |
 | `/setup-deploy` | One-time deploy config detection (Render, Vercel, Fly.io, etc.). |
 | `/document-release` | Update all docs to match what you just shipped. |
+| `/document-generate` | Generate Diataxis-structured docs (tutorial, how-to, reference, explanation). |
 
 ### Security and privacy
 
@@ -127,6 +133,10 @@ This commits the skill config. Any teammate who opens Claude Code in that repo g
 | `/rails-health` | ★ g6 original. Rails 8 health: credentials, Sidekiq, N+1s, schema drift, gem CVEs. |
 | `/api-audit` | ★ g6 original. REST/FastAPI: auth, rate limiting, key exposure, CORS, TILA compliance. |
 | `/stripe-audit` | ★ g6 original. Stripe: webhook verification, key hygiene, idempotency, multi-product isolation. |
+| `/supabase-audit` | ★ g6 original. RLS coverage, storage policies, service_role isolation, Edge Function auth, pg_cron. |
+| `/env-audit` | ★ g6 original. Env var hygiene: extract from code, diff against .env.example, find hardcoded secrets. |
+| `/db-audit` | ★ g6 original. Postgres: missing indexes, table bloat, connection pool sizing, N+1 patterns. |
+| `/crypto-audit` | ★ g6 original. Bitcoin/crypto: key generation entropy, seed phrase storage, wallet encryption. |
 
 ### Teaching
 
