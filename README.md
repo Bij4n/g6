@@ -77,7 +77,7 @@ The sidebar opens automatically after loading. Click the g6 icon in the toolbar 
 
 Open Claude Code and paste this prompt exactly:
 
-> Add a "g6" section to CLAUDE.md that says: use the /browse skill from g6 for all web browsing, never use mcp\_\_claude-in-chrome\_\_\* tools, no Google services (Fonts, Analytics, reCAPTCHA) anywhere. List these available skills: /office-hours, /plan-ceo-review, /plan-eng-review, /plan-design-review, /review, /ship, /land-and-deploy, /canary, /qa, /qa-only, /cso, /privacy-audit, /rails-health, /api-audit, /stripe-audit, /supabase-audit, /env-audit, /db-audit, /crypto-audit, /mentor, /investigate, /incident, /retro, /design-review, /benchmark, /browse, /setup-browser-cookies, /setup-deploy, /document-release, /document-generate, /careful, /freeze, /guard, /unfreeze, /g6-upgrade, /learn, /context-save, /context-restore, /health, /autoplan.
+> Add a "g6" section to CLAUDE.md that says: use the /browse skill from g6 for all web browsing, never use mcp\_\_claude-in-chrome\_\_\* tools, no Google services (Fonts, Analytics, reCAPTCHA) anywhere. List these available skills: /office-hours, /plan-ceo-review, /plan-eng-review, /plan-design-review, /plan-devex-review, /autoplan, /review, /codex, /investigate, /incident, /onboard, /design-consultation, /design-shotgun, /design-html, /design-review, /qa, /qa-only, /devex-review, /ship, /land-and-deploy, /canary, /setup-deploy, /document-release, /document-generate, /cso, /privacy-audit, /rails-health, /api-audit, /stripe-audit, /supabase-audit, /env-audit, /db-audit, /crypto-audit, /mentor, /retro, /health, /benchmark, /benchmark-models, /make-pdf, /learn, /context-save, /context-restore, /browse, /scrape, /skillify, /pair-agent, /open-gstack-browser, /setup-browser-cookies, /careful, /freeze, /guard, /unfreeze, /g6-upgrade.
 
 ### Step 3: Team mode — auto-update for shared repos (optional)
 
@@ -99,6 +99,7 @@ This commits the skill config. Any teammate who opens Claude Code in that repo g
 | `/plan-ceo-review` | CEO-level review: find the 10-star product in the request. |
 | `/plan-eng-review` | Lock architecture, data flow, edge cases, and tests before a line is written. |
 | `/plan-design-review` | Rate each design dimension 0-10, explain what a 10 looks like. |
+| `/plan-devex-review` | Developer experience plan review: personas, competitor benchmarks, friction points, magic moments. |
 | `/autoplan` | One command runs CEO → design → eng review in sequence. |
 
 ### Build and review
@@ -106,8 +107,13 @@ This commits the skill config. Any teammate who opens Claude Code in that repo g
 | Skill | What it does |
 |-------|-------------|
 | `/review` | Pre-landing PR review. Finds bugs that pass CI but break in production. |
+| `/codex` | Independent second opinion from OpenAI Codex: review, challenge (adversarial break attempt), or consult. |
 | `/investigate` | Systematic root-cause debugging. No fixes without investigation. |
 | `/incident` | Production incident response: triage, scope, fix, communicate, post-mortem. For live fires. |
+| `/onboard` | Generate a structured ONBOARDING.md for a new developer: architecture map, local setup, key files, gotchas. |
+| `/design-consultation` | Full design system from scratch: aesthetic, typography, color, layout, motion, font+color previews. |
+| `/design-shotgun` | Generate multiple design variants, open a comparison board, collect feedback, iterate. |
+| `/design-html` | Turn approved designs into production-quality HTML/CSS. |
 | `/design-review` | Live-site visual audit + fix loop with atomic commits. |
 | `/qa` | Open a real browser, find bugs, fix them, re-verify. |
 | `/qa-only` | QA report only — no code changes. |
@@ -151,6 +157,8 @@ This commits the skill config. Any teammate who opens Claude Code in that repo g
 | `/retro` | Weekly retrospective with shipping streaks and per-project breakdowns. |
 | `/health` | Code quality dashboard (type checker, linter, tests, dead code). |
 | `/benchmark` | Performance regression detection (Core Web Vitals, page load). |
+| `/benchmark-models` | Cross-model benchmark: run the same prompt through Claude, Codex, and Gemini side-by-side. |
+| `/make-pdf` | Turn any markdown file into a publication-quality PDF (margins, TOC, page numbers, watermark). |
 | `/learn` | Manage what g6 learned across sessions. |
 | `/context-save` | Save working context (git state, decisions, remaining work). |
 | `/context-restore` | Resume from a saved context across sessions. |
@@ -160,6 +168,9 @@ This commits the skill config. Any teammate who opens Claude Code in that repo g
 | Skill | What it does |
 |-------|-------------|
 | `/browse` | Headless browser — real Chromium, persistent state, ~100ms/command. |
+| `/scrape` | Pull structured data from a web page. First run prototypes the flow; repeat calls use a codified script (~200ms). |
+| `/skillify` | Codify a successful `/scrape` flow into a permanent browser skill for instant future reuse. |
+| `/pair-agent` | Pair a remote AI agent (Codex, Cursor, OpenClaw) with your local browser via a secure connection. |
 | `/open-gstack-browser` | Launch the visible browser with sidebar. |
 | `/setup-browser-cookies` | Import cookies from your real browser for authenticated testing. |
 
