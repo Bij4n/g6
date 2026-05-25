@@ -22,7 +22,7 @@ Upgrade g6 to the latest version from [Bij4n/g6](https://github.com/Bij4n/g6).
 ## Step 1: Find the install
 
 ```bash
-G6_DIR=$(readlink -f ~/.claude/skills/gstack 2>/dev/null || echo ~/.claude/skills/g6)
+G6_DIR=$(readlink -f ~/.claude/skills/g6 2>/dev/null || echo ~/.claude/skills/g6)
 echo "g6 install: $G6_DIR"
 cd "$G6_DIR"
 git remote get-url origin
