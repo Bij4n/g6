@@ -8,7 +8,7 @@ Built by Bij4n (Capitalism Killed Software) — private-by-default AI engineerin
 
 ## Available skills
 
-Skills live in `.agents/skills/` (or `~/.claude/skills/gstack/` on Claude Code).
+Skills live in `.agents/skills/` (or `~/.claude/skills/g6/` on Claude Code).
 Invoke them by name (e.g., `/office-hours`).
 
 ### Plan-mode reviews

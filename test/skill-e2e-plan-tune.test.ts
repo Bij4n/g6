@@ -142,8 +142,8 @@ The user has invoked /plan-tune and says: "Review the questions I've been asked 
 
 IMPORTANT:
 - Use GSTACK_HOME="${gstackHome}" as an environment variable for all bin calls.
-- Replace any ~/.claude/skills/gstack/bin/ references with ./bin/ (relative path).
-- Replace any ~/.claude/skills/gstack/scripts/ references with ./scripts/.
+- Replace any ~/.claude/skills/g6/bin/ references with ./bin/ (relative path).
+- Replace any ~/.claude/skills/g6/scripts/ references with ./scripts/.
 - Do NOT use AskUserQuestion.
 - Do NOT implement code changes.
 - Route the user's intent to the right section of the skill (Review question log).

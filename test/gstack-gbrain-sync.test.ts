@@ -395,7 +395,7 @@ describe("gstack-gbrain-sync CLI", () => {
 
   it("brain-sync stage resolves the sibling binary, not a HOME-rooted path", () => {
     // Regression for Codex M9: pre-fix the orchestrator looked up
-    // ~/.claude/skills/gstack/bin/gstack-brain-sync, which silently no-op'd
+    // ~/.claude/skills/g6/bin/gstack-brain-sync, which silently no-op'd
     // on Codex installs and dev workspaces with the misleading summary
     // "skipped (gstack-brain-sync not installed)". Post-fix it resolves
     // a sibling via import.meta.dir and actually invokes the script.

@@ -342,17 +342,17 @@ always BLOCKs (deterministic).
 
 ## Dev symlink awareness
 
-When developing gstack, `.claude/skills/gstack` may be a symlink back to this
+When developing gstack, `.claude/skills/g6` may be a symlink back to this
 working directory (gitignored). This means skill changes are **live immediately**,
 great for rapid iteration, risky during big refactors where half-written skills
 could break other Claude Code sessions using gstack concurrently.
 
-**Check once per session:** Run `ls -la .claude/skills/gstack` to see if it's a
+**Check once per session:** Run `ls -la .claude/skills/g6` to see if it's a
 symlink or a real copy. If it's a symlink to your working directory, be aware that:
 - Template changes + `bun run gen:skill-docs` immediately affect all gstack invocations
 - Breaking changes to SKILL.md.tmpl files can break concurrent gstack sessions
-- During large refactors, remove the symlink (`rm .claude/skills/gstack`) so the
-  global install at `~/.claude/skills/gstack/` is used instead
+- During large refactors, remove the symlink (`rm .claude/skills/g6`) so the
+  global install at `~/.claude/skills/g6/` is used instead
 
 **Prefix setting:** Setup creates real directories (not symlinks) at the top level
 with a SKILL.md symlink inside (e.g., `qa/SKILL.md -> gstack/qa/SKILL.md`). This
@@ -807,15 +807,15 @@ Repeat for each skill: `gstack-openclaw-ceo-review`, `gstack-openclaw-investigat
 
 ## Deploying to the active skill
 
-The active skill lives at `~/.claude/skills/gstack/`. After making changes:
+The active skill lives at `~/.claude/skills/g6/`. After making changes:
 
 1. Push your branch
-2. Fetch and reset in the skill directory: `cd ~/.claude/skills/gstack && git fetch origin && git reset --hard origin/main`
-3. Rebuild: `cd ~/.claude/skills/gstack && bun run build`
+2. Fetch and reset in the skill directory: `cd ~/.claude/skills/g6 && git fetch origin && git reset --hard origin/main`
+3. Rebuild: `cd ~/.claude/skills/g6 && bun run build`
 
 Or copy the binaries directly:
-- `cp browse/dist/browse ~/.claude/skills/gstack/browse/dist/browse`
-- `cp design/dist/design ~/.claude/skills/gstack/design/dist/design`
+- `cp browse/dist/browse ~/.claude/skills/g6/browse/dist/browse`
+- `cp design/dist/design ~/.claude/skills/g6/design/dist/design`
 
 ## Skill routing
 

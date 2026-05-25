@@ -322,7 +322,7 @@ describe('migration v1.1.3.0: HOME guard', () => {
   afterEach(() => { try { fs.rmSync(tmp, { recursive: true, force: true }); } catch {} });
 
   test('HOME unset → exits 0 with diagnostic, no filesystem changes', () => {
-    // Create a file that would be wiped by an HOME="" bug: /.claude/skills/gstack/checkpoint
+    // Create a file that would be wiped by an HOME="" bug: /.claude/skills/g6/checkpoint
     // (not actually writable by the test, but we verify the script doesn't TRY).
     // Spawn without HOME in env.
     const env = { PATH: process.env.PATH || '/usr/bin:/bin' } as Record<string, string>;

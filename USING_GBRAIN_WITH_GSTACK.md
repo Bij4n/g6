@@ -106,13 +106,13 @@ SSH and HTTPS remote variants collapse to the same key: `https://github.com/foo/
 /setup-gbrain --repo      # re-prompt for this repo only
 
 # Or directly:
-~/.claude/skills/gstack/bin/gstack-gbrain-repo-policy set "github.com/foo/bar" read-only
+~/.claude/skills/g6/bin/gstack-gbrain-repo-policy set "github.com/foo/bar" read-only
 ```
 
 **To see every policy:**
 
 ```bash
-~/.claude/skills/gstack/bin/gstack-gbrain-repo-policy list
+~/.claude/skills/g6/bin/gstack-gbrain-repo-policy list
 ```
 
 Storage: `~/.gstack/gbrain-repo-policy.json`, mode 0600, schema-versioned so future migrations stay deterministic.

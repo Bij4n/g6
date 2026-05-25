@@ -27,8 +27,8 @@ const openclaw: HostConfig = {
   },
 
   pathRewrites: [
-    { from: '~/.claude/skills/gstack', to: '~/.openclaw/skills/gstack' },
-    { from: '.claude/skills/gstack', to: '.openclaw/skills/gstack' },
+    { from: '~/.claude/skills/g6', to: '~/.openclaw/skills/gstack' },
+    { from: '.claude/skills/g6', to: '.openclaw/skills/gstack' },
     { from: '.claude/skills', to: '.openclaw/skills' },
     { from: 'CLAUDE.md', to: 'AGENTS.md' },
   ],

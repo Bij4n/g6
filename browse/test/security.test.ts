@@ -368,7 +368,7 @@ describe('resolveBashBinary', () => {
 // ─── Telemetry spawn command (Windows bash wrapper, v1.24-aligned) ──
 
 describe('buildTelemetrySpawnCommand', () => {
-  const bin = '/home/user/.claude/skills/gstack/bin/gstack-telemetry-log';
+  const bin = '/home/user/.claude/skills/g6/bin/gstack-telemetry-log';
   const args = ['--event-type', 'attack_attempt', '--confidence', '0.95'];
 
   test('on POSIX, returns the binary path and args unchanged', () => {

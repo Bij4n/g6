@@ -29,8 +29,8 @@ const gbrain: HostConfig = {
   },
 
   pathRewrites: [
-    { from: '~/.claude/skills/gstack', to: '~/.gbrain/skills/gstack' },
-    { from: '.claude/skills/gstack', to: '.gbrain/skills/gstack' },
+    { from: '~/.claude/skills/g6', to: '~/.gbrain/skills/gstack' },
+    { from: '.claude/skills/g6', to: '.gbrain/skills/gstack' },
     { from: '.claude/skills', to: '.gbrain/skills' },
     { from: 'CLAUDE.md', to: 'AGENTS.md' },
   ],

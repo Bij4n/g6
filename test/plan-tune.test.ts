@@ -466,11 +466,11 @@ describe('preamble — QUESTION_TUNING injection', () => {
       tmplPath: 'test.tmpl',
       host: 'claude' as const,
       paths: {
-        skillRoot: '~/.claude/skills/gstack',
-        localSkillRoot: '.claude/skills/gstack',
-        binDir: '~/.claude/skills/gstack/bin',
-        browseDir: '~/.claude/skills/gstack/browse/dist',
-        designDir: '~/.claude/skills/gstack/design/dist',
+        skillRoot: '~/.claude/skills/g6',
+        localSkillRoot: '.claude/skills/g6',
+        binDir: '~/.claude/skills/g6/bin',
+        browseDir: '~/.claude/skills/g6/browse/dist',
+        designDir: '~/.claude/skills/g6/design/dist',
       },
       preambleTier: 2,
     };
@@ -490,11 +490,11 @@ describe('preamble — QUESTION_TUNING injection', () => {
       tmplPath: 'test.tmpl',
       host: 'claude' as const,
       paths: {
-        skillRoot: '~/.claude/skills/gstack',
-        localSkillRoot: '.claude/skills/gstack',
-        binDir: '~/.claude/skills/gstack/bin',
-        browseDir: '~/.claude/skills/gstack/browse/dist',
-        designDir: '~/.claude/skills/gstack/design/dist',
+        skillRoot: '~/.claude/skills/g6',
+        localSkillRoot: '.claude/skills/g6',
+        binDir: '~/.claude/skills/g6/bin',
+        browseDir: '~/.claude/skills/g6/browse/dist',
+        designDir: '~/.claude/skills/g6/design/dist',
       },
       preambleTier: 1,
     };

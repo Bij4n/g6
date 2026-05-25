@@ -228,7 +228,7 @@ describe('validateAllConfigs', () => {
   });
 
   test('duplicate globalRoot detected', () => {
-    const dup = { ...codex, name: 'dup-host', hostSubdir: '.dup', globalRoot: '.claude/skills/gstack' } as HostConfig;
+    const dup = { ...codex, name: 'dup-host', hostSubdir: '.dup', globalRoot: '.claude/skills/g6' } as HostConfig;
     const errors = validateAllConfigs([claude, dup]);
     expect(errors.some(e => e.includes('Duplicate globalRoot'))).toBe(true);
   });
@@ -244,10 +244,10 @@ describe('validateAllConfigs', () => {
 
 describe('HOST_PATHS derivation from configs', () => {
   test('Claude uses literal home paths (no env vars)', () => {
-    expect(HOST_PATHS.claude.skillRoot).toBe('~/.claude/skills/gstack');
-    expect(HOST_PATHS.claude.binDir).toBe('~/.claude/skills/gstack/bin');
-    expect(HOST_PATHS.claude.browseDir).toBe('~/.claude/skills/gstack/browse/dist');
-    expect(HOST_PATHS.claude.designDir).toBe('~/.claude/skills/gstack/design/dist');
+    expect(HOST_PATHS.claude.skillRoot).toBe('~/.claude/skills/g6');
+    expect(HOST_PATHS.claude.binDir).toBe('~/.claude/skills/g6/bin');
+    expect(HOST_PATHS.claude.browseDir).toBe('~/.claude/skills/g6/browse/dist');
+    expect(HOST_PATHS.claude.designDir).toBe('~/.claude/skills/g6/design/dist');
   });
 
   test('Codex uses $GSTACK_ROOT env vars', () => {

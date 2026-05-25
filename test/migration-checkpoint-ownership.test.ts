@@ -120,7 +120,7 @@ describe('migration v1.1.3.0 — checkpoint ownership guard', () => {
   });
 
   test('scenario F: gstack not installed → no-op exit 0', () => {
-    // No ~/.claude/skills/gstack/ at all. Also no checkpoint install.
+    // No ~/.claude/skills/g6/ at all. Also no checkpoint install.
     fs.mkdirSync(path.join(tmpHome, '.claude', 'skills'), { recursive: true });
 
     const result = runMigration(tmpHome);

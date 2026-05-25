@@ -23,8 +23,8 @@ const opencode: HostConfig = {
   },
 
   pathRewrites: [
-    { from: '~/.claude/skills/gstack', to: '~/.config/opencode/skills/gstack' },
-    { from: '.claude/skills/gstack', to: '.opencode/skills/gstack' },
+    { from: '~/.claude/skills/g6', to: '~/.config/opencode/skills/gstack' },
+    { from: '.claude/skills/g6', to: '.opencode/skills/gstack' },
     { from: '.claude/skills', to: '.opencode/skills' },
   ],
 

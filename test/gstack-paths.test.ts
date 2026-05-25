@@ -8,7 +8,7 @@ const BIN = path.join(ROOT, 'bin', 'gstack-paths');
 // Invoke via `bash` rather than executing the shebang-script directly.
 // On Windows, spawnSync(scriptPath, ...) goes through CreateProcess, which
 // doesn't parse `#!/usr/bin/env bash`. Production usage always sources the
-// helper from inside a bash block (`eval "$(~/.claude/skills/gstack/bin/gstack-paths)"`)
+// helper from inside a bash block (`eval "$(~/.claude/skills/g6/bin/gstack-paths)"`)
 // so bash is always the executor — this matches that contract.
 //
 // USERPROFILE: '' is a Windows-specific override. Git Bash auto-populates

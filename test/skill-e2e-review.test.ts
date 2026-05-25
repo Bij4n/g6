@@ -603,7 +603,7 @@ describeIfSelected('Review Dashboard Via Attribution', ['review-dashboard-via'],
     const result = await runSkillTest({
       prompt: `Read ship-SKILL.md. You only need to run the Review Readiness Dashboard section.
 
-Instead of running ~/.claude/skills/gstack/bin/gstack-review-read, run this mock: ${mockBinDir}/gstack-review-read
+Instead of running ~/.claude/skills/g6/bin/gstack-review-read, run this mock: ${mockBinDir}/gstack-review-read
 
 Parse the output and display the dashboard table. Pay attention to:
 1. The "via" field in entries — show source attribution (e.g., "via /autoplan")

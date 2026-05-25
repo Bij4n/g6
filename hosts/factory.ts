@@ -29,8 +29,8 @@ const factory: HostConfig = {
   },
 
   pathRewrites: [
-    { from: '~/.claude/skills/gstack', to: '$GSTACK_ROOT' },
-    { from: '.claude/skills/gstack', to: '.factory/skills/gstack' },
+    { from: '~/.claude/skills/g6', to: '$GSTACK_ROOT' },
+    { from: '.claude/skills/g6', to: '.factory/skills/gstack' },
     { from: '.claude/skills/review', to: '.factory/skills/gstack/review' },
     { from: '.claude/skills', to: '.factory/skills' },
   ],

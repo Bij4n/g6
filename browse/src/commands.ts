@@ -287,7 +287,7 @@ export function buildUnknownCommandError(
   }
 
   if (newInVersion[command]) {
-    msg += ` This command was added in browse v${newInVersion[command]}. Upgrade: cd ~/.claude/skills/gstack && git pull && bun run build.`;
+    msg += ` This command was added in browse v${newInVersion[command]}. Upgrade: cd ~/.claude/skills/g6 && git pull && bun run build.`;
   }
 
   return msg;

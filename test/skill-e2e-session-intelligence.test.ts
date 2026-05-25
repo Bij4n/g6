@@ -158,8 +158,8 @@ Run the context recovery check — the preamble should show recent artifacts.
 
 IMPORTANT:
 - Use GSTACK_HOME="${gstackHome}" as an environment variable when running bin scripts.
-- The bin scripts are at ./bin/ (relative to this directory), not at ~/.claude/skills/gstack/bin/.
-  Replace any references to ~/.claude/skills/gstack/bin/ with ./bin/ when running commands.
+- The bin scripts are at ./bin/ (relative to this directory), not at ~/.claude/skills/g6/bin/.
+  Replace any references to ~/.claude/skills/g6/bin/ with ./bin/ when running commands.
 - Do NOT use AskUserQuestion.
 - Just run the preamble bash block and report what you see.
 - Look for "RECENT ARTIFACTS" and "LAST_SESSION" in the output.`,
@@ -222,8 +222,8 @@ ${saveSection.slice(0, 2000)}
 
 IMPORTANT:
 - Use GSTACK_HOME="${gstackHome}" as an environment variable when running bin scripts.
-- The bin scripts are at ./bin/ (relative to this directory), not at ~/.claude/skills/gstack/bin/.
-  Replace any references to ~/.claude/skills/gstack/bin/ with ./bin/ when running commands.
+- The bin scripts are at ./bin/ (relative to this directory), not at ~/.claude/skills/g6/bin/.
+  Replace any references to ~/.claude/skills/g6/bin/ with ./bin/ when running commands.
 - Save the file to ${projectDir}/checkpoints/ with a filename like "20260401-test-context.md".
 - Include YAML frontmatter with status, branch, and timestamp.
 - Include a summary of what's being worked on (you can see from git status).
@@ -332,7 +332,7 @@ ${restoreSection.slice(0, 2500)}
 
 IMPORTANT:
 - Use GSTACK_HOME="${gstackHome}" as an environment variable when running bin scripts.
-- The bin scripts are at ./bin/ (relative to this directory), not at ~/.claude/skills/gstack/bin/.
+- The bin scripts are at ./bin/ (relative to this directory), not at ~/.claude/skills/g6/bin/.
 - Look in ${checkpointDir} for saved context files.
 - Current branch is "main" — do NOT filter by current branch. Load across all branches.
 - The newest file by YYYYMMDD-HHMMSS prefix is the canonical "most recent". Filesystem mtime has been scrambled — do not use it.

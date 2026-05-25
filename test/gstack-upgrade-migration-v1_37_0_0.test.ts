@@ -116,7 +116,7 @@ function runMigration(env: MigEnv): { stdout: string; stderr: string; exitCode: 
       ...process.env,
       HOME: env.home,
       GSTACK_HOME: env.gstackHome,
-      // The script looks for gstack-config at $HOME/.claude/skills/gstack/bin
+      // The script looks for gstack-config at $HOME/.claude/skills/g6/bin
       // which is already in env.home; nothing else needed.
     },
   });

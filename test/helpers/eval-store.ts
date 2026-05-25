@@ -23,7 +23,7 @@ const LEGACY_EVAL_DIR = path.join(os.homedir(), '.gstack-dev', 'evals');
 export function getProjectEvalDir(): string {
   try {
     // Try repo-local gstack-slug first, then global install
-    const localSlug = spawnSync('bash', ['-c', '.claude/skills/gstack/bin/gstack-slug 2>/dev/null || ~/.claude/skills/gstack/bin/gstack-slug 2>/dev/null'], {
+    const localSlug = spawnSync('bash', ['-c', '.claude/skills/g6/bin/gstack-slug 2>/dev/null || ~/.claude/skills/g6/bin/gstack-slug 2>/dev/null'], {
       stdio: 'pipe', timeout: 3000,
     });
     const output = localSlug.stdout?.toString().trim();

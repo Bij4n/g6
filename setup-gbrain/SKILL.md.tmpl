@@ -59,7 +59,7 @@ implemented as a dispatcher binary.
 ## Step 1: Detect current state
 
 ```bash
-~/.claude/skills/gstack/bin/gstack-gbrain-detect
+~/.claude/skills/g6/bin/gstack-gbrain-detect
 ```
 
 Capture the JSON output. It contains: `gbrain_on_path`, `gbrain_version`,
@@ -115,7 +115,7 @@ dead Postgres URL). Fire a targeted AskUserQuestion BEFORE Step 2:
 >   ❌ N/A
 > Net: A is the right starting move; B/C are explicit destructive paths; D bails.
 
-**If A (Retry)**: re-run `~/.claude/skills/gstack/bin/gstack-gbrain-detect`
+**If A (Retry)**: re-run `~/.claude/skills/g6/bin/gstack-gbrain-detect`
 with `GSTACK_DETECT_NO_CACHE=1` (busts the 60s cache). If the new
 `gbrain_local_status` is `ok`, continue to Step 2. If still `broken-db` or
 `broken-config`, fire the same AskUserQuestion again (the user picks again).
@@ -195,7 +195,7 @@ Path 4 subsection).
 For Paths 1, 2a, 2b, 3, switch — only if `gbrain_on_path=false`:
 
 ```bash
-~/.claude/skills/gstack/bin/gstack-gbrain-install
+~/.claude/skills/g6/bin/gstack-gbrain-install
 ```
 
 The installer runs D5 detect-first (probes `~/git/gbrain`, `~/gbrain` first),
@@ -215,7 +215,7 @@ Path-specific.
 Source the secret-read helper, collect URL with `read -s` + redacted preview:
 
 ```bash
-. ~/.claude/skills/gstack/bin/gstack-gbrain-lib.sh
+. ~/.claude/skills/g6/bin/gstack-gbrain-lib.sh
 read_secret_to_env GBRAIN_POOLER_URL "Paste Session Pooler URL: " \
   --echo-redacted 's#://[^@]*@#://***@#'
 ```
@@ -223,7 +223,7 @@ read_secret_to_env GBRAIN_POOLER_URL "Paste Session Pooler URL: " \
 Then validate structurally:
 
 ```bash
-printf '%s' "$GBRAIN_POOLER_URL" | ~/.claude/skills/gstack/bin/gstack-gbrain-supabase-verify -
+printf '%s' "$GBRAIN_POOLER_URL" | ~/.claude/skills/g6/bin/gstack-gbrain-supabase-verify -
 ```
 
 If the verify exit code is 3 (direct-connection URL), the verifier's own
@@ -254,7 +254,7 @@ Show the D11 PAT scope disclosure verbatim BEFORE collecting the token:
 Then:
 
 ```bash
-. ~/.claude/skills/gstack/bin/gstack-gbrain-lib.sh
+. ~/.claude/skills/g6/bin/gstack-gbrain-lib.sh
 read_secret_to_env SUPABASE_ACCESS_TOKEN "Paste PAT: "
 ```
 
@@ -267,7 +267,7 @@ tier. Pro may require them to upgrade the org first at supabase.com.
 List orgs, pick one (AskUserQuestion if multiple):
 
 ```bash
-orgs=$(~/.claude/skills/gstack/bin/gstack-gbrain-supabase-provision list-orgs --json)
+orgs=$(~/.claude/skills/g6/bin/gstack-gbrain-supabase-provision list-orgs --json)
 ```
 
 If the `.orgs` array is empty, surface: "Your Supabase account has no
@@ -296,11 +296,11 @@ trap 'echo ""; echo "gstack-gbrain: interrupted. In-flight ref: $INFLIGHT_REF"; 
 Create + wait + fetch:
 
 ```bash
-result=$(~/.claude/skills/gstack/bin/gstack-gbrain-supabase-provision \
+result=$(~/.claude/skills/g6/bin/gstack-gbrain-supabase-provision \
   create gbrain "$REGION" "$ORG_SLUG" --json)
 INFLIGHT_REF=$(echo "$result" | jq -r .ref)
-~/.claude/skills/gstack/bin/gstack-gbrain-supabase-provision wait "$INFLIGHT_REF" --json
-pooler=$(~/.claude/skills/gstack/bin/gstack-gbrain-supabase-provision \
+~/.claude/skills/g6/bin/gstack-gbrain-supabase-provision wait "$INFLIGHT_REF" --json
+pooler=$(~/.claude/skills/g6/bin/gstack-gbrain-supabase-provision \
   pooler-url "$INFLIGHT_REF" --json)
 GBRAIN_DATABASE_URL=$(echo "$pooler" | jq -r .pooler_url)
 export GBRAIN_DATABASE_URL
@@ -357,7 +357,7 @@ non-loopback host); refuse `http://` for non-localhost.
 **4b. Collect bearer token via the secret-read helper (D10, never argv).**
 
 ```bash
-. ~/.claude/skills/gstack/bin/gstack-gbrain-lib.sh
+. ~/.claude/skills/g6/bin/gstack-gbrain-lib.sh
 read_secret_to_env GBRAIN_MCP_TOKEN "Paste bearer token: " \
   --echo-redacted 's/.\{6\}$/***REDACTED***/'
 ```
@@ -367,7 +367,7 @@ classified JSON output:
 
 ```bash
 verify_json=$(GBRAIN_MCP_TOKEN="$GBRAIN_MCP_TOKEN" \
-  ~/.claude/skills/gstack/bin/gstack-gbrain-mcp-verify "$MCP_URL")
+  ~/.claude/skills/g6/bin/gstack-gbrain-mcp-verify "$MCP_URL")
 status=$(echo "$verify_json" | jq -r .status)
 ```
 
@@ -408,7 +408,7 @@ Capture two values from the verify output for downstream steps:
 **If A (Yes)**: install + init local PGLite with rollback-safe semantics (D7):
 
 ```bash
-~/.claude/skills/gstack/bin/gstack-gbrain-install || exit $?
+~/.claude/skills/g6/bin/gstack-gbrain-install || exit $?
 # At this point the local gbrain CLI is on PATH. Init PGLite, but back up any
 # existing ~/.gbrain/config.json first (rollback if init fails).
 if [ -f "$HOME/.gbrain/config.json" ]; then
@@ -542,7 +542,7 @@ session start, not mid-session."
 If we're in a git repo with an `origin` remote, check the policy:
 
 ```bash
-current_tier=$(~/.claude/skills/gstack/bin/gstack-gbrain-repo-policy get)
+current_tier=$(~/.claude/skills/g6/bin/gstack-gbrain-repo-policy get)
 ```
 
 Branches:
@@ -560,7 +560,7 @@ Branches:
 
   On answer (other than skip-for-now):
   ```bash
-  ~/.claude/skills/gstack/bin/gstack-gbrain-repo-policy set "$REMOTE" "$TIER"
+  ~/.claude/skills/g6/bin/gstack-gbrain-repo-policy set "$REMOTE" "$TIER"
   ```
   Then import iff `read-write`.
 
@@ -595,8 +595,8 @@ verify output (Path 4) or `false` (Paths 1/2/3 — local mode doesn't probe):
 
 ```bash
 URL_FORM=${URL_FORM_SUPPORTED:-false}
-~/.claude/skills/gstack/bin/gstack-artifacts-init --url-form-supported "$URL_FORM"
-~/.claude/skills/gstack/bin/gstack-config set artifacts_sync_mode artifacts-only
+~/.claude/skills/g6/bin/gstack-artifacts-init --url-form-supported "$URL_FORM"
+~/.claude/skills/g6/bin/gstack-config set artifacts_sync_mode artifacts-only
 # or "full" if user picked yes-full
 ```
 
@@ -632,7 +632,7 @@ try:
 except Exception:
     pass
 ")
-~/.claude/skills/gstack/bin/gstack-gbrain-source-wireup --strict \
+~/.claude/skills/g6/bin/gstack-gbrain-source-wireup --strict \
   ${GBRAIN_URL:+--database-url "$GBRAIN_URL"}
 ```
 
@@ -662,7 +662,7 @@ curated `~/.gstack/` artifacts into gbrain so the retrieval surface
 
 Run the probe to size the operation:
 ```bash
-~/.claude/skills/gstack/bin/gstack-memory-ingest --probe
+~/.claude/skills/g6/bin/gstack-memory-ingest --probe
 ```
 
 Read the output. If `Total files in window: 0`, skip — there's nothing
@@ -706,8 +706,8 @@ Options:
 
 After answer:
 ```bash
-~/.claude/skills/gstack/bin/gstack-config set transcript_ingest_mode <choice>
-~/.claude/skills/gstack/bin/gstack-gbrain-sync --full --no-brain-sync
+~/.claude/skills/g6/bin/gstack-config set transcript_ingest_mode <choice>
+~/.claude/skills/g6/bin/gstack-gbrain-sync --full --no-brain-sync
 ```
 (`--no-brain-sync` because Step 7 already wired that path; this just
 runs the code import + memory ingest stages. Brain-sync will run on the
@@ -852,9 +852,9 @@ configured Mac is a first-class doctor path: every step detects existing
 state, repairs only what's missing, and reports here.
 
 ```bash
-~/.claude/skills/gstack/bin/gstack-gbrain-detect 2>/dev/null || true
-~/.claude/skills/gstack/bin/gstack-config get transcript_ingest_mode 2>/dev/null || echo "off"
-~/.claude/skills/gstack/bin/gstack-config get artifacts_sync_mode 2>/dev/null || echo "off"
+~/.claude/skills/g6/bin/gstack-gbrain-detect 2>/dev/null || true
+~/.claude/skills/g6/bin/gstack-config get transcript_ingest_mode 2>/dev/null || echo "off"
+~/.claude/skills/g6/bin/gstack-config get artifacts_sync_mode 2>/dev/null || echo "off"
 [ -f ~/.gstack/.gbrain-sync-state.json ] && cat ~/.gstack/.gbrain-sync-state.json || echo "{}"
 ```
 

@@ -265,7 +265,7 @@ describe('gstack-team-init', () => {
     fs.writeFileSync(path.join(vendoredDir, 'VERSION'), '0.14.0.0');
     fs.writeFileSync(path.join(vendoredDir, 'README.md'), 'vendored');
     // Track it in git
-    execSync('git add .claude/skills/gstack/', { cwd: tmpDir });
+    execSync('git add .claude/skills/g6/', { cwd: tmpDir });
     execSync('git commit -m "add vendored gstack"', { cwd: tmpDir });
 
     const result = run(`${TEAM_INIT} optional`, { cwd: tmpDir });
@@ -276,7 +276,7 @@ describe('gstack-team-init', () => {
     expect(fs.existsSync(vendoredDir)).toBe(false);
     // .gitignore should have the entry
     const gitignore = fs.readFileSync(path.join(tmpDir, '.gitignore'), 'utf-8');
-    expect(gitignore).toContain('.claude/skills/gstack/');
+    expect(gitignore).toContain('.claude/skills/g6/');
   });
 
   test('skips when no vendored copy present', () => {
@@ -285,7 +285,7 @@ describe('gstack-team-init', () => {
     expect(result.stdout).not.toContain('Found vendored gstack copy');
   });
 
-  test('skips when .claude/skills/gstack is a symlink', () => {
+  test('skips when .claude/skills/g6 is a symlink', () => {
     // Create a symlink (not a real vendored copy)
     const skillsDir = path.join(tmpDir, '.claude', 'skills');
     fs.mkdirSync(skillsDir, { recursive: true });
@@ -306,7 +306,7 @@ describe('gstack-team-init', () => {
     const vendoredDir = path.join(tmpDir, '.claude', 'skills', 'gstack');
     fs.mkdirSync(vendoredDir, { recursive: true });
     fs.writeFileSync(path.join(vendoredDir, 'VERSION'), '0.14.0.0');
-    execSync('git add .claude/skills/gstack/', { cwd: tmpDir });
+    execSync('git add .claude/skills/g6/', { cwd: tmpDir });
     execSync('git commit -m "add vendored"', { cwd: tmpDir });
 
     run(`${TEAM_INIT} optional`, { cwd: tmpDir });

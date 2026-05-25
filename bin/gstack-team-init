@@ -31,21 +31,21 @@ GENERATED=()
 
 # ── Migrate vendored copy if present ──────────────────────────
 
-if [ -d "$REPO_ROOT/.claude/skills/gstack" ] && [ ! -L "$REPO_ROOT/.claude/skills/gstack" ]; then
-  if [ -f "$REPO_ROOT/.claude/skills/gstack/VERSION" ] || [ -d "$REPO_ROOT/.claude/skills/gstack/.git" ]; then
-    echo "  Found vendored gstack copy at $REPO_ROOT/.claude/skills/gstack"
+if [ -d "$REPO_ROOT/.claude/skills/g6" ] && [ ! -L "$REPO_ROOT/.claude/skills/g6" ]; then
+  if [ -f "$REPO_ROOT/.claude/skills/g6/VERSION" ] || [ -d "$REPO_ROOT/.claude/skills/g6/.git" ]; then
+    echo "  Found vendored gstack copy at $REPO_ROOT/.claude/skills/g6"
     echo "  Team mode uses the global install — removing vendored copy..."
-    ( cd "$REPO_ROOT" && git rm -r --cached .claude/skills/gstack/ 2>/dev/null ) || true
+    ( cd "$REPO_ROOT" && git rm -r --cached .claude/skills/g6/ 2>/dev/null ) || true
     if [ -f "$REPO_ROOT/.gitignore" ]; then
-      if ! grep -qF '.claude/skills/gstack/' "$REPO_ROOT/.gitignore" 2>/dev/null; then
-        echo '.claude/skills/gstack/' >> "$REPO_ROOT/.gitignore"
+      if ! grep -qF '.claude/skills/g6/' "$REPO_ROOT/.gitignore" 2>/dev/null; then
+        echo '.claude/skills/g6/' >> "$REPO_ROOT/.gitignore"
       fi
     else
-      echo '.claude/skills/gstack/' > "$REPO_ROOT/.gitignore"
+      echo '.claude/skills/g6/' > "$REPO_ROOT/.gitignore"
     fi
-    rm -rf "$REPO_ROOT/.claude/skills/gstack"
+    rm -rf "$REPO_ROOT/.claude/skills/g6"
     GENERATED+=(".gitignore")
-    echo "  Removed vendored copy and added .claude/skills/gstack/ to .gitignore"
+    echo "  Removed vendored copy and added .claude/skills/g6/ to .gitignore"
   fi
 fi
 
@@ -54,23 +54,23 @@ fi
 if [ "$MODE" = "optional" ]; then
   SNIPPET='## gstack (recommended)
 
-This project uses [gstack](https://github.com/garrytan/gstack) for AI-assisted workflows.
+This project uses [g6](https://github.com/Bij4n/g6) for AI-assisted workflows.
 Install it for the best experience:
 
 ```bash
-git clone --depth 1 https://github.com/garrytan/gstack.git ~/.claude/skills/gstack
-cd ~/.claude/skills/gstack && ./setup --team
+git clone --depth 1 https://github.com/Bij4n/g6.git ~/.claude/skills/g6
+cd ~/.claude/skills/g6 && ./setup --team
 ```
 
 Skills like /qa, /ship, /review, /investigate, and /browse become available after install.
-Use /browse for all web browsing. Use ~/.claude/skills/gstack/... for gstack file paths.'
+Use /browse for all web browsing. Use ~/.claude/skills/g6/... for gstack file paths.'
 else
   SNIPPET='## gstack (REQUIRED — global install)
 
 **Before doing ANY work, verify gstack is installed:**
 
 ```bash
-test -d ~/.claude/skills/gstack/bin && echo "GSTACK_OK" || echo "GSTACK_MISSING"
+test -d ~/.claude/skills/g6/bin && echo "GSTACK_OK" || echo "GSTACK_MISSING"
 ```
 
 If GSTACK_MISSING: STOP. Do not proceed. Tell the user:
@@ -78,8 +78,8 @@ If GSTACK_MISSING: STOP. Do not proceed. Tell the user:
 > gstack is required for all AI-assisted work in this repo.
 > Install it:
 > ```bash
-> git clone --depth 1 https://github.com/garrytan/gstack.git ~/.claude/skills/gstack
-> cd ~/.claude/skills/gstack && ./setup --team
+> git clone --depth 1 https://github.com/Bij4n/g6.git ~/.claude/skills/g6
+> cd ~/.claude/skills/g6 && ./setup --team
 > ```
 > Then restart your AI coding tool.
 
@@ -87,7 +87,7 @@ Do not skip skills, ignore gstack errors, or work around missing gstack.
 
 Using gstack skills: After install, skills like /qa, /ship, /review, /investigate,
 and /browse are available. Use /browse for all web browsing.
-Use ~/.claude/skills/gstack/... for gstack file paths (the global path).'
+Use ~/.claude/skills/g6/... for gstack file paths (the global path).'
 fi
 
 # Check if CLAUDE.md already has a gstack section
@@ -115,15 +115,15 @@ if [ "$MODE" = "required" ]; then
 #!/bin/bash
 # Block skill usage when gstack is not installed globally.
 
-if [ ! -d "$HOME/.claude/skills/gstack/bin" ]; then
+if [ ! -d "$HOME/.claude/skills/g6/bin" ]; then
   cat >&2 <<'MSG'
 BLOCKED: gstack is not installed globally.
 
 gstack is required for AI-assisted work in this repo.
 
 Install it:
-  git clone --depth 1 https://github.com/garrytan/gstack.git ~/.claude/skills/gstack
-  cd ~/.claude/skills/gstack && ./setup --team
+  git clone --depth 1 https://github.com/Bij4n/g6.git ~/.claude/skills/g6
+  cd ~/.claude/skills/g6 && ./setup --team
 
 Then restart your AI coding tool.
 MSG
@@ -188,5 +188,5 @@ if [ ${#GENERATED[@]} -gt 0 ]; then
 fi
 echo ""
 echo "Each developer then runs:"
-echo "  git clone --depth 1 https://github.com/garrytan/gstack.git ~/.claude/skills/gstack"
-echo "  cd ~/.claude/skills/gstack && ./setup --team"
+echo "  git clone --depth 1 https://github.com/Bij4n/g6.git ~/.claude/skills/g6"
+echo "  cd ~/.claude/skills/g6 && ./setup --team"

@@ -23,8 +23,8 @@ const cursor: HostConfig = {
   },
 
   pathRewrites: [
-    { from: '~/.claude/skills/gstack', to: '~/.cursor/skills/gstack' },
-    { from: '.claude/skills/gstack', to: '.cursor/skills/gstack' },
+    { from: '~/.claude/skills/g6', to: '~/.cursor/skills/gstack' },
+    { from: '.claude/skills/g6', to: '.cursor/skills/gstack' },
     { from: '.claude/skills', to: '.cursor/skills' },
   ],
 
