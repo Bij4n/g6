@@ -2,9 +2,7 @@
 
 > "A small practice building, teaching, and securing software that belongs to the people using it." — Capitalism Killed Software
 
-I'm [Bij4n](https://github.com/Bij4n). g6 is the AI engineering stack I use across 15+ live products — built on [garrytan/gstack](https://github.com/garrytan/gstack) as a foundation, extended for how I actually build.
-
-gstack proved the concept: a virtual engineering team as Claude Code slash commands. Good architecture, solid review pipeline. What it lacked was any real security depth, privacy tooling, or awareness of the stack most independent builders actually run. No Supabase, no Stripe hygiene, no way to teach a junior what just happened. That's what g6 adds.
+I'm [Bij4n](https://github.com/Bij4n). g6 is my fork of [garrytan/gstack](https://github.com/garrytan/gstack). Garry's work is great — the bones are solid. It just wasn't built for how I work: privacy-first, security-forward, Stripe everywhere, teaching as I go. So I extended it.
 
 ## What g6 adds
 
