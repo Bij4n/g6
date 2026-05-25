@@ -1,15 +1,15 @@
 ---
-name: gstack-upgrade
+name: g6-upgrade
 version: 1.1.0
 description: |
-  Upgrade gstack to the latest version. Detects global vs vendored install,
-  runs the upgrade, and shows what's new. Use when asked to "upgrade gstack",
-  "update gstack", or "get latest version".
+  Upgrade g6 to the latest version. Detects global vs vendored install,
+  runs the upgrade, and shows what's new. Use when asked to "upgrade g6",
+  "update g6", or "get latest g6".
   Voice triggers (speech-to-text aliases): "upgrade the tools", "update the tools", "gee stack upgrade", "g stack upgrade".
 triggers:
-  - upgrade gstack
-  - update gstack version
-  - get latest gstack
+  - upgrade g6
+  - update g6 version
+  - get latest g6
 allowed-tools:
   - Bash
   - Read
@@ -19,9 +19,9 @@ allowed-tools:
 <!-- AUTO-GENERATED from SKILL.md.tmpl — do not edit directly -->
 <!-- Regenerate: bun run gen:skill-docs -->
 
-# /gstack-upgrade
+# /g6-upgrade
 
-Upgrade gstack to the latest version and show what's new.
+Upgrade g6 to the latest version and show what's new.
 
 ## Inline upgrade flow
 
@@ -37,10 +37,10 @@ _AUTO=""
 echo "AUTO_UPGRADE=$_AUTO"
 ```
 
-**If `AUTO_UPGRADE=true` or `AUTO_UPGRADE=1`:** Skip AskUserQuestion. Log "Auto-upgrading gstack v{old} → v{new}..." and proceed directly to Step 2. If `./setup` fails during auto-upgrade, restore from backup (`.bak` directory) and warn the user: "Auto-upgrade failed — restored previous version. Run `/gstack-upgrade` manually to retry."
+**If `AUTO_UPGRADE=true` or `AUTO_UPGRADE=1`:** Skip AskUserQuestion. Log "Auto-upgrading g6 v{old} → v{new}..." and proceed directly to Step 2. If `./setup` fails during auto-upgrade, restore from backup (`.bak` directory) and warn the user: "Auto-upgrade failed — restored previous version. Run `/g6-upgrade` manually to retry."
 
 **Otherwise**, use AskUserQuestion:
-- Question: "gstack **v{new}** is available (you're on v{old}). Upgrade now?"
+- Question: "g6 **v{new}** is available (you're on v{old}). Upgrade now?"
 - Options: ["Yes, upgrade now", "Always keep me up to date", "Not now", "Never ask again"]
 
 **If "Yes, upgrade now":** Proceed to Step 2.
@@ -187,7 +187,7 @@ If `./setup` fails, restore from backup and warn the user:
 rm -rf "$LOCAL_GSTACK"
 mv "$LOCAL_GSTACK.bak" "$LOCAL_GSTACK"
 ```
-Tell user: "Sync failed — restored previous version at `$LOCAL_GSTACK`. Run `/gstack-upgrade` manually to retry."
+Tell user: "Sync failed — restored previous version at `$LOCAL_GSTACK`. Run `/g6-upgrade` manually to retry."
 
 ### Step 4.75: Run version migrations
 
@@ -230,7 +230,7 @@ Read `$INSTALL_DIR/CHANGELOG.md`. Find all version entries between the old versi
 
 Format:
 ```
-gstack v{new} — upgraded from v{old}!
+g6 v{new} — upgraded from v{old}!
 
 What's new:
 - [bullet 1]
@@ -248,7 +248,7 @@ After showing What's New, continue with whatever skill the user originally invok
 
 ## Standalone usage
 
-When invoked directly as `/gstack-upgrade` (not from a preamble):
+When invoked directly as `/g6-upgrade` (not from a preamble):
 
 1. Force a fresh update check (bypass cache):
 ```bash

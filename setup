@@ -426,7 +426,7 @@ link_claude_skill_dirs() {
       # Apply gstack- prefix unless --no-prefix or already prefixed
       if [ "$SKILL_PREFIX" -eq 1 ]; then
         case "$skill_name" in
-          gstack-*) link_name="$skill_name" ;;
+          gstack-*|g6-*) link_name="$skill_name" ;;
           *)        link_name="gstack-$skill_name" ;;
         esac
       else
@@ -1059,7 +1059,7 @@ fi
 
 # 9. First-time welcome + legacy cleanup
 if [ ! -f "$HOME/.gstack/.welcome-seen" ]; then
-  log "  Welcome! Run /gstack-upgrade anytime to stay current."
+  log "  Welcome! Run /g6-upgrade anytime to stay current."
   touch "$HOME/.gstack/.welcome-seen"
 fi
 rm -f /tmp/gstack-latest-version

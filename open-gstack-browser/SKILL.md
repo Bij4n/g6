@@ -1,5 +1,5 @@
 ---
-name: open-gstack-browser
+name: open-g6-browser
 version: 0.2.0
 description: |
   Launch GStack Browser — AI-controlled Chromium with the sidebar extension baked in.
@@ -56,7 +56,7 @@ _QUESTION_TUNING=$(~/.claude/skills/g6/bin/gstack-config get question_tuning 2>/
 echo "QUESTION_TUNING: $_QUESTION_TUNING"
 mkdir -p ~/.gstack/analytics
 if [ "$_TEL" != "off" ]; then
-echo '{"skill":"open-gstack-browser","ts":"'$(date -u +%Y-%m-%dT%H:%M:%SZ)'","repo":"'$(basename "$(git rev-parse --show-toplevel 2>/dev/null)" 2>/dev/null || echo "unknown")'"}'  >> ~/.gstack/analytics/skill-usage.jsonl 2>/dev/null || true
+echo '{"skill":"open-g6-browser","ts":"'$(date -u +%Y-%m-%dT%H:%M:%SZ)'","repo":"'$(basename "$(git rev-parse --show-toplevel 2>/dev/null)" 2>/dev/null || echo "unknown")'"}'  >> ~/.gstack/analytics/skill-usage.jsonl 2>/dev/null || true
 fi
 for _PF in $(find ~/.gstack/analytics -maxdepth 1 -name '.pending-*' 2>/dev/null); do
   if [ -f "$_PF" ]; then
@@ -78,7 +78,7 @@ if [ -f "$_LEARN_FILE" ]; then
 else
   echo "LEARNINGS: 0"
 fi
-~/.claude/skills/g6/bin/gstack-timeline-log '{"skill":"open-gstack-browser","event":"started","branch":"'"$_BRANCH"'","session":"'"$_SESSION_ID"'"}' 2>/dev/null &
+~/.claude/skills/g6/bin/gstack-timeline-log '{"skill":"open-g6-browser","event":"started","branch":"'"$_BRANCH"'","session":"'"$_SESSION_ID"'"}' 2>/dev/null &
 _HAS_ROUTING="no"
 if [ -f CLAUDE.md ] && grep -q "## Skill routing" CLAUDE.md 2>/dev/null; then
   _HAS_ROUTING="yes"
@@ -111,11 +111,11 @@ If the user invokes a skill in plan mode, the skill takes precedence over generi
 
 If `PROACTIVE` is `"false"`, do not auto-invoke or proactively suggest skills. If a skill seems useful, ask: "I think /skillname might help here — want me to run it?"
 
-If `SKILL_PREFIX` is `"true"`, suggest/invoke `/gstack-*` names. Disk paths stay `~/.claude/skills/g6/[skill-name]/SKILL.md`.
+If `SKILL_PREFIX` is `"true"`, suggest/invoke `/g6-*` names. Disk paths stay `~/.claude/skills/g6/[skill-name]/SKILL.md`.
 
 If output shows `UPGRADE_AVAILABLE <old> <new>`: read `~/.claude/skills/g6/gstack-upgrade/SKILL.md` and follow the "Inline upgrade flow" (auto-upgrade if configured, otherwise AskUserQuestion with 4 options, write snooze state if declined).
 
-If output shows `JUST_UPGRADED <from> <to>`: print "Running gstack v{to} (just updated!)". If `SPAWNED_SESSION` is true, skip feature discovery.
+If output shows `JUST_UPGRADED <from> <to>`: print "Running g6 v{to} (just updated!)". If `SPAWNED_SESSION` is true, skip feature discovery.
 
 Feature discovery, max one prompt per session:
 - Missing `~/.claude/skills/g6/.feature-prompted-continuous-checkpoint`: AskUserQuestion for Continuous checkpoint auto-commits. If accepted, run `~/.claude/skills/g6/bin/gstack-config set checkpoint_mode continuous`. Always touch marker.
@@ -648,17 +648,17 @@ Commit format:
 ```
 WIP: <concise description of what changed>
 
-[gstack-context]
+[g6-context]
 Decisions: <key choices made this step>
 Remaining: <what's left in the logical unit>
 Tried: <failed approaches worth recording> (omit if none)
 Skill: </skill-name-if-running>
-[/gstack-context]
+[/g6-context]
 ```
 
 Rules: stage only intentional files, NEVER `git add -A`, do not commit broken tests or mid-edit state, and push only if `CHECKPOINT_PUSH` is `"true"`. Do not announce each WIP commit.
 
-`/context-restore` reads `[gstack-context]`; `/ship` squashes WIP commits into clean commits.
+`/context-restore` reads `[g6-context]`; `/ship` squashes WIP commits into clean commits.
 
 If `CHECKPOINT_MODE` is `"explicit"`: ignore this section unless a skill or user asks to commit.
 
@@ -674,7 +674,7 @@ Before each AskUserQuestion, choose `question_id` from `scripts/question-registr
 
 After answer, log best-effort:
 ```bash
-~/.claude/skills/g6/bin/gstack-question-log '{"skill":"open-gstack-browser","question_id":"<id>","question_summary":"<short>","category":"<approval|clarification|routing|cherry-pick|feedback-loop>","door_type":"<one-way|two-way>","options_count":N,"user_choice":"<key>","recommended":"<key>","session_id":"'"$_SESSION_ID"'"}' 2>/dev/null || true
+~/.claude/skills/g6/bin/gstack-question-log '{"skill":"open-g6-browser","question_id":"<id>","question_summary":"<short>","category":"<approval|clarification|routing|cherry-pick|feedback-loop>","door_type":"<one-way|two-way>","options_count":N,"user_choice":"<key>","recommended":"<key>","session_id":"'"$_SESSION_ID"'"}' 2>/dev/null || true
 ```
 
 For two-way questions, offer: "Tune this question? Reply `tune: never-ask`, `tune: always-ask`, or free-form."
