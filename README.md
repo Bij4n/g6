@@ -2,17 +2,11 @@
 
 > "A small practice building, teaching, and securing software that belongs to the people using it." — Capitalism Killed Software
 
-I'm [Bij4n](https://github.com/Bij4n). I build and ship production software across 15+ live products while mentoring developers who are learning to build real things. g6 is the AI engineering stack I use every day — my evolution of [garrytan/gstack](https://github.com/garrytan/gstack), rebuilt around three principles I care about most: **privacy by default**, **security first**, and **software that stays yours**.
+I'm [Bij4n](https://github.com/Bij4n). g6 is the AI engineering stack I use across 15+ live products — built on [garrytan/gstack](https://github.com/garrytan/gstack) as a foundation, extended for how I actually build.
 
-## Standing on Garry's shoulders
-
-g6 is a fork of **[gstack](https://github.com/garrytan/gstack)** by [Garry Tan](https://x.com/garrytan), President & CEO of Y Combinator. Garry built the original concept — a virtual engineering team as Claude Code slash commands — and proved it works. His README tells that story better than I can. The browser daemon, the skill architecture, the multi-agent review pipeline, the Boil the Lake philosophy: all Garry's. Read his original at [github.com/garrytan/gstack](https://github.com/garrytan/gstack).
-
-What I've done is take that foundation and extend it for how I build: privacy-first, security-forward, across a stack that's Rails + FastAPI + Stripe + Vercel/Render. And added a teaching layer for the people I'm mentoring.
+gstack proved the concept: a virtual engineering team as Claude Code slash commands. Good architecture, solid review pipeline. What it lacked was any real security depth, privacy tooling, or awareness of the stack most independent builders actually run. No Supabase, no Stripe hygiene, no way to teach a junior what just happened. That's what g6 adds.
 
 ## What g6 adds
-
-Nine new skills on top of gstack's 30+:
 
 | Skill | Why it exists |
 |-------|--------------|
@@ -222,4 +216,4 @@ MIT. Same as upstream. Fork it, extend it, share it.
 
 ---
 
-*Built on [gstack](https://github.com/garrytan/gstack) by [Garry Tan](https://x.com/garrytan). Go read his README — it's worth it.*
+*Built on [gstack](https://github.com/garrytan/gstack) by [Garry Tan](https://x.com/garrytan).*
