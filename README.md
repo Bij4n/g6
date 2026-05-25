@@ -2,7 +2,7 @@
 
 > "A small practice building, teaching, and securing software that belongs to the people using it." — Capitalism Killed Software
 
-I'm [Bij4n](https://github.com/Bij4n). g6 is my fork of [garrytan/gstack](https://github.com/garrytan/gstack). Garry's work is great — the bones are solid. It just wasn't built for how I work: privacy-first, security-forward, Stripe everywhere, teaching as I go. So I extended it.
+I'm [Bij4n](https://github.com/Bij4n). g6 is my fork of [garrytan/gstack](https://github.com/garrytan/gstack). Garry's work is great — the bones are solid. It just wasn't built for how I work: privacy-first, security-forward, independent stack, teaching as I go. So I extended it.
 
 ## What g6 adds
 
