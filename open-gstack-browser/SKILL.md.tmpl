@@ -144,7 +144,7 @@ If C:
 
 1. Run `$B status` and show the output
 2. If the server is not healthy, re-run Step 0 cleanup + Step 1 connect
-3. If the server IS healthy but the browser isn't visible, try `$B focus`
+3. If the server IS healthy but the browser isn't visible, try `$B focus` (macOS only)
 4. If that fails, ask the user what they see (error message, blank screen, etc.)
 
 ## Step 4: Demo
@@ -196,7 +196,7 @@ Tell the user:
 >   `$B snapshot -i` — all visible in Chrome + Side Panel
 >
 > **Window management:**
-> - `$B focus` — bring Chrome to the foreground anytime
+> - `$B focus` — bring Chrome to the foreground (macOS only; no-op on Linux/Windows)
 > - `$B disconnect` — close headed Chrome and return to headless mode
 >
 > **What skills look like in headed mode:**

@@ -298,7 +298,10 @@ function extractCwdFromJsonl(filePath: string): string | null {
 }
 
 function scanCodex(since: Date): Session[] {
-  const sessionsDir = process.env.CODEX_SESSIONS_DIR || join(homedir(), ".codex", "sessions");
+  // Codex CLI has used different session paths across versions; check all known locations.
+  const sessionsDir = process.env.CODEX_SESSIONS_DIR ||
+    [join(homedir(), ".codex", "sessions"), join(homedir(), ".openai", "codex", "sessions")]
+      .find(p => existsSync(p)) || join(homedir(), ".codex", "sessions");
   if (!existsSync(sessionsDir)) return [];
 
   const sessions: Session[] = [];
