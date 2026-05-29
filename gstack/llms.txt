@@ -1,6 +1,6 @@
 # gstack
 
-> gstack is Garry's Stack: AI coding skills + a fast headless browser binary + a design CLI. This file indexes every capability so agents can discover and invoke them without crawling individual SKILL.md files.
+> g6 is an AI coding skill suite: headless browser, visual design CLI, security audits, code review, QA, ship workflow, and more. This file indexes every capability so agents can discover and invoke them without crawling individual SKILL.md files.
 
 Conventions:
 - Skills are invoked by name (e.g. `/ship`, `/plan-ceo-review`).

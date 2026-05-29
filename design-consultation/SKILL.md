@@ -906,7 +906,10 @@ Commands:
 - `$D compare --images "a.png,b.png,c.png" --output /path/board.html --serve` — comparison board + HTTP server
 - `$D serve --html /path/board.html` — serve comparison board and collect feedback via HTTP
 - `$D check --image /path.png --brief "..."` — vision quality gate
-- `$D iterate --session /path/session.json --feedback "..." --output /path.png` — iterate
+- `$D iterate --session /path/session.json --feedback "..." --output /path.png` — iterate on prior generation
+- `$D evolve --screenshot current.png --brief "..."` — generate improved mockup from an existing screenshot
+- `$D extract --image approved.png` — extract design language from approved mockup into DESIGN.md tokens
+- `$D prompt --image approved.png` — generate structured implementation prompt from approved mockup
 
 **CRITICAL PATH RULE:** All design artifacts (mockups, comparison boards, approved.json)
 MUST be saved to `~/.gstack/projects/$SLUG/designs/`, NEVER to `.context/`,

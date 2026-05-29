@@ -66,12 +66,22 @@ Call the util three times — once for each bump level — so the user sees what
 they'd claim for micro/patch/minor/major. Cheap (same gh call cached by bun).
 
 ```bash
+# Locate gstack-next-version — works both inside the g6 repo and from user projects
+_NV=""
+[ -x "bin/gstack-next-version" ] && _NV="bun run bin/gstack-next-version"
+[ -z "$_NV" ] && [ -x "$HOME/.claude/skills/g6/bin/gstack-next-version" ] && \
+  _NV="bun run $HOME/.claude/skills/g6/bin/gstack-next-version"
+
 for LEVEL in micro patch minor major; do
-  bun run bin/gstack-next-version \
-    --base "$BASE_BRANCH" \
-    --bump "$LEVEL" \
-    --current-version "$BASE_VERSION" \
-    > "/tmp/landing-$LEVEL.json" 2>/dev/null || echo '{"offline":true}' > "/tmp/landing-$LEVEL.json"
+  if [ -n "$_NV" ]; then
+    $_NV \
+      --base "$BASE_BRANCH" \
+      --bump "$LEVEL" \
+      --current-version "$BASE_VERSION" \
+      > "/tmp/landing-$LEVEL.json" 2>/dev/null || echo '{"offline":true}' > "/tmp/landing-$LEVEL.json"
+  else
+    echo '{"offline":true}' > "/tmp/landing-$LEVEL.json"
+  fi
 done
 ```
 

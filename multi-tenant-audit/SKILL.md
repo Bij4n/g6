@@ -162,17 +162,29 @@ For file storage: ensure uploaded files are stored under a tenant-scoped path (`
 ## Step 5: ID enumeration / IDOR check
 
 ```bash
-# Direct record lookups without tenant scope check
+# Rails: direct record lookups without tenant scope check
 grep -rn "\.find\b\|\.find_by\b\|params\[:id\]" \
   app/controllers/ 2>/dev/null | \
   grep -v "current_user\|current_firm\|current_tenant\|scope\|#" | head -20
 
-# API endpoints that take an ID param
 grep -rn "params\[:.*_id\]\|params\[\".*_id\"\]" \
   app/controllers/ 2>/dev/null | grep -v ".git/\|test\|spec" | head -20
+
+# Next.js / tRPC: route handlers that accept an ID without tenant check
+grep -rn "params\.id\|params\[.id.\]\|input\.id\b\|ctx\.params" \
+  app/ pages/api/ src/app/ src/pages/ 2>/dev/null | \
+  grep -v "session\|userId\|tenantId\|orgId\|accountId\|test\|spec" | head -20
+
+# FastAPI / Python: path params without tenant filter
+grep -rn "def.*\bitem_id\b\|\brecord_id\b\|\buser_id\b" \
+  --include="*.py" . 2>/dev/null | \
+  grep -v "current_user\|tenant_id\|org_id\|test_" | head -20
 ```
 
-A lookup like `Record.find(params[:id])` without a tenant scope check allows any authenticated user to access any record by guessing its ID. Every `find` in a multi-tenant system should be `current_tenant.records.find(params[:id])`.
+A lookup like `Record.find(params[:id])` without a tenant scope check allows any authenticated user to access any record by guessing its ID.
+- Rails: every `find` should be `current_tenant.records.find(params[:id])`
+- Next.js: every route handler should verify `resource.tenantId === session.tenantId`
+- FastAPI: every endpoint should add a `WHERE tenant_id = :tenant_id` filter
 
 ## Step 6: Compile findings
 

@@ -170,7 +170,7 @@ export async function generateLlmsTxt(opts: GenerateOptions = {}): Promise<Gener
   const lines: string[] = [];
   lines.push('# gstack');
   lines.push('');
-  lines.push("> gstack is Garry's Stack: AI coding skills + a fast headless browser binary + a design CLI. This file indexes every capability so agents can discover and invoke them without crawling individual SKILL.md files.");
+  lines.push("> g6 is an AI coding skill suite: headless browser, visual design CLI, security audits, code review, QA, ship workflow, and more. This file indexes every capability so agents can discover and invoke them without crawling individual SKILL.md files.");
   lines.push('');
   lines.push('Conventions:');
   lines.push('- Skills are invoked by name (e.g. `/ship`, `/plan-ceo-review`).');
