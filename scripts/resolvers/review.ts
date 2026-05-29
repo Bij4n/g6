@@ -186,7 +186,7 @@ must be the file's terminal heading.`;
 }
 
 export function generateAntiShortcutClause(_ctx: TemplateContext): string {
-  return `**Anti-shortcut clause:** The plan file is the OUTPUT of the interactive review, not a substitute for it. Writing every finding into one plan write and calling ExitPlanMode without firing AskUserQuestion is the precise failure mode of the May 2026 transcript bug — the model explored, found issues, and dumped them into a deliverable rather than walking the user through them. If you have ANY non-trivial finding in any review section, the path from finding to ExitPlanMode goes THROUGH AskUserQuestion. Zero findings in every section is the only path to ExitPlanMode that bypasses AskUserQuestion. If you find yourself wanting to write a plan with findings before asking, stop and call AskUserQuestion now — that's the bug, recognize it.`;
+  return `**Anti-shortcut clause:** The plan file is the OUTPUT of the interactive review, not a substitute for it. Do not write every finding into one plan write and call ExitPlanMode without firing AskUserQuestion — the model must walk the user through each finding interactively. If you have ANY non-trivial finding in any review section, the path from finding to ExitPlanMode goes THROUGH AskUserQuestion. Zero findings in every section is the only path to ExitPlanMode that bypasses AskUserQuestion. If you find yourself wanting to write a plan with findings before asking, stop and call AskUserQuestion now.`;
 }
 
 export function generateSpecReviewLoop(_ctx: TemplateContext): string {
