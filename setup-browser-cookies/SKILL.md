@@ -6,7 +6,7 @@ description: |
   Import cookies from your real Chromium browser into the headless browse session.
   Opens an interactive picker UI where you select which cookie domains to import.
   Use before QA testing authenticated pages. Use when asked to "import cookies",
-  "login to the site", or "authenticate the browser". (gstack)
+  "login to the site", or "authenticate the browser". (g6)
 triggers:
   - import browser cookies
   - login to test site
@@ -151,10 +151,10 @@ Only run `open` if yes. Always run `touch`.
 
 If `TEL_PROMPTED` is `no` AND `LAKE_INTRO` is `yes`: ask telemetry once via AskUserQuestion:
 
-> Help gstack get better. Share usage data only: skill, duration, crashes, stable device ID. No code, file paths, or repo names.
+> Help g6 get better. Share usage data only: skill, duration, crashes, stable device ID. No code, file paths, or repo names.
 
 Options:
-- A) Help gstack get better! (recommended)
+- A) Help g6 get better! (recommended)
 - B) No thanks
 
 If A: run `~/.claude/skills/g6/bin/gstack-config set telemetry community`
@@ -179,7 +179,7 @@ Skip if `TEL_PROMPTED` is `yes`.
 
 If `PROACTIVE_PROMPTED` is `no` AND `TEL_PROMPTED` is `yes`: ask once:
 
-> Let gstack proactively suggest skills, like /qa for "does this work?" or /investigate for bugs?
+> Let g6 proactively suggest skills, like /qa for "does this work?" or /investigate for bugs?
 
 Options:
 - A) Keep it on (recommended)
@@ -200,7 +200,7 @@ Check if a CLAUDE.md file exists in the project root. If it does not exist, crea
 
 Use AskUserQuestion:
 
-> gstack works best when your project's CLAUDE.md includes skill routing rules.
+> g6 works best when your project's CLAUDE.md includes skill routing rules.
 
 Options:
 - A) Add routing rules to CLAUDE.md (recommended)
@@ -229,7 +229,7 @@ Key routing rules:
 - Resume context → invoke /context-restore
 ```
 
-Then commit the change: `git add CLAUDE.md && git commit -m "chore: add gstack skill routing rules to CLAUDE.md"`
+Then commit the change: `git add CLAUDE.md && git commit -m "chore: add g6 skill routing rules to CLAUDE.md"`
 
 If B: run `~/.claude/skills/g6/bin/gstack-config set routing_declined true` and say they can re-enable with `gstack-config set routing_declined false`.
 
@@ -237,7 +237,7 @@ This only happens once per project. Skip if `HAS_ROUTING` is `yes` or `ROUTING_D
 
 If `VENDORED_GSTACK` is `yes`, warn once via AskUserQuestion unless `~/.gstack/.vendoring-warned-$SLUG` exists:
 
-> This project has gstack vendored in `.claude/skills/g6/`. Vendoring is deprecated.
+> This project has g6 vendored in `.claude/skills/g6/`. Vendoring is deprecated.
 > Migrate to team mode?
 
 Options:
@@ -248,7 +248,7 @@ If A:
 1. Run `git rm -r .claude/skills/g6/`
 2. Run `echo '.claude/skills/g6/' >> .gitignore`
 3. Run `~/.claude/skills/g6/bin/gstack-team-init required` (or `optional`)
-4. Run `git add .claude/ .gitignore CLAUDE.md && git commit -m "chore: migrate gstack from vendored to team mode"`
+4. Run `git add .claude/ .gitignore CLAUDE.md && git commit -m "chore: migrate g6 from vendored to team mode"`
 5. Tell the user: "Done. Each developer now runs: `cd ~/.claude/skills/g6 && ./setup --team`"
 
 If B: say "OK, you're on your own to keep the vendored copy up to date."
@@ -369,7 +369,7 @@ fi
 
 Privacy stop-gate: if output shows `ARTIFACTS_SYNC: off`, `artifacts_sync_mode_prompted` is `false`, and gbrain is on PATH or `gbrain doctor --fast --json` works, ask once:
 
-> gstack can publish your artifacts (CEO plans, designs, reports) to a private GitHub repo that GBrain indexes across machines. How much should sync?
+> g6 can publish your artifacts (CEO plans, designs, reports) to a private GitHub repo that GBrain indexes across machines. How much should sync?
 
 Options:
 - A) Everything allowlisted (recommended)
@@ -516,7 +516,7 @@ If `NEEDS_SETUP`:
 3. If `bun` is not installed:
    ```bash
    if ! command -v bun >/dev/null 2>&1; then
-     BUN_VERSION="1.3.10"
+     BUN_VERSION="1.3.14"
      BUN_INSTALL_SHA="bab8acfb046aac8c72407bdcce903957665d655d7acaa3e11c7c4616beae68dd"
      tmpfile=$(mktemp)
      curl -fsSL "https://bun.sh/install" -o "$tmpfile"

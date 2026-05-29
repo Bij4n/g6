@@ -1630,8 +1630,13 @@ describe('Codex generation (--host codex)', () => {
     for (const entry of fs.readdirSync(ROOT, { withFileTypes: true })) {
       if (!entry.isDirectory() || entry.name.startsWith('.') || entry.name === 'node_modules') continue;
       if (entry.name === 'codex') continue; // /codex is excluded from Codex output
-      if (!fs.existsSync(path.join(ROOT, entry.name, 'SKILL.md.tmpl'))) continue;
-      const codexName = entry.name.startsWith('gstack-') ? entry.name : `gstack-${entry.name}`;
+      const tmplPath = path.join(ROOT, entry.name, 'SKILL.md.tmpl');
+      if (!fs.existsSync(tmplPath)) continue;
+      // Read skill name from frontmatter — may differ from directory name (e.g. open-gstack-browser → open-g6-browser)
+      const tmplContent = fs.readFileSync(tmplPath, 'utf-8');
+      const nameMatch = tmplContent.match(/^name:\s*(.+)$/m);
+      const skillName = nameMatch ? nameMatch[1].trim() : entry.name;
+      const codexName = skillName.startsWith('gstack-') ? skillName : `gstack-${skillName}`;
       if (isSymlinkLoop(codexName)) continue;
       skills.push({ dir: entry.name, codexName });
     }
@@ -1949,8 +1954,12 @@ describe('Factory generation (--host factory)', () => {
     for (const entry of fs.readdirSync(ROOT, { withFileTypes: true })) {
       if (!entry.isDirectory() || entry.name.startsWith('.') || entry.name === 'node_modules') continue;
       if (entry.name === 'codex') continue;
-      if (!fs.existsSync(path.join(ROOT, entry.name, 'SKILL.md.tmpl'))) continue;
-      const factoryName = entry.name.startsWith('gstack-') ? entry.name : `gstack-${entry.name}`;
+      const tmplPath = path.join(ROOT, entry.name, 'SKILL.md.tmpl');
+      if (!fs.existsSync(tmplPath)) continue;
+      const tmplContent = fs.readFileSync(tmplPath, 'utf-8');
+      const nameMatch = tmplContent.match(/^name:\s*(.+)$/m);
+      const skillName = nameMatch ? nameMatch[1].trim() : entry.name;
+      const factoryName = skillName.startsWith('gstack-') ? skillName : `gstack-${skillName}`;
       if (isSymlinkLoop(factoryName)) continue;
       skills.push({ dir: entry.name, factoryName });
     }
@@ -2371,8 +2380,8 @@ describe('setup script validation', () => {
     const fnStart = setupContent.indexOf('link_claude_skill_dirs()');
     const fnEnd = setupContent.indexOf('}', setupContent.indexOf('linked[@]}', fnStart));
     const fnBody = setupContent.slice(fnStart, fnEnd);
-    // gstack-* dirs should keep their name (e.g., gstack-upgrade stays gstack-upgrade)
-    expect(fnBody).toContain('gstack-*) link_name="$skill_name"');
+    // gstack-* and g6-* dirs should keep their name (e.g., gstack-upgrade stays gstack-upgrade)
+    expect(fnBody).toContain('gstack-*|g6-*) link_name="$skill_name"');
   });
 
   test('setup supports --no-prefix flag', () => {
@@ -2448,7 +2457,7 @@ describe('setup script validation', () => {
   test('welcome message references SKILL_PREFIX', () => {
     // gstack-upgrade is always called gstack-upgrade (it's the actual dir name)
     // but the welcome section should exist near the prefix logic
-    expect(setupContent).toContain('Run /gstack-upgrade anytime');
+    expect(setupContent).toContain('Run /g6-upgrade anytime');
   });
 });
 
@@ -2488,7 +2497,7 @@ describe('telemetry', () => {
   test('generated SKILL.md contains telemetry opt-in prompt', () => {
     const content = fs.readFileSync(path.join(ROOT, 'SKILL.md'), 'utf-8');
     expect(content).toContain('.telemetry-prompted');
-    expect(content).toContain('Help gstack get better');
+    expect(content).toContain('Help g6 get better');
     expect(content).toContain('gstack-config set telemetry community');
     expect(content).toContain('gstack-config set telemetry anonymous');
     expect(content).toContain('gstack-config set telemetry off');
@@ -2542,13 +2551,13 @@ describe('community fixes wave', () => {
     return results;
   }
 
-  // #594 — Discoverability: every SKILL.md.tmpl description contains "gstack"
-  test('every SKILL.md.tmpl description contains "gstack"', () => {
+  // #594 — Discoverability: every SKILL.md.tmpl description contains "g6"
+  test('every SKILL.md.tmpl description contains "g6"', () => {
     for (const skill of ALL_SKILLS) {
       const tmplPath = skill.dir === '.' ? path.join(ROOT, 'SKILL.md.tmpl') : path.join(ROOT, skill.dir, 'SKILL.md.tmpl');
       const content = fs.readFileSync(tmplPath, 'utf-8');
       const desc = extractDescription(content);
-      expect(desc.toLowerCase()).toContain('gstack');
+      expect(desc.toLowerCase()).toContain('g6');
     }
   });
 

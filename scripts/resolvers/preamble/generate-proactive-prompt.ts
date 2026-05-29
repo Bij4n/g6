@@ -3,7 +3,7 @@ import type { TemplateContext } from '../types';
 export function generateProactivePrompt(ctx: TemplateContext): string {
   return `If \`PROACTIVE_PROMPTED\` is \`no\` AND \`TEL_PROMPTED\` is \`yes\`: ask once:
 
-> Let gstack proactively suggest skills, like /qa for "does this work?" or /investigate for bugs?
+> Let g6 proactively suggest skills, like /qa for "does this work?" or /investigate for bugs?
 
 Options:
 - A) Keep it on (recommended)

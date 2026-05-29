@@ -330,11 +330,10 @@ describe('Cross-skill path consistency', () => {
     expect(content).toContain('~/.gstack/greptile-history.md');
   });
 
-  test('retro/SKILL.md reads global greptile-history (not per-project)', () => {
+  test('retro/SKILL.md references gbrain stats for activity (not deprecated greptile-history)', () => {
     const content = fs.readFileSync(path.join(ROOT, 'retro', 'SKILL.md'), 'utf-8');
-    expect(content).toContain('~/.gstack/greptile-history.md');
-    // Should NOT reference per-project path for reads
-    expect(content).not.toContain('$REMOTE_SLUG/greptile-history.md');
+    expect(content).toContain('gbrain stats');
+    expect(content).not.toContain('greptile-history.md');
   });
 });
 
