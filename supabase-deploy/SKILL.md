@@ -52,7 +52,7 @@ grep -E "project_id|project_ref" supabase/config.toml 2>/dev/null | head -2 || e
 find supabase/migrations -name "*.sql" 2>/dev/null | wc -l | xargs echo "Local migrations:"
 ```
 
-Read CLAUDE.md for the Supabase project ref. If no Supabase CLI is installed, tell the user to run `npm install -g supabase` or `brew install supabase/tap/supabase` and stop.
+Read CLAUDE.md for the Supabase project ref. If no Supabase CLI is installed, tell the user to install it with `brew install supabase/tap/supabase` (macOS/Linux via Homebrew) or the official installer: `curl -fsSL https://cli.supabase.com/install.sh | sh`. The npm package (`npm install -g supabase`) is deprecated and no longer maintained.
 
 ## Step 1: Check what's applied in production
 

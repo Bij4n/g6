@@ -5,9 +5,9 @@ description: |
   Pull data from a web page. First call on a new intent prototypes the flow
   via $B primitives and returns JSON. Subsequent calls on a matching intent
   route to a codified browser-skill and return in ~200ms. Read-only — for
-  mutating flows (form fills, clicks, submissions), use /automate.
+  mutating flows (form fills, clicks, submissions), use $B primitives directly.
   Use when asked to "scrape", "get data from", "pull", "extract from", or
-  "what's on" a page. (gstack)
+  "what's on" a page. (g6)
 allowed-tools:
   - Bash
   - Read
@@ -34,7 +34,7 @@ One entry point for getting data off the web. Two paths under the hood:
    next call lands on the match path.
 
 Read-only by contract. If the intent implies writing (submitting forms,
-clicking buttons that mutate state), refuse and route to `/automate`.
+clicking buttons that mutate state), refuse and route to direct `$B` primitives.
 
 ## Step 1 — Determine intent
 
@@ -53,9 +53,7 @@ If the intent implies writes — verbs like *submit*, *post*, *send*, *log
 in*, *click X*, *fill the form*, *delete*, *create*, *order*, *book* —
 respond:
 
-> "/scrape is read-only. For mutating flows, use /automate (browser-skills
-> Phase 2 P0 in TODOS.md — not yet shipped). Until then, use $B click /
-> $B fill / $B type directly."
+> "/scrape is read-only. For mutating flows, use $B click / $B fill / $B type directly."
 
 Stop. Do not enter the match or prototype path.
 
@@ -133,7 +131,7 @@ after 3-4 selector attempts:
 
 ## What this skill does NOT do
 
-- Mutating actions (use /automate when shipped, or $B primitives directly)
+- Mutating actions (use $B primitives directly)
 - Auth flows / cookie import (use /setup-browser-cookies first)
 - Multi-page crawls (this is one-shot per call)
 - Anything that requires the daemon to not be running

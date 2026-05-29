@@ -6,7 +6,7 @@ description: |
   Fast headless browser for QA testing and site dogfooding. Navigate pages, interact with
   elements, verify state, diff before/after, take annotated screenshots, test responsive
   layouts, forms, uploads, dialogs, and capture bug evidence. Use when asked to open or
-  test a site, verify a deployment, dogfood a user flow, or file a bug with screenshots. (gstack)
+  test a site, verify a deployment, dogfood a user flow, or file a bug with screenshots. (g6)
 allowed-tools:
   - Bash
   - Read
@@ -57,7 +57,19 @@ quality gates that produce better results than answering inline.
 - User asks to upgrade gstack → invoke `/gstack-upgrade`
 - User asks to save progress, checkpoint, "save my work" → invoke `/context-save`
 - User asks to resume, restore, "where was I" → invoke `/context-restore`
-- User asks about security, OWASP, vulnerabilities, "is this secure" → invoke `/cso`
+- User asks about security, OWASP, vulnerabilities, "is this secure", threat model, pentest review → invoke `/cso`
+- User asks to audit the API, REST endpoints, auth, rate limiting → invoke `/api-audit`
+- User asks about crypto, key management, wallet security, Bitcoin/Ethereum audit → invoke `/crypto-audit`
+- User asks to audit the database, SQL injection, migrations, schema hygiene → invoke `/db-audit`
+- User asks to audit environment variables, secrets hygiene, .env files → invoke `/env-audit`
+- User asks to audit multi-tenancy, data leakage, IDOR, tenant isolation → invoke `/multi-tenant-audit`
+- User asks about Node.js health, CVEs, outdated packages, Express security → invoke `/node-health`
+- User asks to audit privacy, GDPR, CCPA, data minimization, consent → invoke `/privacy-audit`
+- User asks about Rails health, pending migrations, gem CVEs, Sidekiq config → invoke `/rails-health`
+- User asks to check Sidekiq, job queues, dead set, busy workers → invoke `/sidekiq-monitor`
+- User asks to audit Stripe integration, webhooks, subscriptions → invoke `/stripe-audit`
+- User asks to audit Supabase, RLS policies, auth config, Edge Functions → invoke `/supabase-audit`
+- User asks to deploy Supabase migrations, "push db changes", migration deploy → invoke `/supabase-deploy`
 - User asks to make a PDF, document, publication → invoke `/make-pdf`
 - User asks to launch a real browser for QA, "open the browser" → invoke `/open-gstack-browser`
 - User asks to import cookies for authenticated testing → invoke `/setup-browser-cookies`

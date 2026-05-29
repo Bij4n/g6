@@ -60,10 +60,17 @@ Read CLAUDE.md for the Redis URL. If Redis is not reachable, ask the user to pro
 ```bash
 # All queues and their depths
 redis-cli LLEN sidekiq:queue:default 2>/dev/null | xargs echo "default:"
-redis-cli KEYS "sidekiq:queue:*" 2>/dev/null | while read q; do
-  name=$(echo $q | sed 's/sidekiq:queue://')
-  depth=$(redis-cli LLEN "$q" 2>/dev/null || echo "?")
-  echo "$name: $depth jobs"
+# Use SCAN instead of KEYS — KEYS is O(N) and blocks Redis in production
+cursor=0
+while true; do
+  result=$(redis-cli SCAN $cursor MATCH "sidekiq:queue:*" COUNT 100 2>/dev/null)
+  cursor=$(echo "$result" | head -1)
+  echo "$result" | tail -n +2 | while read q; do
+    name=$(echo $q | sed 's/sidekiq:queue://')
+    depth=$(redis-cli LLEN "$q" 2>/dev/null || echo "?")
+    echo "$name: $depth jobs"
+  done
+  [ "$cursor" = "0" ] && break
 done
 ```
 

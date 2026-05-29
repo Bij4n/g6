@@ -6,6 +6,8 @@
  * Inputs:
  *   - Skill SKILL.md.tmpl frontmatter (name, description) at root and one
  *     level deep, via scripts/discover-skills.ts
+ *   - Hand-written SKILL.md files (no .tmpl counterpart) discovered via
+ *     discoverSkillFiles — e.g. api-audit, node-health, sidekiq-monitor.
  *   - browse/src/commands.ts COMMAND_DESCRIPTIONS
  *   - design/src/commands.ts COMMAND_DESCRIPTIONS (if present)
  *
@@ -19,7 +21,7 @@
 
 import * as fs from 'fs';
 import * as path from 'path';
-import { discoverTemplates } from './discover-skills';
+import { discoverTemplates, discoverSkillFiles } from './discover-skills';
 import { COMMAND_DESCRIPTIONS as BROWSE_COMMANDS } from '../browse/src/commands';
 
 const ROOT = path.resolve(import.meta.dir, '..');
@@ -28,6 +30,8 @@ const OUTPUT = path.join(ROOT, 'gstack', 'llms.txt');
 interface SkillEntry {
   name: string;
   description: string;
+  /** Relative path to the SKILL.md file from repo root, e.g. "api-audit/SKILL.md" */
+  skillPath?: string;
 }
 
 /**
@@ -133,6 +137,7 @@ export async function generateLlmsTxt(opts: GenerateOptions = {}): Promise<Gener
   const warnings: string[] = [];
 
   const templates = discoverTemplates(root);
+  const tmplPaths = new Set(templates.map(t => t.output)); // e.g. "api-audit/SKILL.md"
   const skills: SkillEntry[] = [];
   for (const t of templates) {
     const filePath = path.join(root, t.tmpl);
@@ -146,6 +151,17 @@ export async function generateLlmsTxt(opts: GenerateOptions = {}): Promise<Gener
     }
     skills.push(entry);
   }
+
+  // Also include hand-written SKILL.md files that have no .tmpl counterpart.
+  const allSkillFiles = discoverSkillFiles(root);
+  for (const rel of allSkillFiles) {
+    if (tmplPaths.has(rel)) continue; // already handled above
+    const filePath = path.join(root, rel);
+    const entry = parseSkillFrontmatter(filePath);
+    if (!entry) continue; // no frontmatter — skip silently (e.g. browser-skills/hackernews-frontpage)
+    skills.push({ ...entry, skillPath: rel });
+  }
+
   skills.sort((a, b) => a.name.localeCompare(b.name));
 
   const browseCommands = Object.keys(BROWSE_COMMANDS).sort();
@@ -167,7 +183,8 @@ export async function generateLlmsTxt(opts: GenerateOptions = {}): Promise<Gener
   lines.push('');
   for (const skill of skills) {
     const summary = oneLine(skill.description);
-    lines.push(`- [/${skill.name}](${skill.name}/SKILL.md): ${summary}`);
+    const linkPath = skill.skillPath ?? `${skill.name}/SKILL.md`;
+    lines.push(`- [/${skill.name}](${linkPath}): ${summary}`);
   }
   lines.push('');
 
