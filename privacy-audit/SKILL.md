@@ -124,7 +124,7 @@ grep -rn '"http://\|'"'"'http://' \
 
 Also check: Are sensitive fields encrypted at rest? (Look for `encrypts :field`, `EncryptedField`, `Fernet`, etc.)
 
-## Step 6: Self-hosting readiness (g6 brand check)
+## Step 6: Self-hosting readiness
 
 For projects marketed as self-hostable or privacy-respecting:
 

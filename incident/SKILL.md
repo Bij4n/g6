@@ -196,7 +196,7 @@ Generate `docs/postmortems/YYYY-MM-DD-[slug].md`:
 **Date:** [date]
 **Severity:** P[0-3]
 **Duration:** [start] → [end] ([X minutes/hours])
-**Author:** Bij4n
+**Author:** $(git config user.name 2>/dev/null || echo "[your name]")
 
 ## Summary
 [2-3 sentences. What broke, why, and how it was resolved.]
@@ -227,9 +227,9 @@ Generate `docs/postmortems/YYYY-MM-DD-[slug].md`:
 ## Action items
 | Item | Owner | Due |
 |---|---|---|
-| [Specific prevention step] | Bij4n | [date] |
-| [Monitoring improvement] | Bij4n | [date] |
-| [Process change] | Bij4n | [date] |
+| [Specific prevention step] | [owner] | [date] |
+| [Monitoring improvement] | [owner] | [date] |
+| [Process change] | [owner] | [date] |
 ```
 
 Ask: "Write the post-mortem now? I'll need the timeline details from you."

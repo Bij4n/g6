@@ -126,7 +126,7 @@ Flag each missing middleware:
 - **No helmet**: response headers expose Express version, allow clickjacking, no HSTS
 - **No rate limiting**: brute-force and scraping risk on auth and API endpoints
 - **CORS `*` in production**: any origin can call your API with user credentials
-- **No CSRF on state-changing forms**: session-based apps must use csurf or SameSite=Strict cookies
+- **No CSRF on state-changing forms**: session-based apps must use `csrf-csrf` (the maintained successor to the deprecated `csurf`) or `SameSite=Strict` cookies
 - **No body size limit**: a 1GB POST body can OOM the process
 
 ## Step 3: SQL injection risks
@@ -259,7 +259,7 @@ grep -rn "unhandledRejection\|uncaughtException" \
   --include="*.js" --include="*.ts" . 2>/dev/null | \
   grep -v ".git/\|node_modules/" | head -10
 
-# Async route handlers without try/catch (Express doesn't catch async errors by default pre-5.x)
+# Async route handlers without try/catch (Express 4 doesn't catch async errors by default; Express 5 does)
 grep -rn "async.*function\|async (req" --include="*.js" --include="*.ts" . 2>/dev/null | \
   grep -v ".git/\|node_modules/\|test" | head -20
 
@@ -271,7 +271,7 @@ grep -rn "express-async-errors\|express-async-handler\|asyncHandler" \
 Flag:
 - **No global error middleware**: unhandled errors return 500 with stack trace exposed to users
 - **No `unhandledRejection` handler**: a rejected promise anywhere crashes the Node process in older versions (< 15)
-- **Async route handlers without try/catch in Express 4**: `await` failures in a route become unhandled rejections and crash the process. Fix: wrap with `express-async-errors` (one `require` at app top) or per-route try/catch
+- **Async route handlers without try/catch (Express 4 only)**: `await` failures in a route become unhandled rejections and crash the process. Fix: wrap with `express-async-errors` (one `require` at app top), use per-route try/catch, or upgrade to Express 5 which handles async errors natively
 
 ## Step 8: Process management
 

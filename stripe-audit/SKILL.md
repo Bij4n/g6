@@ -91,7 +91,7 @@ Flag: any webhook handler without `construct_event`. This allows replay attacks 
 
 ```bash
 # Check payment creation calls for idempotency keys
-grep -rn "PaymentIntent.create\|Charge.create\|Subscription.create\|Customer.create" \
+grep -rn "PaymentIntent.create\|PaymentIntent\.create\|Subscription.create\|Customer.create" \
   --include="*.rb" --include="*.py" . 2>/dev/null | grep -v ".git/\|test" | head -20
 
 # Idempotency key usage
@@ -99,7 +99,7 @@ grep -rn "idempotency_key\|idempotency-key\|Idempotency" \
   --include="*.rb" --include="*.py" . 2>/dev/null | grep -v ".git/\|test" | head -10
 ```
 
-Flag: `PaymentIntent.create` or `Charge.create` calls without `idempotency_key`. Network retries without idempotency keys can double-charge customers.
+Flag: `PaymentIntent.create` calls without `idempotency_key`. Network retries without idempotency keys can double-charge customers. Note: `Charge.create` is a legacy Stripe API deprecated in favour of PaymentIntents — if found, flag it as requiring migration to `PaymentIntent.create`.
 
 ## Step 4: Price ID and product ID validation
 

@@ -6,7 +6,7 @@ description: |
   Fast headless browser for QA testing and site dogfooding. Navigate pages, interact with
   elements, verify state, diff before/after, take annotated screenshots, test responsive
   layouts, forms, uploads, dialogs, and capture bug evidence. Use when asked to open or
-  test a site, verify a deployment, dogfood a user flow, or file a bug with screenshots. (gstack)
+  test a site, verify a deployment, dogfood a user flow, or file a bug with screenshots. (g6)
 allowed-tools:
   - Bash
   - Read
@@ -153,10 +153,10 @@ Only run `open` if yes. Always run `touch`.
 
 If `TEL_PROMPTED` is `no` AND `LAKE_INTRO` is `yes`: ask telemetry once via AskUserQuestion:
 
-> Help gstack get better. Share usage data only: skill, duration, crashes, stable device ID. No code, file paths, or repo names.
+> Help g6 get better. Share usage data only: skill, duration, crashes, stable device ID. No code, file paths, or repo names.
 
 Options:
-- A) Help gstack get better! (recommended)
+- A) Help g6 get better! (recommended)
 - B) No thanks
 
 If A: run `~/.claude/skills/g6/bin/gstack-config set telemetry community`
@@ -181,7 +181,7 @@ Skip if `TEL_PROMPTED` is `yes`.
 
 If `PROACTIVE_PROMPTED` is `no` AND `TEL_PROMPTED` is `yes`: ask once:
 
-> Let gstack proactively suggest skills, like /qa for "does this work?" or /investigate for bugs?
+> Let g6 proactively suggest skills, like /qa for "does this work?" or /investigate for bugs?
 
 Options:
 - A) Keep it on (recommended)
@@ -202,7 +202,7 @@ Check if a CLAUDE.md file exists in the project root. If it does not exist, crea
 
 Use AskUserQuestion:
 
-> gstack works best when your project's CLAUDE.md includes skill routing rules.
+> g6 works best when your project's CLAUDE.md includes skill routing rules.
 
 Options:
 - A) Add routing rules to CLAUDE.md (recommended)
@@ -231,7 +231,7 @@ Key routing rules:
 - Resume context → invoke /context-restore
 ```
 
-Then commit the change: `git add CLAUDE.md && git commit -m "chore: add gstack skill routing rules to CLAUDE.md"`
+Then commit the change: `git add CLAUDE.md && git commit -m "chore: add g6 skill routing rules to CLAUDE.md"`
 
 If B: run `~/.claude/skills/g6/bin/gstack-config set routing_declined true` and say they can re-enable with `gstack-config set routing_declined false`.
 
@@ -239,7 +239,7 @@ This only happens once per project. Skip if `HAS_ROUTING` is `yes` or `ROUTING_D
 
 If `VENDORED_GSTACK` is `yes`, warn once via AskUserQuestion unless `~/.gstack/.vendoring-warned-$SLUG` exists:
 
-> This project has gstack vendored in `.claude/skills/g6/`. Vendoring is deprecated.
+> This project has g6 vendored in `.claude/skills/g6/`. Vendoring is deprecated.
 > Migrate to team mode?
 
 Options:
@@ -250,7 +250,7 @@ If A:
 1. Run `git rm -r .claude/skills/g6/`
 2. Run `echo '.claude/skills/g6/' >> .gitignore`
 3. Run `~/.claude/skills/g6/bin/gstack-team-init required` (or `optional`)
-4. Run `git add .claude/ .gitignore CLAUDE.md && git commit -m "chore: migrate gstack from vendored to team mode"`
+4. Run `git add .claude/ .gitignore CLAUDE.md && git commit -m "chore: migrate g6 from vendored to team mode"`
 5. Tell the user: "Done. Each developer now runs: `cd ~/.claude/skills/g6 && ./setup --team`"
 
 If B: say "OK, you're on your own to keep the vendored copy up to date."
@@ -371,7 +371,7 @@ fi
 
 Privacy stop-gate: if output shows `ARTIFACTS_SYNC: off`, `artifacts_sync_mode_prompted` is `false`, and gbrain is on PATH or `gbrain doctor --fast --json` works, ask once:
 
-> gstack can publish your artifacts (CEO plans, designs, reports) to a private GitHub repo that GBrain indexes across machines. How much should sync?
+> g6 can publish your artifacts (CEO plans, designs, reports) to a private GitHub repo that GBrain indexes across machines. How much should sync?
 
 Options:
 - A) Everything allowlisted (recommended)
@@ -511,7 +511,19 @@ quality gates that produce better results than answering inline.
 - User asks to upgrade gstack → invoke `/gstack-upgrade`
 - User asks to save progress, checkpoint, "save my work" → invoke `/context-save`
 - User asks to resume, restore, "where was I" → invoke `/context-restore`
-- User asks about security, OWASP, vulnerabilities, "is this secure" → invoke `/cso`
+- User asks about security, OWASP, vulnerabilities, "is this secure", threat model, pentest review → invoke `/cso`
+- User asks to audit the API, REST endpoints, auth, rate limiting → invoke `/api-audit`
+- User asks about crypto, key management, wallet security, Bitcoin/Ethereum audit → invoke `/crypto-audit`
+- User asks to audit the database, SQL injection, migrations, schema hygiene → invoke `/db-audit`
+- User asks to audit environment variables, secrets hygiene, .env files → invoke `/env-audit`
+- User asks to audit multi-tenancy, data leakage, IDOR, tenant isolation → invoke `/multi-tenant-audit`
+- User asks about Node.js health, CVEs, outdated packages, Express security → invoke `/node-health`
+- User asks to audit privacy, GDPR, CCPA, data minimization, consent → invoke `/privacy-audit`
+- User asks about Rails health, pending migrations, gem CVEs, Sidekiq config → invoke `/rails-health`
+- User asks to check Sidekiq, job queues, dead set, busy workers → invoke `/sidekiq-monitor`
+- User asks to audit Stripe integration, webhooks, subscriptions → invoke `/stripe-audit`
+- User asks to audit Supabase, RLS policies, auth config, Edge Functions → invoke `/supabase-audit`
+- User asks to deploy Supabase migrations, "push db changes", migration deploy → invoke `/supabase-deploy`
 - User asks to make a PDF, document, publication → invoke `/make-pdf`
 - User asks to launch a real browser for QA, "open the browser" → invoke `/open-gstack-browser`
 - User asks to import cookies for authenticated testing → invoke `/setup-browser-cookies`
@@ -554,7 +566,7 @@ If `NEEDS_SETUP`:
 3. If `bun` is not installed:
    ```bash
    if ! command -v bun >/dev/null 2>&1; then
-     BUN_VERSION="1.3.10"
+     BUN_VERSION="1.3.14"
      BUN_INSTALL_SHA="bab8acfb046aac8c72407bdcce903957665d655d7acaa3e11c7c4616beae68dd"
      tmpfile=$(mktemp)
      curl -fsSL "https://bun.sh/install" -o "$tmpfile"

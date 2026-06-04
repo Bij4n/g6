@@ -17,6 +17,9 @@ I'm [Bij4n](https://github.com/Bij4n). g6 is my fork of [garrytan/gstack](https:
 | `/db-audit` | Postgres health: missing indexes, table bloat, connection pool sizing, N+1 patterns at the DB level. Static analysis + live psql if available. |
 | `/crypto-audit` | Security audit for Bitcoin and cryptocurrency code: key generation entropy, seed phrase storage, private key exposure, wallet encryption. |
 | `/node-health` | Node.js/Express health dashboard: npm CVEs, security middleware (helmet, rate-limit, CORS, CSRF), SQL and MongoDB injection risks, auth hygiene, error handling gaps. |
+| `/sidekiq-monitor` | Live Sidekiq runtime: queue depths, busy workers, dead jobs, retry exhaustion, scheduled job backlog. Run this when jobs are actually failing, not just for static analysis. |
+| `/supabase-deploy` | Safe Supabase migration deployment: diffs pending migrations, flags destructive statements, requires explicit confirmation before applying, verifies RLS post-deploy. |
+| `/multi-tenant-audit` | Cross-tenant data leakage: DB tenant scoping, RLS tenant filters, cache key isolation, background job context, file storage paths, IDOR checks across Rails, Next.js, and FastAPI. |
 | `/mentor` | Teaching mode. Explains what just happened in plain language, calibrated to the learner's level. For the people I'm training. |
 
 **Auto-updates from this fork.** When you install g6, update checks point to `Bij4n/g6` — not upstream. You get Garry's improvements (I track upstream) plus g6's originals.

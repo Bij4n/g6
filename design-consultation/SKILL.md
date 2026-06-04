@@ -9,7 +9,7 @@ description: |
   of truth. For existing sites, use /plan-design-review to infer the system instead.
   Use when asked to "design system", "brand guidelines", or "create DESIGN.md".
   Proactively suggest when starting a new project's UI with no existing
-  design system or DESIGN.md. (gstack)
+  design system or DESIGN.md. (g6)
 allowed-tools:
   - Bash
   - Read
@@ -182,10 +182,10 @@ Only run `open` if yes. Always run `touch`.
 
 If `TEL_PROMPTED` is `no` AND `LAKE_INTRO` is `yes`: ask telemetry once via AskUserQuestion:
 
-> Help gstack get better. Share usage data only: skill, duration, crashes, stable device ID. No code, file paths, or repo names.
+> Help g6 get better. Share usage data only: skill, duration, crashes, stable device ID. No code, file paths, or repo names.
 
 Options:
-- A) Help gstack get better! (recommended)
+- A) Help g6 get better! (recommended)
 - B) No thanks
 
 If A: run `~/.claude/skills/g6/bin/gstack-config set telemetry community`
@@ -210,7 +210,7 @@ Skip if `TEL_PROMPTED` is `yes`.
 
 If `PROACTIVE_PROMPTED` is `no` AND `TEL_PROMPTED` is `yes`: ask once:
 
-> Let gstack proactively suggest skills, like /qa for "does this work?" or /investigate for bugs?
+> Let g6 proactively suggest skills, like /qa for "does this work?" or /investigate for bugs?
 
 Options:
 - A) Keep it on (recommended)
@@ -231,7 +231,7 @@ Check if a CLAUDE.md file exists in the project root. If it does not exist, crea
 
 Use AskUserQuestion:
 
-> gstack works best when your project's CLAUDE.md includes skill routing rules.
+> g6 works best when your project's CLAUDE.md includes skill routing rules.
 
 Options:
 - A) Add routing rules to CLAUDE.md (recommended)
@@ -260,7 +260,7 @@ Key routing rules:
 - Resume context → invoke /context-restore
 ```
 
-Then commit the change: `git add CLAUDE.md && git commit -m "chore: add gstack skill routing rules to CLAUDE.md"`
+Then commit the change: `git add CLAUDE.md && git commit -m "chore: add g6 skill routing rules to CLAUDE.md"`
 
 If B: run `~/.claude/skills/g6/bin/gstack-config set routing_declined true` and say they can re-enable with `gstack-config set routing_declined false`.
 
@@ -268,7 +268,7 @@ This only happens once per project. Skip if `HAS_ROUTING` is `yes` or `ROUTING_D
 
 If `VENDORED_GSTACK` is `yes`, warn once via AskUserQuestion unless `~/.gstack/.vendoring-warned-$SLUG` exists:
 
-> This project has gstack vendored in `.claude/skills/g6/`. Vendoring is deprecated.
+> This project has g6 vendored in `.claude/skills/g6/`. Vendoring is deprecated.
 > Migrate to team mode?
 
 Options:
@@ -279,7 +279,7 @@ If A:
 1. Run `git rm -r .claude/skills/g6/`
 2. Run `echo '.claude/skills/g6/' >> .gitignore`
 3. Run `~/.claude/skills/g6/bin/gstack-team-init required` (or `optional`)
-4. Run `git add .claude/ .gitignore CLAUDE.md && git commit -m "chore: migrate gstack from vendored to team mode"`
+4. Run `git add .claude/ .gitignore CLAUDE.md && git commit -m "chore: migrate g6 from vendored to team mode"`
 5. Tell the user: "Done. Each developer now runs: `cd ~/.claude/skills/g6 && ./setup --team`"
 
 If B: say "OK, you're on your own to keep the vendored copy up to date."
@@ -340,7 +340,7 @@ Pros / cons: use ✅ and ❌. Minimum 2 pros and 1 con per option when the choic
 
 Neutral posture: `Recommendation: <default> — this is a taste call, no strong preference either way`; `(recommended)` STAYS on the default option for AUTO_DECIDE.
 
-Effort both-scales: when an option involves effort, label both human-team and CC+gstack time, e.g. `(human: ~2 days / CC: ~15 min)`. Makes AI compression visible at decision time.
+Effort both-scales: when an option involves effort, label both human-team and CC+g6 time, e.g. `(human: ~2 days / CC: ~15 min)`. Makes AI compression visible at decision time.
 
 Net line closes the tradeoff. Per-skill instructions may add stricter rules.
 
@@ -480,7 +480,7 @@ fi
 
 Privacy stop-gate: if output shows `ARTIFACTS_SYNC: off`, `artifacts_sync_mode_prompted` is `false`, and gbrain is on PATH or `gbrain doctor --fast --json` works, ask once:
 
-> gstack can publish your artifacts (CEO plans, designs, reports) to a private GitHub repo that GBrain indexes across machines. How much should sync?
+> g6 can publish your artifacts (CEO plans, designs, reports) to a private GitHub repo that GBrain indexes across machines. How much should sync?
 
 Options:
 - A) Everything allowlisted (recommended)
@@ -850,7 +850,7 @@ If `NEEDS_SETUP`:
 3. If `bun` is not installed:
    ```bash
    if ! command -v bun >/dev/null 2>&1; then
-     BUN_VERSION="1.3.10"
+     BUN_VERSION="1.3.14"
      BUN_INSTALL_SHA="bab8acfb046aac8c72407bdcce903957665d655d7acaa3e11c7c4616beae68dd"
      tmpfile=$(mktemp)
      curl -fsSL "https://bun.sh/install" -o "$tmpfile"
@@ -906,7 +906,10 @@ Commands:
 - `$D compare --images "a.png,b.png,c.png" --output /path/board.html --serve` — comparison board + HTTP server
 - `$D serve --html /path/board.html` — serve comparison board and collect feedback via HTTP
 - `$D check --image /path.png --brief "..."` — vision quality gate
-- `$D iterate --session /path/session.json --feedback "..." --output /path.png` — iterate
+- `$D iterate --session /path/session.json --feedback "..." --output /path.png` — iterate on prior generation
+- `$D evolve --screenshot current.png --brief "..."` — generate improved mockup from an existing screenshot
+- `$D extract --image approved.png` — extract design language from approved mockup into DESIGN.md tokens
+- `$D prompt --image approved.png` — generate structured implementation prompt from approved mockup
 
 **CRITICAL PATH RULE:** All design artifacts (mockups, comparison boards, approved.json)
 MUST be saved to `~/.gstack/projects/$SLUG/designs/`, NEVER to `.context/`,
@@ -937,7 +940,7 @@ fi
 
 If `CROSS_PROJECT` is `unset` (first time): Use AskUserQuestion:
 
-> gstack can search learnings from your other projects on this machine to find
+> g6 can search learnings from your other projects on this machine to find
 > patterns that might apply here. This stays local (no data leaves your machine).
 > Recommended for solo developers. Skip if you work on multiple client codebases
 > where cross-contamination would be a concern.
@@ -956,7 +959,7 @@ matches a past learning, display:
 
 **"Prior learning applied: [key] (confidence N/10, from [date])"**
 
-This makes the compounding visible. The user should see that gstack is getting
+This makes the compounding visible. The user should see that g6 is getting
 smarter on their codebase over time.
 
 ## Phase 1: Product Context
@@ -1424,7 +1427,7 @@ open "$PREVIEW_FILE"
 
 The agent writes a **single, self-contained HTML file** (no framework dependencies) that:
 
-1. **Loads proposed fonts** from Google Fonts (or Bunny Fonts) via `<link>` tags
+1. **Loads proposed fonts** from Bunny Fonts (or self-hosted) via `<link>` tags
 2. **Uses the proposed color palette** throughout — dogfood the design system
 3. **Shows the product name** (not "Lorem Ipsum") as the hero heading
 4. **Font specimen section:**

@@ -7,7 +7,7 @@ description: |
   and code quality metrics with persistent history and trend tracking.
   Team-aware: breaks down per-person contributions with praise and growth areas.
   Use when asked to "weekly retro", "what did we ship", or "engineering retrospective".
-  Proactively suggest at the end of a work week or sprint. (gstack)
+  Proactively suggest at the end of a work week or sprint. (g6)
 allowed-tools:
   - Bash
   - Read
@@ -173,10 +173,10 @@ Only run `open` if yes. Always run `touch`.
 
 If `TEL_PROMPTED` is `no` AND `LAKE_INTRO` is `yes`: ask telemetry once via AskUserQuestion:
 
-> Help gstack get better. Share usage data only: skill, duration, crashes, stable device ID. No code, file paths, or repo names.
+> Help g6 get better. Share usage data only: skill, duration, crashes, stable device ID. No code, file paths, or repo names.
 
 Options:
-- A) Help gstack get better! (recommended)
+- A) Help g6 get better! (recommended)
 - B) No thanks
 
 If A: run `~/.claude/skills/g6/bin/gstack-config set telemetry community`
@@ -201,7 +201,7 @@ Skip if `TEL_PROMPTED` is `yes`.
 
 If `PROACTIVE_PROMPTED` is `no` AND `TEL_PROMPTED` is `yes`: ask once:
 
-> Let gstack proactively suggest skills, like /qa for "does this work?" or /investigate for bugs?
+> Let g6 proactively suggest skills, like /qa for "does this work?" or /investigate for bugs?
 
 Options:
 - A) Keep it on (recommended)
@@ -222,7 +222,7 @@ Check if a CLAUDE.md file exists in the project root. If it does not exist, crea
 
 Use AskUserQuestion:
 
-> gstack works best when your project's CLAUDE.md includes skill routing rules.
+> g6 works best when your project's CLAUDE.md includes skill routing rules.
 
 Options:
 - A) Add routing rules to CLAUDE.md (recommended)
@@ -251,7 +251,7 @@ Key routing rules:
 - Resume context → invoke /context-restore
 ```
 
-Then commit the change: `git add CLAUDE.md && git commit -m "chore: add gstack skill routing rules to CLAUDE.md"`
+Then commit the change: `git add CLAUDE.md && git commit -m "chore: add g6 skill routing rules to CLAUDE.md"`
 
 If B: run `~/.claude/skills/g6/bin/gstack-config set routing_declined true` and say they can re-enable with `gstack-config set routing_declined false`.
 
@@ -259,7 +259,7 @@ This only happens once per project. Skip if `HAS_ROUTING` is `yes` or `ROUTING_D
 
 If `VENDORED_GSTACK` is `yes`, warn once via AskUserQuestion unless `~/.gstack/.vendoring-warned-$SLUG` exists:
 
-> This project has gstack vendored in `.claude/skills/g6/`. Vendoring is deprecated.
+> This project has g6 vendored in `.claude/skills/g6/`. Vendoring is deprecated.
 > Migrate to team mode?
 
 Options:
@@ -270,7 +270,7 @@ If A:
 1. Run `git rm -r .claude/skills/g6/`
 2. Run `echo '.claude/skills/g6/' >> .gitignore`
 3. Run `~/.claude/skills/g6/bin/gstack-team-init required` (or `optional`)
-4. Run `git add .claude/ .gitignore CLAUDE.md && git commit -m "chore: migrate gstack from vendored to team mode"`
+4. Run `git add .claude/ .gitignore CLAUDE.md && git commit -m "chore: migrate g6 from vendored to team mode"`
 5. Tell the user: "Done. Each developer now runs: `cd ~/.claude/skills/g6 && ./setup --team`"
 
 If B: say "OK, you're on your own to keep the vendored copy up to date."
@@ -331,7 +331,7 @@ Pros / cons: use ✅ and ❌. Minimum 2 pros and 1 con per option when the choic
 
 Neutral posture: `Recommendation: <default> — this is a taste call, no strong preference either way`; `(recommended)` STAYS on the default option for AUTO_DECIDE.
 
-Effort both-scales: when an option involves effort, label both human-team and CC+gstack time, e.g. `(human: ~2 days / CC: ~15 min)`. Makes AI compression visible at decision time.
+Effort both-scales: when an option involves effort, label both human-team and CC+g6 time, e.g. `(human: ~2 days / CC: ~15 min)`. Makes AI compression visible at decision time.
 
 Net line closes the tradeoff. Per-skill instructions may add stricter rules.
 
@@ -471,7 +471,7 @@ fi
 
 Privacy stop-gate: if output shows `ARTIFACTS_SYNC: off`, `artifacts_sync_mode_prompted` is `false`, and gbrain is on PATH or `gbrain doctor --fast --json` works, ask once:
 
-> gstack can publish your artifacts (CEO plans, designs, reports) to a private GitHub repo that GBrain indexes across machines. How much should sync?
+> g6 can publish your artifacts (CEO plans, designs, reports) to a private GitHub repo that GBrain indexes across machines. How much should sync?
 
 Options:
 - A) Everything allowlisted (recommended)
@@ -856,7 +856,7 @@ fi
 
 If `CROSS_PROJECT` is `unset` (first time): Use AskUserQuestion:
 
-> gstack can search learnings from your other projects on this machine to find
+> g6 can search learnings from your other projects on this machine to find
 > patterns that might apply here. This stays local (no data leaves your machine).
 > Recommended for solo developers. Skip if you work on multiple client codebases
 > where cross-contamination would be a concern.
@@ -875,7 +875,7 @@ matches a past learning, display:
 
 **"Prior learning applied: [key] (confidence N/10, from [date])"**
 
-This makes the compounding visible. The user should see that gstack is getting
+This makes the compounding visible. The user should see that g6 is getting
 smarter on their codebase over time.
 
 ### Non-git context (optional)
@@ -926,8 +926,8 @@ git log origin/<default> --since="<window>" --format="AUTHOR:%aN" --name-only
 # 7. Per-author commit counts (quick summary)
 git shortlog origin/<default> --since="<window>" -sn --no-merges
 
-# 8. Greptile triage history (if available)
-cat ~/.gstack/greptile-history.md 2>/dev/null || true
+# 8. GBrain search activity (if gbrain is installed)
+gbrain stats 2>/dev/null | head -20 || true
 
 # 9. TODOS.md backlog (if available)
 cat TODOS.md 2>/dev/null || true
@@ -986,7 +986,7 @@ bob                       3   +120/-40     tests/
 
 Sort by commits descending. The current user (from `git config user.name`) always appears first, labeled "You (name)".
 
-**Greptile signal (if history exists):** Read `~/.gstack/greptile-history.md` (fetched in Step 1, command 8). Filter entries within the retro time window by date. Count entries by type: `fix`, `fp`, `already-fixed`. Compute signal ratio: `(fix + already-fixed) / (fix + already-fixed + fp)`. If no entries exist in the window or the file doesn't exist, skip the Greptile metric row. Skip unparseable lines silently.
+**GBrain activity (if installed):** Parse output from Step 1, command 8. If gbrain is installed and returned stats, include a one-line note on search usage this period. If the command returned nothing or errored, skip this row entirely.
 
 **Backlog Health (if TODOS.md exists):** Read `TODOS.md` (fetched in Step 1, command 9). Compute:
 - Total open TODOs (exclude items in `## Completed` section)
@@ -1238,17 +1238,11 @@ Use the Write tool to save the JSON file with this schema:
   },
   "version_range": ["1.16.0.0", "1.16.1.0"],
   "streak_days": 47,
-  "tweetable": "Week of Mar 1: 47 commits (3 contributors), 3.2k LOC, 38% tests, 12 PRs, peak: 10pm",
-  "greptile": {
-    "fixes": 3,
-    "fps": 1,
-    "already_fixed": 2,
-    "signal_pct": 83
-  }
+  "tweetable": "Week of Mar 1: 47 commits (3 contributors), 3.2k LOC, 38% tests, 12 PRs, peak: 10pm"
 }
 ```
 
-**Note:** Only include the `greptile` field if `~/.gstack/greptile-history.md` exists and has entries within the time window. Only include the `backlog` field if `TODOS.md` exists. Only include the `test_health` field if test files were found (command 10 returns > 0). If any has no data, omit the field entirely.
+**Note:** Only include the `backlog` field if `TODOS.md` exists. Only include the `test_health` field if test files were found (command 10 returns > 0). If any has no data, omit the field entirely.
 
 Include test health data in the JSON when test files exist:
 ```json
@@ -1490,7 +1484,7 @@ team/project breakdown below. The personal card is designed to be screenshot-fri
 
 **Tweetable summary** (first line, before everything else):
 ```
-Week of Mar 14: 5 projects, 138 commits, 250k LOC across 5 repos | 48 AI sessions | Streak: 52d 🔥
+Week of Mar 14: 5 projects, 138 commits, 250k LOC across 5 repos | 48 AI sessions | Streak: 52d
 ```
 
 ## 🚀 Your Week: [user name] — [date range]
@@ -1513,7 +1507,7 @@ align cleanly. Never truncate project names.
 ║  [N] commits across [M] projects
 ║  +[X]k LOC added · [Y]k LOC deleted · [Z]k net
 ║  [N] AI coding sessions (CC: X, Codex: Y, Gemini: Z)
-║  [N]-day shipping streak 🔥
+║  [N]-day shipping streak
 ║
 ║  PROJECTS
 ║  ─────────────────────────────────────────────────────────

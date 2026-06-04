@@ -10,7 +10,7 @@ description: |
   30KB overhead, zero deps. Smart API routing: picks the right Pretext patterns
   for each design type. Use when: "finalize this design", "turn this into HTML",
   "build me a page", "implement this design", or after any planning skill.
-  Proactively suggest when user has approved a design or has a plan ready. (gstack)
+  Proactively suggest when user has approved a design or has a plan ready. (g6)
 voice-triggers:
   - "build the design"
   - "code the mockup"
@@ -258,7 +258,7 @@ For framework output, save to:
 **Always include in vanilla HTML:**
 - Pretext source (inlined or CDN, see above)
 - CSS custom properties for design tokens from DESIGN.md / Step 1 extraction
-- Google Fonts via `<link>` tags + `document.fonts.ready` gate before first `prepare()`
+- Bunny Fonts (or self-hosted) via `<link>` tags + `document.fonts.ready` gate before first `prepare()`
 - Semantic HTML5 (`<header>`, `<nav>`, `<main>`, `<section>`, `<footer>`)
 - Responsive behavior via Pretext relayout (not just media queries)
 - Breakpoint-specific adjustments at 375px, 768px, 1024px, 1440px

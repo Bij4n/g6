@@ -2,15 +2,15 @@
 name: open-g6-browser
 version: 0.2.0
 description: |
-  Launch GStack Browser — AI-controlled Chromium with the sidebar extension baked in.
+  Launch g6 Browser — AI-controlled Chromium with the sidebar extension baked in.
   Opens a visible browser window where you can watch every action in real time.
   The sidebar shows a live activity feed and chat. Anti-bot stealth built in.
-  Use when asked to "open gstack browser", "launch browser", "connect chrome",
+  Use when asked to "open g6 browser", "launch browser", "connect chrome",
   "open chrome", "real browser", "launch chrome", "side panel", or "control my browser".
 voice-triggers:
   - "show me the browser"
 triggers:
-  - open gstack browser
+  - open g6 browser
   - launch chromium
   - show me the browser
 allowed-tools:
@@ -144,7 +144,7 @@ If C:
 
 1. Run `$B status` and show the output
 2. If the server is not healthy, re-run Step 0 cleanup + Step 1 connect
-3. If the server IS healthy but the browser isn't visible, try `$B focus`
+3. If the server IS healthy but the browser isn't visible, try `$B focus` (macOS only)
 4. If that fails, ask the user what they see (error message, blank screen, etc.)
 
 ## Step 4: Demo
@@ -196,7 +196,7 @@ Tell the user:
 >   `$B snapshot -i` — all visible in Chrome + Side Panel
 >
 > **Window management:**
-> - `$B focus` — bring Chrome to the foreground anytime
+> - `$B focus` — bring Chrome to the foreground (macOS only; no-op on Linux/Windows)
 > - `$B disconnect` — close headed Chrome and return to headless mode
 >
 > **What skills look like in headed mode:**

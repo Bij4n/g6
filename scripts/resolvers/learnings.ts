@@ -64,7 +64,7 @@ fi
 
 If \`CROSS_PROJECT\` is \`unset\` (first time): Use AskUserQuestion:
 
-> gstack can search learnings from your other projects on this machine to find
+> g6 can search learnings from your other projects on this machine to find
 > patterns that might apply here. This stays local (no data leaves your machine).
 > Recommended for solo developers. Skip if you work on multiple client codebases
 > where cross-contamination would be a concern.
@@ -83,7 +83,7 @@ matches a past learning, display:
 
 **"Prior learning applied: [key] (confidence N/10, from [date])"**
 
-This makes the compounding visible. The user should see that gstack is getting
+This makes the compounding visible. The user should see that g6 is getting
 smarter on their codebase over time.`;
 }
 

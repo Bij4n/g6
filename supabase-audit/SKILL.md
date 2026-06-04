@@ -212,7 +212,7 @@ grep -rn "\.channel\|\.subscribe\|realtime" \
   grep -v ".git/\|node_modules/" | head -20
 ```
 
-Even with RLS enabled, client queries that don't filter by `user_id` return only the current user's rows — but it's worth auditing to confirm the pattern is consistent. Realtime subscriptions need RLS too; a channel that subscribes to `*` on a table without user-scoped RLS policies will receive all inserts.
+RLS enforces the filter server-side regardless of what the client query includes — a `.from('items')` without `.eq('user_id', ...)` still returns only the current user's rows when RLS is correctly configured. The purpose of this step is to verify RLS IS correctly configured (Step 2), not to add redundant client-side filters. Flag unscoped queries only when the corresponding table has no RLS policy or the policy doesn't include a user-scoping condition. Realtime subscriptions need RLS too; a channel that subscribes to `*` on a table without user-scoped RLS policies will receive all inserts.
 
 ## Step 9: Compile findings and score
 

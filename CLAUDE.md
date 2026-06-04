@@ -225,120 +225,17 @@ When you need to interact with a browser (QA, dogfooding, cookie setup), use the
 `mcp__claude-in-chrome__*` tools — they are slow, unreliable, and not what this
 project uses.
 
-**Sidebar architecture:** Before modifying `sidepanel.js`, `background.js`,
-`content.js`, `terminal-agent.ts`, or sidebar-related server endpoints,
-read `docs/designs/SIDEBAR_MESSAGE_FLOW.md`. The sidebar has one primary
-surface — the **Terminal** pane (interactive `claude` PTY) — with
-Activity / Refs / Inspector as debug overlays behind the footer's
-`debug` toggle. The chat queue path was ripped once the PTY proved out;
-`sidebar-agent.ts` and the `/sidebar-command` / `/sidebar-chat` /
-`/sidebar-agent/event` endpoints are gone. The doc covers the WS auth
-flow, dual-token model, and threat-model boundary — silent failures
+**Sidebar / server / security internals.** Before modifying `sidepanel.js`,
+`background.js`, `content.js`, `terminal-agent.ts`, `server.ts`,
+`sse-session-cookie.ts`, `tunnel-denial-log.ts`, or any sidebar/security module,
+read the operational invariants in
+[ARCHITECTURE.md](ARCHITECTURE.md#sidebar--security-operational-invariants) and
+`docs/designs/SIDEBAR_MESSAGE_FLOW.md`. They cover the Terminal-PTY surface,
+WebSocket `Sec-WebSocket-Protocol` auth, cross-pane PTY injection, the `/health`
+token rule, dual-listener tunnel security, Unicode egress sanitization, setup
+symlink hardening, and the six-layer prompt-injection stack with its thresholds
+and env knobs (`GSTACK_SECURITY_OFF`, `GSTACK_SECURITY_ENSEMBLE`). Silent failures
 here usually trace to not understanding the cross-component flow.
-
-**WebSocket auth uses Sec-WebSocket-Protocol, not cookies.** Browsers
-can't set `Authorization` on a WebSocket upgrade, but they CAN set
-`Sec-WebSocket-Protocol` via `new WebSocket(url, [token])`. The agent
-reads it, validates against `validTokens`, and MUST echo the protocol
-back in the upgrade response — without the echo, Chromium closes the
-connection immediately. `Set-Cookie: gstack_pty=...` is kept as a
-fallback for non-browser callers (the cross-port `SameSite=Strict`
-cookie path doesn't survive from a chrome-extension origin).
-
-**Cross-pane PTY injection.** The toolbar's Cleanup button and the
-Inspector's "Send to Code" action both pipe text into the live claude
-PTY via `window.gstackInjectToTerminal(text)`, exposed by
-`sidepanel-terminal.js`. No `/sidebar-command` POST — the live REPL is
-the only execution surface in the sidebar now.
-
-**`/health` MUST NOT surface any shell-grant token.** It already leaks
-`AUTH_TOKEN` to localhost callers in headed mode (a v1.1+ TODO). Don't
-make that worse by adding the PTY session token there. PTY auth flows
-through `POST /pty-session` only.
-
-**Transport-layer security** (v1.6.0.0+). When `pair-agent` starts an ngrok tunnel,
-the daemon binds two HTTP listeners: a local listener (127.0.0.1, full command
-surface, never forwarded) and a tunnel listener (locked allowlist: `/connect`,
-`/command` with a scoped token + 26-command browser-driving allowlist,
-`/sidebar-chat`). ngrok forwards only the tunnel port. Root tokens over the tunnel
-return 403. SSE endpoints use a 30-minute HttpOnly `gstack_sse` cookie minted via
-`POST /sse-session` (never valid against `/command`). Tunnel-surface rejections go
-to `~/.gstack/security/attempts.jsonl` via `tunnel-denial-log.ts`. Before editing
-`server.ts`, `sse-session-cookie.ts`, or `tunnel-denial-log.ts`, read
-[ARCHITECTURE.md](ARCHITECTURE.md#dual-listener-tunnel-architecture-v1600) —
-the module boundary (no imports from `token-registry.ts` into `sse-session-cookie.ts`)
-is load-bearing for scope isolation.
-
-**Unicode sanitization at server egress** (v1.38.0.0+). Every server egress that
-ships page-content-derived strings MUST go through `JSON.stringify(payload,
-sanitizeReplacer)` for object payloads or `sanitizeLoneSurrogates(body)` for text
-bodies. Lone UTF-16 surrogate halves from CDP page content otherwise reach the
-Anthropic API as `\uD800`-style escapes and trigger a 400. Wired at four egress
-points today: `handleCommandInternal` (HTTP + batch via a sanitizing wrapper around
-`handleCommandInternalImpl`) and both SSE producers (`/activity/stream`,
-`/inspector/events`). Post-stringify regex is a no-op — `JSON.stringify` has
-already escaped the surrogate before regex could match, so the replacer must run
-inside the encoding pipeline. Before adding a new SSE/WebSocket writer or HTTP
-response in `server.ts`, read
-[ARCHITECTURE.md](ARCHITECTURE.md#unicode-sanitization-at-server-egress-v13800).
-`browse/test/server-sanitize-surrogates.test.ts` pins the wiring with invariant
-tests, so bypasses fail CI.
-
-**Setup symlink hardening** (v1.38.0.0+). Every link site in `setup` MUST route
-through the `_link_or_copy SRC DST` helper near the `IS_WINDOWS` detection. On
-Windows without Developer Mode, plain `ln -snf` produces frozen file copies that
-don't refresh on `git pull` — silent staleness across every host adapter. The
-helper preserves `ln -snf` on Unix and switches to `cp -R` / `cp -f` on Windows.
-`test/setup-windows-fallback.test.ts` enforces a static invariant: a single raw
-`ln` call outside the helper body fails CI. Windows users get a one-line note
-from `_print_windows_copy_note_once` reminding them to re-run `./setup` after
-every `git pull`.
-
-**Sidebar security stack** (layered defense against prompt injection):
-
-| Layer | Module | Lives in |
-|-------|--------|----------|
-| L1-L3 | `content-security.ts` | both server and agent — datamarking, hidden element strip, ARIA regex, URL blocklist, envelope wrapping |
-| L4 | `security-classifier.ts` (TestSavantAI ONNX) | **sidebar-agent only** |
-| L4b | `security-classifier.ts` (Claude Haiku transcript) | **sidebar-agent only** |
-| L5 | `security.ts` (canary) | both — inject in compiled, check in agent |
-| L6 | `security.ts` (combineVerdict ensemble) | both |
-
-**Critical constraint:** `security-classifier.ts` CANNOT be imported from the
-compiled browse binary. `@huggingface/transformers` v4 requires `onnxruntime-node`
-which fails to `dlopen` from Bun compile's temp extract dir. Only `security.ts`
-(pure-string operations — canary, verdict combiner, attack log, status) is safe
-for `server.ts`. See `~/.gstack/projects/garrytan-gstack/ceo-plans/2026-04-19-prompt-injection-guard.md`
-§"Pre-Impl Gate 1 Outcome" for full architectural decision.
-
-**Thresholds** (in `security.ts`):
-- `BLOCK: 0.85` — single-layer score that would cause BLOCK if cross-confirmed
-- `WARN: 0.75` — cross-confirm threshold. When L4 AND L4b both >= 0.75 → BLOCK
-- `LOG_ONLY: 0.40` — gates transcript classifier (skip Haiku when all layers < 0.40)
-- `SOLO_CONTENT_BLOCK: 0.92` — single-layer threshold for label-less content classifiers
-  (testsavant, deberta). Intentionally higher than `BLOCK` because these layers can't
-  distinguish "this is an injection" from "this looks like phishing aimed at the user."
-  The transcript classifier keeps a separate, label-gated solo path at `BLOCK` (0.85).
-
-**Ensemble rule:** BLOCK only when the ML content classifier AND the transcript
-classifier both report >= WARN. Single-layer high confidence degrades to WARN —
-this is the Stack Overflow instruction-writing FP mitigation. Canary leak
-always BLOCKs (deterministic).
-
-**Env knobs:**
-- `GSTACK_SECURITY_OFF=1` — emergency kill switch. Classifier stays off even if
-  warmed. Canary is still injected; just the ML scan is skipped.
-- `GSTACK_SECURITY_ENSEMBLE=deberta` — opt-in DeBERTa-v3 ensemble. Adds
-  ProtectAI DeBERTa-v3-base-injection-onnx as L4c classifier for cross-model
-  agreement. 721MB first-run download. With ensemble enabled, BLOCK requires
-  2-of-3 ML classifiers agreeing at >= WARN (testsavant, deberta, transcript).
-  Without ensemble (default), BLOCK requires testsavant + transcript at >= WARN.
-- Classifier model cache: `~/.gstack/models/testsavant-small/` (112MB, first run only)
-  plus `~/.gstack/models/deberta-v3-injection/` (721MB, only when ensemble enabled)
-- Attack log: `~/.gstack/security/attempts.jsonl` (salted sha256 + domain only,
-  rotates at 10MB, 5 generations)
-- Per-device salt: `~/.gstack/security/device-salt` (0600)
-- Session state: `~/.gstack/security/session-state.json` (cross-process, atomic)
 
 ## Dev symlink awareness
 
@@ -407,58 +304,13 @@ changes into logical commits and push.
 ## Slop-scan: AI code quality, not AI code hiding
 
 We use [slop-scan](https://github.com/benvinegar/slop-scan) to catch patterns where
-AI-generated code is genuinely worse than what a human would write. We are NOT trying
-to pass as human code. We are AI-coded and proud of it. The goal is code quality.
-
-```bash
-npx slop-scan scan .          # human-readable report
-npx slop-scan scan . --json   # machine-readable for diffing
-```
-
-Config: `slop-scan.config.json` at repo root (currently excludes `**/vendor/**`).
-
-### What to fix (genuine quality improvements)
-
-- **Empty catches around file ops** — use `safeUnlink()` (ignores ENOENT, rethrows
-  EPERM/EIO). A swallowed EPERM in cleanup means silent data loss.
-- **Empty catches around process kills** — use `safeKill()` (ignores ESRCH, rethrows
-  EPERM). A swallowed EPERM means you think you killed something you didn't.
-- **Redundant `return await`** — remove when there's no enclosing try block. Saves a
-  microtask, signals intent.
-- **Typed exception catches** — `catch (err) { if (!(err instanceof TypeError)) throw err }`
-  is genuinely better than `catch {}` when the try block does URL parsing or DOM work.
-  You know what error you expect, so say so.
-
-### What NOT to fix (linter gaming, not quality)
-
-- **String-matching on error messages** — `err.message.includes('closed')` is brittle.
-  Playwright/Chrome can change wording anytime. If a fire-and-forget operation can fail
-  for ANY reason and you don't care, `catch {}` is the correct pattern.
-- **Adding comments to exempt pass-through wrappers** — "alias for active session" above
-  a method just to trip slop-scan's exemption rule is noise, not documentation.
-- **Converting extension catch-and-log to selective rethrow** — Chrome extensions crash
-  entirely on uncaught errors. If the catch logs and continues, that IS the right pattern
-  for extension code. Don't make it throw.
-- **Tightening best-effort cleanup paths** — shutdown, emergency cleanup, and disconnect
-  code should use `safeUnlinkQuiet()` (swallows ALL errors). A cleanup path that throws
-  on EPERM means the rest of cleanup doesn't run. That's worse.
-
-### Utilities in `browse/src/error-handling.ts`
-
-| Function | Use when | Behavior |
-|----------|----------|----------|
-| `safeUnlink(path)` | Normal file deletion | Ignores ENOENT, rethrows others |
-| `safeUnlinkQuiet(path)` | Shutdown/emergency cleanup | Swallows all errors |
-| `safeKill(pid, signal)` | Sending signals | Ignores ESRCH, rethrows others |
-| `isProcessAlive(pid)` | Boolean process checks | Returns true/false, never throws |
-
-### Score tracking
-
-Baseline (2026-04-09, before cleanup): 100 findings, 432.8 score, 2.38 score/file.
-After cleanup: 90 findings, 358.1 score, 1.96 score/file.
-
-Don't chase the number. Fix patterns that represent actual code quality problems.
-Accept findings where the "sloppy" pattern is the correct engineering choice.
+AI-generated code is genuinely worse than a human would write — not to pass as human
+code. Run `npx slop-scan scan .` (config: `slop-scan.config.json`). Full guidance on
+what to fix vs what is linter-gaming, the `browse/src/error-handling.ts` helpers
+(`safeUnlink` / `safeUnlinkQuiet` / `safeKill` / `isProcessAlive`), and score tracking
+live in [CONTRIBUTING.md](CONTRIBUTING.md#slop-scan-ai-code-quality-not-ai-code-hiding).
+Don't chase the number; fix real quality problems and accept findings where the
+"sloppy" pattern is the correct engineering choice.
 
 ## Community PR guardrails
 
@@ -510,189 +362,20 @@ workflow-lint, and windows-tests will still pass on the fork PR.
 
 ## CHANGELOG + VERSION style
 
-**Versioning invariant (workspace-aware ship).** VERSION is a monotonic ordered
-release identifier, not a strict semver commitment. The bump level
-(major/minor/patch/micro) expresses intent at ship time. Queue-advancing past a
-claimed version within the same bump level is explicitly permitted — if branch A
-claims v1.7.0.0 as a MINOR and branch B is also a MINOR, B lands at v1.8.0.0
-(still a MINOR relative to main). Downstream consumers must NOT rely on
-"MINOR = feature-only, PATCH = fix-only" as a strict contract. This is why
-`bin/gstack-next-version` advances within the chosen bump level rather than
-repicking the level when collisions happen.
+VERSION is a monotonic, ordered release identifier; the bump level
+(major/minor/patch/micro) signals intent at ship time, not a strict semver contract.
+Scale-aware: big diffs bump MINOR/MAJOR, not PATCH. VERSION and CHANGELOG are
+**branch-scoped** — every shipping branch gets its own bump and entry on top of main,
+written at `/ship` time. The entry is the diff between main and your branch (what users
+get on upgrade), never the branch's internal history: no branch-internal versions, no
+mid-branch bug narrative, no review/plan activity. Write it like product release notes:
+lead with what the user can now do, plain language, credit community contributors.
 
-**Scale-aware bumps — use common sense.** When the diff is big, bump MINOR (or
-MAJOR), not PATCH. PATCH is for bug fixes and small additions; MINOR is for
-substantial new capability or substantial reduction; MAJOR is for breaking
-changes. Rough guideposts (don't treat as rules, treat as smell-checks):
-
-- **PATCH (X.Y.Z+1.0)**: bug fix, doc tweak, small additive change, single
-  test/file added. Net diff under ~500 lines, no new user-facing capability.
-- **MINOR (X.Y+1.0.0)**: new capability shipped (skill, harness, command, big
-  refactor), substantial code reduction (compression, migration), or coordinated
-  multi-file change. Net diff over ~2000 lines added/removed, OR a user-visible
-  feature you'd put in a tweet.
-- **MAJOR (X+1.0.0.0)**: breaking change to public surface (CLI flag rename,
-  skill removed, config format changed), OR a release big enough to be the
-  headline of a blog post.
-
-If you find yourself debating "is 10K added + 24K removed really a PATCH?" — it
-isn't. Bump MINOR. Same for "this adds a whole new test harness with 6 new E2E
-tests + helper utilities" — MINOR. The bump level is communication to the user
-about what kind of release this is; don't undersell it.
-
-When merging origin/main brings a higher VERSION, re-evaluate the bump level
-against the SCALE of your branch's work, not just whether main moved forward.
-If main bumped MINOR and your branch is also a substantial change, you bump
-MINOR again on top (e.g., main at v1.14.0.0, your branch lands v1.15.0.0).
-
-**VERSION and CHANGELOG are branch-scoped.** Every feature branch that ships gets its
-own version bump and CHANGELOG entry. The entry describes what THIS branch adds —
-not what was already on main.
-
-**The CHANGELOG entry is the diff between main and the shipping branch — what users
-get when they upgrade. NOT how the branch got there.** A reader landing on the entry
-should learn what they can do now that they couldn't before; they should not learn
-about the branch's internal version bumps, the bugs we caught and fixed mid-branch,
-the plan reviews we ran, or the commits we squashed. That is branch development
-narrative. It belongs in PR descriptions and commit messages, not CHANGELOG.
-
-**Never reference branch-internal versions in a CHANGELOG entry.** If your branch
-bumped VERSION from v1.5.0.0 → v1.5.1.0 → v1.6.0.0 during development and only the
-final v1.6.0.0 ships to main, the entry must read as if v1.5.1.0 never existed.
-Concretely, NEVER write:
-- "v1.5.1.0 had a bug that v1.6.0.0 fixes" — readers don't know about v1.5.1.0; it's
-  a branch-internal artifact.
-- "The shipping headline of v1.5.1.0 was broken because..." — same reason. From main's
-  perspective, v1.5.1.0 was never released.
-- "Pre-fix tests encoded the broken behavior" — that's a contributor's victory lap,
-  not a user benefit.
-- "Two surgical edits, both in the dispatch path" — micro-narrative of the patch.
-
-Instead, describe the released system: "Browser-skills run end-to-end with the
-expected tab-access semantics." If a property of the shipped system is worth calling
-out (e.g., "skill spawns get permissive tab access; pair-agent tunnel tokens require
-ownership"), document it as a property, not as a fix. The shipped system is what
-the user gets; the path to that system is invisible to them.
-
-**When to write the CHANGELOG entry:**
-- At `/ship` time (Step 13), not during development or mid-branch.
-- The entry covers ALL commits on this branch vs the base branch.
-- Never fold new work into an existing CHANGELOG entry from a prior version that
-  already landed on main. If main has v0.10.0.0 and your branch adds features,
-  bump to v0.10.1.0 with a new entry — don't edit the v0.10.0.0 entry.
-
-**Key questions before writing:**
-1. What branch am I on? What did THIS branch change?
-2. Is the base branch version already released? (If yes, bump and create new entry.)
-3. Does an existing entry on this branch already cover earlier work? (If yes, replace
-   it with one unified entry for the final version.)
-
-**Merging main does NOT mean adopting main's version.** When you merge origin/main into
-a feature branch, main may bring new CHANGELOG entries and a higher VERSION. Your branch
-still needs its OWN version bump on top. If main is at v0.13.8.0 and your branch adds
-features, bump to v0.13.9.0 with a new entry. Never jam your changes into an entry that
-already landed on main. Your entry goes on top because your branch lands next.
-
-**After merging main, always check:**
-- Does CHANGELOG have your branch's own entry separate from main's entries?
-- Is VERSION higher than main's VERSION?
-- Is your entry the topmost entry in CHANGELOG (above main's latest)?
-If any answer is no, fix it before continuing.
-
-**After any CHANGELOG edit that moves, adds, or removes entries,** immediately run
-`grep "^## \[" CHANGELOG.md` to verify no duplicates and a sensible reverse-chronological
-order. Gaps between version numbers are fine. A branch that ships at v1.6.4.0 without
-a prior v1.5.2.0 or v1.5.3.0 entry on main is correct — those were branch-internal
-version numbers that never landed. Do not back-fill gaps with placeholder entries.
-
-**Never orphan branch-internal versions.** If your branch bumped VERSION several times
-during development (v1.5.1.0 → v1.5.2.0 → v1.6.4.0, say) and those earlier entries were
-never released to main, the final ship consolidates ALL of them into a single entry at
-the final version (v1.6.4.0). Collapse them — delete the old entries and move their
-content into the final entry, re-version table columns accordingly. Readers see one
-release, not a branch diary. Gaps are fine (v1.6.3.0 → v1.6.4.0 with no v1.5.x
-in between on main is correct).
-
-CHANGELOG.md is **for users**, not contributors. Write it like product release notes:
-
-- Lead with what the user can now **do** that they couldn't before. Sell the feature.
-- Use plain language, not implementation details. "You can now..." not "Refactored the..."
-- **Never mention TODOS.md, internal tracking, eval infrastructure, or contributor-facing
-  details.** These are invisible to users and meaningless to them.
-- Put contributor/internal changes in a separate "For contributors" section at the bottom.
-- Every entry should make someone think "oh nice, I want to try that."
-- No jargon: say "every question now tells you which project and branch you're in" not
-  "AskUserQuestion format standardized across skill templates via preamble resolver."
-
-**Only document what shipped between main and this change.** Readers do not care how
-we got here. Keep out of the CHANGELOG, always:
-
-- Branch resyncs, merge commits with main, rebase activity.
-- Plan approvals, review outcomes (CEO / eng / design / outside-voice / codex findings),
-  AskUserQuestion decisions, scope negotiations.
-- "Work queued," "plan approved," "in-progress," "will ship later" — the CHANGELOG
-  documents what DID ship, not what MIGHT ship.
-- Version-bump housekeeping when no user-facing work actually landed.
-
-If the diff between the base branch version and this version has no user-facing change
-(only merges, only CHANGELOG edits, only placeholder work), the honest entry is one
-sentence: "Version bump for branch-ahead discipline. No user-facing changes yet." Stop
-there. Do not pad. Do not explain the plan that will ship eventually. Do not narrate
-the branch's history. When real work lands, the entry will replace this at /ship time.
-
-### Release-summary format (every `## [X.Y.Z]` entry)
-
-Every version entry in `CHANGELOG.md` MUST start with a release-summary section in
-the GStack/Garry voice, one viewport's worth of prose + tables that lands like a
-verdict, not marketing. The itemized changelog (subsections, bullets, files) goes
-BELOW that summary, separated by a `### Itemized changes` header.
-
-The release-summary section gets read by humans, by the auto-update agent, and by
-anyone deciding whether to upgrade. The itemized list is for agents that need to
-know exactly what changed.
-
-Structure for the top of every `## [X.Y.Z]` entry:
-
-1. **Two-line bold headline** (10-14 words total). Should land like a verdict, not
-   marketing. Sound like someone who shipped today and cares whether it works.
-2. **Lead paragraph** (3-5 sentences). What shipped, what changed for the user.
-   Specific, concrete, no AI vocabulary, no em dashes, no hype.
-3. **A "The X numbers that matter" section** with:
-   - One short setup paragraph naming the source of the numbers (real production
-     deployment OR a reproducible benchmark, name the file/command to run).
-   - A table of 3-6 key metrics with BEFORE / AFTER / Δ columns.
-   - A second optional table for per-category breakdown if relevant.
-   - 1-2 sentences interpreting the most striking number in concrete user terms.
-4. **A "What this means for [audience]" closing paragraph** (2-4 sentences) tying
-   the metrics to a real workflow shift. End with what to do.
-
-Voice rules for the release summary:
-- No em dashes (use commas, periods, "...").
-- No AI vocabulary (delve, robust, comprehensive, nuanced, fundamental, etc.) or
-  banned phrases ("here's the kicker", "the bottom line", etc.).
-- Real numbers, real file names, real commands. Not "fast" but "~30s on 30K pages."
-- Short paragraphs, mix one-sentence punches with 2-3 sentence runs.
-- Connect to user outcomes: "the agent does ~3x less reading" beats "improved precision."
-- Be direct about quality. "Well-designed" or "this is a mess." No dancing.
-
-Source material:
-- CHANGELOG previous entry for prior context.
-- Benchmark files or `/retro` output for headline numbers.
-- Recent commits (`git log <prev-version>..HEAD --oneline`) for what shipped.
-- Don't make up numbers. If a metric isn't in a benchmark or production data,
-  don't include it. Say "no measurement yet" if asked.
-
-Target length: ~250-350 words for the summary. Should render as one viewport.
-
-### Itemized changes (below the release summary)
-
-Write `### Itemized changes` and continue with the detailed subsections (Added,
-Changed, Fixed, For contributors). Same rules as the user-facing voice guidance
-above, plus:
-
-- **Always credit community contributions.** When an entry includes work from a
-  community PR, name the contributor with `Contributed by @username`. Contributors
-  did real work. Thank them publicly every time, no exceptions.
+Every `## [X.Y.Z]` entry opens with a release-summary section (headline + lead +
+"the numbers that matter" table + "what this means" close) in the GStack voice, with
+`### Itemized changes` below. Full rules — bump thresholds, branch-internal-version
+discipline, the merge-main checklist, and the release-summary format — are in
+[CONTRIBUTING.md](CONTRIBUTING.md#changelog--version-style).
 
 ## AI effort compression
 

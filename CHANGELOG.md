@@ -1,5 +1,42 @@
 # Changelog
 
+## [1.41.0.0] - 2026-06-03
+
+## **Thirteen skills you already had but agents couldn't see are now discoverable, and the whole suite finally calls itself g6 everywhere a user looks.**
+
+A full audit of all 60+ skills, executed as one wave. Thirteen skills shipped in the repo but were invisible to agents — `node-health`, `sidekiq-monitor`, `supabase-deploy`, `multi-tenant-audit`, `rails-health`, `api-audit`, `stripe-audit`, `env-audit`, `db-audit`, `crypto-audit`, `privacy-audit`, `supabase-audit`, and `incident`. They were never in the routing table or `gstack/llms.txt`, so an agent had no way to find them. Now `gen-llms-txt` discovers hand-written `SKILL.md` files (not just `.tmpl`-generated ones), the routing table lists them, and their frontmatter names are correct. Ask for "node health" or "check the wallet code" and the right skill actually loads.
+
+Alongside discovery: the brand rename finally reaches every user-facing surface. All 43 skill descriptions and every preamble resolver said "gstack" in prompts the user reads — now they say g6. Two policy violations are gone: `design-consultation` and `design-html` no longer tell users to load Google Fonts (Bunny Fonts / self-hosted instead), and the `Co-Authored-By: Claude Opus 4.7` trailer (a model that doesn't exist) is stripped from commit generation. Broken paths are repaired (`skillify` pointed at `skills/gstack`, `scrape` referenced a nonexistent `/automate`, `benchmark-models` checked the wrong credentials path). And `CLAUDE.md` is trimmed, with reference detail relocated to `ARCHITECTURE.md` and `CONTRIBUTING.md` so the always-loaded context file stays lean.
+
+### The numbers that matter
+
+Source: `bun test test/skill-validation.test.ts test/gen-skill-docs.test.ts` — 714 tests, all green.
+
+| Surface | Before | After |
+|---|---|---|
+| Skills discoverable by agents | 50 (13 in-repo but unindexed) | 63 — all hand-written `SKILL.md` files surface in `llms.txt` and the routing table |
+| Brand in user-facing prompts | "gstack" in 43 descriptions + every preamble resolver | "g6" everywhere a user reads |
+| Google Fonts policy | `design-consultation` + `design-html` told users to load Google Fonts | Bunny Fonts / self-hosted, policy-clean |
+| AI attribution in commits | `Co-Authored-By: Claude Opus 4.7` (nonexistent model) baked into host config | Removed; trailer falls back to empty |
+| Broken skill paths / dead refs | `skills/gstack`, `/automate`, wrong creds path | Repaired and verified |
+| `CLAUDE.md` weight | Reference detail inline | Relocated to `ARCHITECTURE.md` + `CONTRIBUTING.md` |
+
+### What this means
+
+If you ask g6 for a Postgres health check, a Sidekiq audit, or a crypto-wallet review, it now finds the skill instead of improvising. The product reads as one coherent tool — g6 — instead of leaking its old internal name. And the policy violations that would have embarrassed the project (Google Fonts, a fake AI co-author) are gone.
+
+### Itemized changes
+
+- **Added 13 skills to discovery** — `gen-llms-txt` now discovers hand-written `SKILL.md` files with no `.tmpl` counterpart; routing table and frontmatter names corrected for `node-health`, `sidekiq-monitor`, `supabase-deploy`, `multi-tenant-audit`, `rails-health`, `api-audit`, `stripe-audit`, `env-audit`, `db-audit`, `crypto-audit`, `privacy-audit`, `supabase-audit`, `incident`.
+- **Complete gstack→g6 brand rename** across all 43 skill descriptions and preamble resolver templates.
+- **Google Fonts policy fix** — `design-consultation` and `design-html` switched to Bunny Fonts / self-hosted.
+- **AI attribution removed** — dropped the `Co-Authored-By: Claude Opus 4.7` trailer from `hosts/claude.ts`; `generateCoAuthorTrailer` falls back to empty.
+- **Broken paths and dead refs fixed** — `skillify` (`skills/gstack`→`skills/g6`), `scrape` (`/automate` removed), `benchmark-models` (credentials path).
+- **Content accuracy** — removed hardcoded post-mortem author, deprecated `csurf`/`npm install -g supabase` guidance, an `O(N)` `redis-cli KEYS` call, a stale Greptile reference, leaked internal dev notes, and unsourced statistics.
+- **Documented real design commands** — `$D evolve`, `$D extract`, `$D prompt` added to the command table.
+- **Lower-priority fixes** — `careful` protected-pattern gaps (`rm -rf .git`, `git clean -fdx`, `docker compose down -v`), `multi-tenant-audit` IDOR coverage beyond Rails, `$B focus` macOS note, legacy `Charge.create` flag in `stripe-audit`, newer Codex CLI session path in `gstack-global-discover`.
+- **Doc restructure** — trimmed `CLAUDE.md`, relocated reference detail to `ARCHITECTURE.md` and `CONTRIBUTING.md`; `.gitignore` now ignores `.feature-prompted-*` per-install markers.
+
 ## [1.40.0.0] - 2026-05-16
 
 ## **gbrain sync stops biting users across the install path, slug algorithm, federation queue, and `.env.local` footgun.**

@@ -1,6 +1,6 @@
 # gstack
 
-> gstack is Garry's Stack: AI coding skills + a fast headless browser binary + a design CLI. This file indexes every capability so agents can discover and invoke them without crawling individual SKILL.md files.
+> g6 is an AI coding skill suite: headless browser, visual design CLI, security audits, code review, QA, ship workflow, and more. This file indexes every capability so agents can discover and invoke them without crawling individual SKILL.md files.
 
 Conventions:
 - Skills are invoked by name (e.g. `/ship`, `/plan-ceo-review`).
@@ -10,6 +10,7 @@ Conventions:
 
 ## Skills
 
+- [/api-audit](api-audit/SKILL.md): REST / FastAPI audit: authentication flow, API key exposure, rate limiting, input validation, CORS, OpenAPI spec accuracy, and TILA/APR compliance hooks for financial APIs.
 - [/autoplan](autoplan/SKILL.md): Auto-review pipeline — reads the full CEO, design, eng, and DX review skills from disk and runs them sequentially with auto-decisions using 6 decision principles.
 - [/benchmark](benchmark/SKILL.md): Performance regression detection using the browse daemon.
 - [/benchmark-models](benchmark-models/SKILL.md): Cross-model benchmark for gstack skills.
@@ -20,7 +21,9 @@ Conventions:
 - [/codex](codex/SKILL.md): OpenAI Codex CLI wrapper — three modes.
 - [/context-restore](context-restore/SKILL.md): Restore working context saved earlier by /context-save.
 - [/context-save](context-save/SKILL.md): Save working context.
+- [/crypto-audit](crypto-audit/SKILL.md): Security audit specific to Bitcoin and cryptocurrency code.
 - [/cso](cso/SKILL.md): Chief Security Officer mode.
+- [/db-audit](db-audit/SKILL.md): Postgres health audit: missing indexes on foreign keys and query columns, table bloat, connection pool sizing, slow query patterns, SQLAlchemy and ActiveRecord N+1 risks at the database level.
 - [/design-consultation](design-consultation/SKILL.md): Design consultation: understands your product, researches the landscape, proposes a complete design system (aesthetic, typography, color, layout, spacing, motion), and generates font+color preview pages.
 - [/design-html](design-html/SKILL.md): Design finalization: generates production-quality Pretext-native HTML/CSS.
 - [/design-review](design-review/SKILL.md): Designer's eye QA: finds visual inconsistency, spacing issues, hierarchy problems, AI slop patterns, and slow interactions — then fixes them.
@@ -28,26 +31,34 @@ Conventions:
 - [/devex-review](devex-review/SKILL.md): Live developer experience audit.
 - [/document-generate](document-generate/SKILL.md): Generate missing documentation from scratch for a feature, module, or entire project.
 - [/document-release](document-release/SKILL.md): Post-ship documentation update.
+- [/env-audit](env-audit/SKILL.md): Environment variable hygiene audit.
 - [/freeze](freeze/SKILL.md): Restrict file edits to a specific directory for the session.
 - [/g6-upgrade](g6-upgrade/SKILL.md): Upgrade g6 to the latest version.
 - [/gstack](gstack/SKILL.md): Fast headless browser for QA testing and site dogfooding.
 - [/guard](guard/SKILL.md): Full safety mode: destructive command warnings + directory-scoped edits.
 - [/health](health/SKILL.md): Code quality dashboard.
+- [/incident](incident/SKILL.md): Production incident response.
 - [/investigate](investigate/SKILL.md): Systematic debugging with root cause investigation.
 - [/land-and-deploy](land-and-deploy/SKILL.md): Land and deploy workflow.
 - [/landing-report](landing-report/SKILL.md): Read-only queue dashboard for workspace-aware ship.
 - [/learn](learn/SKILL.md): Manage project learnings.
 - [/make-pdf](make-pdf/SKILL.md): Turn any markdown file into a publication-quality PDF.
+- [/mentor](mentor/SKILL.md): Teaching mode.
+- [/multi-tenant-audit](multi-tenant-audit/SKILL.md): Multi-tenant and multi-surface isolation audit.
+- [/node-health](node-health/SKILL.md): Node.js / Express health dashboard: npm dependency CVE scan, outdated packages, Express security middleware (helmet, rate-limit, CORS, CSRF), SQL and MongoDB injection risks, authentication hygiene (session secret, bcrypt, JWT), environment / secrets hygiene, error handling completeness, and process management.
 - [/office-hours](office-hours/SKILL.md): YC Office Hours — two modes.
-- [/open-g6-browser](open-g6-browser/SKILL.md): Launch GStack Browser — AI-controlled Chromium with the sidebar extension baked in.
+- [/onboard](onboard/SKILL.md): Generates a structured onboarding guide for a new developer joining a project.
+- [/open-g6-browser](open-g6-browser/SKILL.md): Launch g6 Browser — AI-controlled Chromium with the sidebar extension baked in.
 - [/pair-agent](pair-agent/SKILL.md): Pair a remote AI agent with your browser.
 - [/plan-ceo-review](plan-ceo-review/SKILL.md): CEO/founder-mode plan review.
 - [/plan-design-review](plan-design-review/SKILL.md): Designer's eye plan review — interactive, like CEO and Eng review.
 - [/plan-devex-review](plan-devex-review/SKILL.md): Interactive developer experience plan review.
 - [/plan-eng-review](plan-eng-review/SKILL.md): Eng manager-mode plan review.
 - [/plan-tune](plan-tune/SKILL.md): Self-tuning question sensitivity + developer psychographic for gstack (v1: observational).
+- [/privacy-audit](privacy-audit/SKILL.md): Privacy-first audit for software that belongs to the people using it.
 - [/qa](qa/SKILL.md): Systematically QA test a web application and fix bugs found.
 - [/qa-only](qa-only/SKILL.md): Report-only QA testing.
+- [/rails-health](rails-health/SKILL.md): Rails 8 health dashboard: credentials hygiene, Sidekiq queue depth, N+1 query detection, schema drift (pending migrations), gem vulnerability scan, and Stripe webhook security.
 - [/retro](retro/SKILL.md): Weekly engineering retrospective.
 - [/review](review/SKILL.md): Pre-landing PR review.
 - [/scrape](scrape/SKILL.md): Pull data from a web page.
@@ -55,7 +66,11 @@ Conventions:
 - [/setup-deploy](setup-deploy/SKILL.md): Configure deployment settings for /land-and-deploy.
 - [/setup-gbrain](setup-gbrain/SKILL.md): Set up gbrain for this coding agent: install the CLI, initialize a local PGLite or Supabase brain, register MCP, capture per-remote trust policy.
 - [/ship](ship/SKILL.md): Ship workflow: detect + merge base branch, run tests, review diff, bump VERSION, update CHANGELOG, commit, push, create PR.
+- [/sidekiq-monitor](sidekiq-monitor/SKILL.md): Live Sidekiq queue health monitor for Rails + Sidekiq + Redis stacks.
 - [/skillify](skillify/SKILL.md): Codify the most recent successful /scrape flow into a permanent browser-skill on disk.
+- [/stripe-audit](stripe-audit/SKILL.md): Stripe integration security audit: webhook signature verification, live vs test key hygiene, price ID validation, idempotency key usage, customer data handling, subscription state machine correctness, and shared-account multi-product isolation.
+- [/supabase-audit](supabase-audit/SKILL.md): Supabase security audit: Row-Level Security coverage, storage bucket policies, Edge Function auth, auth configuration hardening, service_role key exposure, pg_cron job security, and anonymous access gaps.
+- [/supabase-deploy](supabase-deploy/SKILL.md): Safe Supabase migration deployment.
 - [/sync-gbrain](sync-gbrain/SKILL.md): Keep gbrain current with this repo's code and refresh agent search guidance in CLAUDE.md.
 - [/unfreeze](unfreeze/SKILL.md): Clear the freeze boundary set by /freeze, allowing edits to all directories again.
 

@@ -118,13 +118,13 @@ Only run `open` if the user says yes. Always run `touch` to mark as seen. This o
 If `TEL_PROMPTED` is `no` AND `LAKE_INTRO` is `yes`: After the lake intro is handled,
 ask the user about telemetry. Use AskUserQuestion:
 
-> Help gstack get better! Community mode shares usage data (which skills you use, how long
+> Help g6 get better! Community mode shares usage data (which skills you use, how long
 > they take, crash info) with a stable device ID so we can track trends and fix bugs faster.
 > No code, file paths, or repo names are ever sent.
 > Change anytime with `gstack-config set telemetry off`.
 
 Options:
-- A) Help gstack get better! (recommended)
+- A) Help g6 get better! (recommended)
 - B) No thanks
 
 If A: run `~/.claude/skills/g6/bin/gstack-config set telemetry community`
@@ -174,7 +174,7 @@ Check if a CLAUDE.md file exists in the project root. If it does not exist, crea
 
 Use AskUserQuestion:
 
-> gstack works best when your project's CLAUDE.md includes skill routing rules.
+> g6 works best when your project's CLAUDE.md includes skill routing rules.
 > This tells Claude to use specialized workflows (like /ship, /investigate, /qa)
 > instead of answering directly. It's a one-time addition, about 15 lines.
 
@@ -326,11 +326,11 @@ Per-skill instructions may add additional formatting rules on top of this baseli
 
 ## Completeness Principle — Boil the Lake
 
-AI makes completeness near-free. Always recommend the complete option over shortcuts — the delta is minutes with CC+gstack. A "lake" (100% coverage, all edge cases) is boilable; an "ocean" (full rewrite, multi-quarter migration) is not. Boil lakes, flag oceans.
+AI makes completeness near-free. Always recommend the complete option over shortcuts — the delta is minutes with CC+g6. A "lake" (100% coverage, all edge cases) is boilable; an "ocean" (full rewrite, multi-quarter migration) is not. Boil lakes, flag oceans.
 
 **Effort reference** — always show both scales:
 
-| Task type | Human team | CC+gstack | Compression |
+| Task type | Human team | CC+g6 | Compression |
 |-----------|-----------|-----------|-------------|
 | Boilerplate | 2 days | 15 min | ~100x |
 | Tests | 1 day | 15 min | ~50x |
@@ -1514,7 +1514,7 @@ fi
 
 If `CROSS_PROJECT` is `unset` (first time): Use AskUserQuestion:
 
-> gstack can search learnings from your other projects on this machine to find
+> g6 can search learnings from your other projects on this machine to find
 > patterns that might apply here. This stays local (no data leaves your machine).
 > Recommended for solo developers. Skip if you work on multiple client codebases
 > where cross-contamination would be a concern.
@@ -1533,7 +1533,7 @@ matches a past learning, display:
 
 **"Prior learning applied: [key] (confidence N/10, from [date])"**
 
-This makes the compounding visible. The user should see that gstack is getting
+This makes the compounding visible. The user should see that g6 is getting
 smarter on their codebase over time.
 
 ## Step 3.48: Scope Drift Detection

@@ -6,7 +6,7 @@ description: |
   force-push, git reset --hard, kubectl delete, and similar destructive operations.
   User can override each warning. Use when touching prod, debugging live systems,
   or working in a shared environment. Use when asked to "be careful", "safety mode",
-  "prod mode", or "careful mode". (gstack)
+  "prod mode", or "careful mode". (g6)
 triggers:
   - be careful
   - warn before destructive
@@ -48,6 +48,9 @@ echo '{"skill":"careful","ts":"'$(date -u +%Y-%m-%dT%H:%M:%SZ)'","repo":"'$(base
 | `git checkout .` / `git restore .` | `git checkout .` | Uncommitted work loss |
 | `kubectl delete` | `kubectl delete pod` | Production impact |
 | `docker rm -f` / `docker system prune` | `docker system prune -a` | Container/image loss |
+| `docker compose down -v` | `docker compose down -v` | Named volume data loss |
+| `git clean -fd` / `git clean -fdx` / `git clean -fdX` | `git clean -fdx` | Untracked file deletion |
+| `rm -rf .git` | `rm -rf .git` | Entire repository history loss |
 
 ## Safe exceptions
 

@@ -433,3 +433,119 @@ Tier 1 runs on every `bun test`. Tiers 2+3 are gated behind `EVALS=1`. The idea:
 - **No multi-user support.** One server per workspace, one user. The token auth is defense-in-depth, not multi-tenancy.
 - **No Windows/Linux cookie decryption.** macOS Keychain is the only supported credential store. Linux (GNOME Keyring/kwallet) and Windows (DPAPI) are architecturally possible but not implemented.
 - **No iframe auto-discovery.** `$B frame` supports cross-frame interaction (CSS selector, @ref, `--name`, `--url` matching), but the ref system does not auto-crawl iframes during `snapshot`. You must explicitly enter a frame context first.
+
+## Sidebar & security operational invariants
+
+These invariants live here so `CLAUDE.md` can stay a quick reference. Before
+modifying `sidepanel.js`, `background.js`, `content.js`, `terminal-agent.ts`,
+`server.ts`, or sidebar-related endpoints, read this section and
+`docs/designs/SIDEBAR_MESSAGE_FLOW.md`.
+
+**Sidebar architecture.** The sidebar has one primary surface — the **Terminal**
+pane (interactive `claude` PTY) — with Activity / Refs / Inspector as debug
+overlays behind the footer's `debug` toggle. The chat queue path was ripped once
+the PTY proved out; `sidebar-agent.ts` and the `/sidebar-command` /
+`/sidebar-chat` / `/sidebar-agent/event` endpoints are gone.
+`docs/designs/SIDEBAR_MESSAGE_FLOW.md` covers the WS auth flow, dual-token model,
+and threat-model boundary — silent failures here usually trace to not
+understanding the cross-component flow.
+
+**WebSocket auth uses Sec-WebSocket-Protocol, not cookies.** Browsers can't set
+`Authorization` on a WebSocket upgrade, but they CAN set `Sec-WebSocket-Protocol`
+via `new WebSocket(url, [token])`. The agent reads it, validates against
+`validTokens`, and MUST echo the protocol back in the upgrade response — without
+the echo, Chromium closes the connection immediately. `Set-Cookie: gstack_pty=...`
+is kept as a fallback for non-browser callers (the cross-port `SameSite=Strict`
+cookie path doesn't survive from a chrome-extension origin).
+
+**Cross-pane PTY injection.** The toolbar's Cleanup button and the Inspector's
+"Send to Code" action both pipe text into the live claude PTY via
+`window.gstackInjectToTerminal(text)`, exposed by `sidepanel-terminal.js`. No
+`/sidebar-command` POST — the live REPL is the only execution surface in the
+sidebar now.
+
+**`/health` MUST NOT surface any shell-grant token.** It already leaks
+`AUTH_TOKEN` to localhost callers in headed mode (a v1.1+ TODO). Don't make that
+worse by adding the PTY session token there. PTY auth flows through
+`POST /pty-session` only.
+
+**Transport-layer security** (v1.6.0.0+). When `pair-agent` starts an ngrok
+tunnel, the daemon binds two HTTP listeners: a local listener (127.0.0.1, full
+command surface, never forwarded) and a tunnel listener (locked allowlist:
+`/connect`, `/command` with a scoped token + 26-command browser-driving allowlist,
+`/sidebar-chat`). ngrok forwards only the tunnel port. Root tokens over the tunnel
+return 403. SSE endpoints use a 30-minute HttpOnly `gstack_sse` cookie minted via
+`POST /sse-session` (never valid against `/command`). Tunnel-surface rejections go
+to `~/.gstack/security/attempts.jsonl` via `tunnel-denial-log.ts`. The module
+boundary (no imports from `token-registry.ts` into `sse-session-cookie.ts`) is
+load-bearing for scope isolation. See
+[Dual-listener tunnel architecture](#dual-listener-tunnel-architecture-v1600).
+
+**Unicode sanitization at server egress** (v1.38.0.0+). Every server egress that
+ships page-content-derived strings MUST go through `JSON.stringify(payload,
+sanitizeReplacer)` for object payloads or `sanitizeLoneSurrogates(body)` for text
+bodies. Lone UTF-16 surrogate halves from CDP page content otherwise reach the
+Anthropic API as `\uD800`-style escapes and trigger a 400. Wired at four egress
+points today: `handleCommandInternal` (HTTP + batch via a sanitizing wrapper
+around `handleCommandInternalImpl`) and both SSE producers (`/activity/stream`,
+`/inspector/events`). Post-stringify regex is a no-op — `JSON.stringify` has
+already escaped the surrogate before regex could match, so the replacer must run
+inside the encoding pipeline. `browse/test/server-sanitize-surrogates.test.ts`
+pins the wiring with invariant tests, so bypasses fail CI. See
+[Unicode sanitization at server egress](#unicode-sanitization-at-server-egress-v13800).
+
+**Setup symlink hardening** (v1.38.0.0+). Every link site in `setup` MUST route
+through the `_link_or_copy SRC DST` helper near the `IS_WINDOWS` detection. On
+Windows without Developer Mode, plain `ln -snf` produces frozen file copies that
+don't refresh on `git pull` — silent staleness across every host adapter. The
+helper preserves `ln -snf` on Unix and switches to `cp -R` / `cp -f` on Windows.
+`test/setup-windows-fallback.test.ts` enforces a static invariant: a single raw
+`ln` call outside the helper body fails CI. Windows users get a one-line note from
+`_print_windows_copy_note_once` reminding them to re-run `./setup` after every
+`git pull`.
+
+**Sidebar security stack** (layered defense against prompt injection):
+
+| Layer | Module | Lives in |
+|-------|--------|----------|
+| L1-L3 | `content-security.ts` | both server and agent — datamarking, hidden element strip, ARIA regex, URL blocklist, envelope wrapping |
+| L4 | `security-classifier.ts` (TestSavantAI ONNX) | **sidebar-agent only** |
+| L4b | `security-classifier.ts` (Claude Haiku transcript) | **sidebar-agent only** |
+| L5 | `security.ts` (canary) | both — inject in compiled, check in agent |
+| L6 | `security.ts` (combineVerdict ensemble) | both |
+
+**Critical constraint:** `security-classifier.ts` CANNOT be imported from the
+compiled browse binary. `@huggingface/transformers` v4 requires `onnxruntime-node`
+which fails to `dlopen` from Bun compile's temp extract dir. Only `security.ts`
+(pure-string operations — canary, verdict combiner, attack log, status) is safe
+for `server.ts`. See `~/.gstack/projects/garrytan-gstack/ceo-plans/2026-04-19-prompt-injection-guard.md`
+§"Pre-Impl Gate 1 Outcome" for full architectural decision.
+
+**Thresholds** (in `security.ts`):
+- `BLOCK: 0.85` — single-layer score that would cause BLOCK if cross-confirmed
+- `WARN: 0.75` — cross-confirm threshold. When L4 AND L4b both >= 0.75 → BLOCK
+- `LOG_ONLY: 0.40` — gates transcript classifier (skip Haiku when all layers < 0.40)
+- `SOLO_CONTENT_BLOCK: 0.92` — single-layer threshold for label-less content classifiers
+  (testsavant, deberta). Intentionally higher than `BLOCK` because these layers can't
+  distinguish "this is an injection" from "this looks like phishing aimed at the user."
+  The transcript classifier keeps a separate, label-gated solo path at `BLOCK` (0.85).
+
+**Ensemble rule:** BLOCK only when the ML content classifier AND the transcript
+classifier both report >= WARN. Single-layer high confidence degrades to WARN —
+this is the Stack Overflow instruction-writing FP mitigation. Canary leak always
+BLOCKs (deterministic).
+
+**Env knobs:**
+- `GSTACK_SECURITY_OFF=1` — emergency kill switch. Classifier stays off even if
+  warmed. Canary is still injected; just the ML scan is skipped.
+- `GSTACK_SECURITY_ENSEMBLE=deberta` — opt-in DeBERTa-v3 ensemble. Adds
+  ProtectAI DeBERTa-v3-base-injection-onnx as L4c classifier for cross-model
+  agreement. 721MB first-run download. With ensemble enabled, BLOCK requires
+  2-of-3 ML classifiers agreeing at >= WARN (testsavant, deberta, transcript).
+  Without ensemble (default), BLOCK requires testsavant + transcript at >= WARN.
+- Classifier model cache: `~/.gstack/models/testsavant-small/` (112MB, first run only)
+  plus `~/.gstack/models/deberta-v3-injection/` (721MB, only when ensemble enabled)
+- Attack log: `~/.gstack/security/attempts.jsonl` (salted sha256 + domain only,
+  rotates at 10MB, 5 generations)
+- Per-device salt: `~/.gstack/security/device-salt` (0600)
+- Session state: `~/.gstack/security/session-state.json` (cross-process, atomic)
