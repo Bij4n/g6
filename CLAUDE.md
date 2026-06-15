@@ -247,7 +247,7 @@ could break other Claude Code sessions using gstack concurrently.
 **Check once per session:** Run `ls -la .claude/skills/g6` to see if it's a
 symlink or a real copy. If it's a symlink to your working directory, be aware that:
 - Template changes + `bun run gen:skill-docs` immediately affect all gstack invocations
-- Breaking changes to SKILL.md.tmpl files can break concurrent gstack sessions
+- Breaking changes to SKILL.md.tmpl files can break concurrent g6 sessions
 - During large refactors, remove the symlink (`rm .claude/skills/g6`) so the
   global install at `~/.claude/skills/g6/` is used instead
 
@@ -258,18 +258,18 @@ Names are either short (`qa`) or namespaced (`gstack-qa`), controlled by
 `skill_prefix` in `~/.gstack/config.yaml`. Pass `--no-prefix` or `--prefix` to
 skip the interactive prompt.
 
-**Note:** Vendoring gstack into a project's repo is deprecated. Use global install
+**Note:** Vendoring g6 into a project's repo is deprecated. Use global install
 + `./setup --team` instead. See README.md for team mode instructions.
 
 **For plan reviews:** When reviewing plans that modify skill templates or the
 gen-skill-docs pipeline, consider whether the changes should be tested in isolation
-before going live (especially if the user is actively using gstack in other windows).
+before going live (especially if the user is actively using g6 in other windows).
 
 **Upgrade migrations:** When a change modifies on-disk state (directory structure,
 config format, stale files) in ways that could break existing user installs, add a
 migration script to `gstack-upgrade/migrations/`. Read CONTRIBUTING.md's "Upgrade
 migrations" section for the format and testing requirements. The upgrade skill runs
-these automatically after `./setup` during `/gstack-upgrade`.
+these automatically after `./setup` during `/g6-upgrade`.
 
 ## Compiled binaries — NEVER commit browse/dist/ or design/dist/
 
@@ -329,36 +329,6 @@ any commit that:
 Even if the agent strongly believes a change improves the project, these three
 categories require explicit user approval via AskUserQuestion. No exceptions.
 No auto-merging. No "I'll just clean this up."
-
-## Checking out PRs from garrytan-agents
-
-When the user says "check out <PR link>" and the PR is from `garrytan-agents/gstack`
-(or any other fork that is NOT a collaborator on `garrytan/gstack`), do NOT just
-`gh pr checkout`. Fork PRs don't receive base-repo secrets (`ANTHROPIC_API_KEY`,
-`OPENAI_API_KEY`, etc.), so the eval/E2E CI jobs fail with empty-env auth errors
-regardless of what's set on the base repo.
-
-**Workflow:** push the branch to `garrytan/gstack` (the base repo) and re-target
-the PR from there.
-
-Concretely, after `gh pr checkout <N>`:
-
-1. Note the original PR number and head branch name.
-2. Push the same branch to the base repo: `git push origin HEAD:<branch-name>`
-   (origin = `garrytan/gstack`, since the worktree is set up with that remote).
-3. Close the fork PR (`gh pr close <N> --comment "moving to base-repo branch for secret access"`).
-4. Open a new PR from the base-repo branch: `gh pr create --base main --head <branch-name>`.
-5. New PR's workflows will get secrets automatically.
-
-Why not fix it on the fork side? `garrytan-agents` isn't a collaborator on
-`garrytan/gstack`. Adding it as a collaborator (option A) or flipping the
-repo-wide "send secrets to fork PRs" toggle (option B) would let secrets reach
-fork PRs from anyone — broader blast radius than just moving this one branch.
-Option C (this section) keeps secret-distribution scope tight.
-
-If the user asks you to skip the move (e.g., "just leave it as a fork PR"),
-respect that — eval CI will fail with empty-env auth, but check-freshness,
-workflow-lint, and windows-tests will still pass on the fork PR.
 
 ## CHANGELOG + VERSION style
 

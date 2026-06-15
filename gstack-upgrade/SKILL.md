@@ -100,7 +100,7 @@ elif [ -d "$HOME/.claude/skills/g6" ]; then
   INSTALL_TYPE="vendored-global"
   INSTALL_DIR="$HOME/.claude/skills/g6"
 else
-  echo "ERROR: gstack not found"
+  echo "ERROR: g6 not found"
   exit 1
 fi
 echo "Install type: $INSTALL_TYPE at $INSTALL_DIR"

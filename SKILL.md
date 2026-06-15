@@ -508,7 +508,7 @@ quality gates that produce better results than answering inline.
 - User asks for a second opinion, codex review → invoke `/codex`
 - User asks for safety mode, careful mode → invoke `/careful` or `/guard`
 - User asks to restrict edits to a directory → invoke `/freeze` or `/unfreeze`
-- User asks to upgrade gstack → invoke `/gstack-upgrade`
+- User asks to upgrade g6 → invoke `/g6-upgrade`
 - User asks to save progress, checkpoint, "save my work" → invoke `/context-save`
 - User asks to resume, restore, "where was I" → invoke `/context-restore`
 - User asks about security, OWASP, vulnerabilities, "is this secure", threat model, pentest review → invoke `/cso`
@@ -525,10 +525,10 @@ quality gates that produce better results than answering inline.
 - User asks to audit Supabase, RLS policies, auth config, Edge Functions → invoke `/supabase-audit`
 - User asks to deploy Supabase migrations, "push db changes", migration deploy → invoke `/supabase-deploy`
 - User asks to make a PDF, document, publication → invoke `/make-pdf`
-- User asks to launch a real browser for QA, "open the browser" → invoke `/open-gstack-browser`
+- User asks to launch a real browser for QA, "open the browser" → invoke `/open-g6-browser`
 - User asks to import cookies for authenticated testing → invoke `/setup-browser-cookies`
 - User asks about page speed, performance regression, benchmarks → invoke `/benchmark`
-- User asks what gstack has learned, "show learnings" → invoke `/learn`
+- User asks what g6 has learned, "show learnings" → invoke `/learn`
 - User asks to tune question sensitivity, "stop asking me that" → invoke `/plan-tune`
 - User asks for code quality dashboard, "health check" → invoke `/health`
 

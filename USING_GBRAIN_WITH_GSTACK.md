@@ -1,8 +1,8 @@
-# Using GBrain with GStack
+# Using GBrain with g6
 
 Your coding agent, with a memory it actually keeps.
 
-[GBrain](https://github.com/garrytan/gbrain) is a persistent knowledge base designed for AI agents. It stores what your agent learns, what you've decided, what worked and what didn't, and lets the agent search all of it on demand. GStack gives you a one-command path from zero to "gbrain is running, and my agent can call it" — with paths for try-it-local, share-with-your-team, and everything between.
+[GBrain](https://github.com/garrytan/gbrain) is a persistent knowledge base designed for AI agents. It stores what your agent learns, what you've decided, what worked and what didn't, and lets the agent search all of it on demand. g6 gives you a one-command path from zero to "gbrain is running, and my agent can call it" — with paths for try-it-local, share-with-your-team, and everything between.
 
 This is the full monty: every scenario, every flag, every helper bin, every troubleshooting step. For the quick pitch, see the [README's GBrain section](README.md#gbrain--persistent-knowledge-for-your-coding-agent). For error codes and sync-specific issues, see [docs/gbrain-sync.md](docs/gbrain-sync.md).
 
@@ -158,9 +158,9 @@ The skill runs `gbrain migrate --to supabase --url "$URL"` wrapped in `timeout 1
 
 **If migration hangs:** another gstack session may be holding a lock on the source brain. The timeout fires at 3 minutes with an actionable message. Close other workspaces and re-run.
 
-## GStack memory sync (a separate concern)
+## g6 memory sync (a separate concern)
 
-This is different from gbrain itself. Your gstack state (`~/.gstack/` — learnings, plans, retros, timeline, developer profile) is machine-local by default. "GStack memory sync" optionally pushes a curated, secret-scanned subset to a private git repo so your memory follows you across machines — and, if you're running gbrain, that git repo becomes indexable there too.
+This is different from gbrain itself. Your g6 state (`~/.gstack/` — learnings, plans, retros, timeline, developer profile) is machine-local by default. Memory sync optionally pushes a curated, secret-scanned subset to a private git repo so your memory follows you across machines — and, if you're running gbrain, that git repo becomes indexable there too.
 
 Turn it on with:
 
@@ -376,7 +376,7 @@ Another gstack session in a sibling Conductor workspace may be holding a lock on
 ## Related skills + next steps
 
 - `/health` — includes a GBrain dimension (doctor status, sync queue depth, last-push age) in its 0-10 composite score. The dimension is omitted when gbrain isn't installed; running `/health` on a non-gbrain machine doesn't penalize that choice.
-- `/gstack-upgrade` — keeps gstack itself up to date. Does NOT upgrade gbrain independently. To bump gbrain, update `PINNED_COMMIT` in `bin/gstack-gbrain-install` and re-run `/setup-gbrain`.
+- `/g6-upgrade` — keeps g6 itself up to date. Does NOT upgrade gbrain independently. To bump gbrain, update `PINNED_COMMIT` in `bin/gstack-gbrain-install` and re-run `/setup-gbrain`.
 - `/retro` — weekly retrospective pulls learnings and plans from your gbrain when memory sync is on, letting the retro reference cross-machine history.
 
 Run `/setup-gbrain` and see what sticks.

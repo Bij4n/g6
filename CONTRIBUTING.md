@@ -1,15 +1,15 @@
-# Contributing to gstack
+# Contributing to g6
 
-Thanks for wanting to make gstack better. Whether you're fixing a typo in a skill prompt or building an entirely new workflow, this guide will get you up and running fast.
+Thanks for wanting to make g6 better. Whether you're fixing a typo in a skill prompt or building an entirely new workflow, this guide will get you up and running fast.
 
 ## Quick start
 
-gstack skills are Markdown files that Claude Code discovers from a `skills/` directory. Normally they live at `~/.claude/skills/g6/` (your global install). But when you're developing gstack itself, you want Claude Code to use the skills *in your working tree* — so edits take effect instantly without copying or deploying anything.
+g6 skills are Markdown files that Claude Code discovers from a `skills/` directory. Normally they live at `~/.claude/skills/g6/` (your global install). But when you're developing g6 itself, you want Claude Code to use the skills *in your working tree* — so edits take effect instantly without copying or deploying anything.
 
 That's what dev mode does. It symlinks your repo into the local `.claude/skills/` directory so Claude Code reads skills straight from your checkout.
 
 ```bash
-git clone https://github.com/Bij4n/g6.git && cd gstack
+git clone https://github.com/Bij4n/g6.git && cd g6
 bun install                    # install dependencies
 bin/dev-setup                  # activate dev mode
 ```
@@ -24,40 +24,40 @@ bin/dev-teardown               # deactivate — back to your global install
 
 ## Operational self-improvement
 
-gstack automatically learns from failures. At the end of every skill session, the agent
+g6 automatically learns from failures. At the end of every skill session, the agent
 reflects on what went wrong (CLI errors, wrong approaches, project quirks) and logs
 operational learnings to `~/.gstack/projects/{slug}/learnings.jsonl`. Future sessions
-surface these learnings automatically, so gstack gets smarter on your codebase over time.
+surface these learnings automatically, so g6 gets smarter on your codebase over time.
 
 No setup needed. Learnings are logged automatically. View them with `/learn`.
 
 ### The contributor workflow
 
-1. **Use gstack normally** — operational learnings are captured automatically
+1. **Use g6 normally** — operational learnings are captured automatically
 2. **Check your learnings:** `/learn` or `ls ~/.gstack/projects/*/learnings.jsonl`
-3. **Fork and clone gstack** (if you haven't already)
+3. **Fork and clone g6** (if you haven't already)
 4. **Symlink your fork into the project where you hit the bug:**
    ```bash
-   # In your core project (the one where gstack annoyed you)
+   # In your core project (the one where g6 annoyed you)
    ln -sfn /path/to/your/g6-fork .claude/skills/g6
    cd .claude/skills/g6 && bun install && bun run build && ./setup
    ```
    Setup creates per-skill directories with SKILL.md symlinks inside (`qa/SKILL.md -> gstack/qa/SKILL.md`)
    and asks your prefix preference. Pass `--no-prefix` to skip the prompt and use short names.
 5. **Fix the issue** — your changes are live immediately in this project
-6. **Test by actually using gstack** — do the thing that annoyed you, verify it's fixed
+6. **Test by actually using g6** — do the thing that annoyed you, verify it's fixed
 7. **Open a PR from your fork**
 
-This is the best way to contribute: fix gstack while doing your real work, in the
+This is the best way to contribute: fix g6 while doing your real work, in the
 project where you actually felt the pain.
 
 ### Session awareness
 
-When you have 3+ gstack sessions open simultaneously, every question tells you which project, which branch, and what's happening. No more staring at a question thinking "wait, which window is this?" The format is consistent across all skills.
+When you have 3+ g6 sessions open simultaneously, every question tells you which project, which branch, and what's happening. No more staring at a question thinking "wait, which window is this?" The format is consistent across all skills.
 
-## Working on gstack inside the gstack repo
+## Working on g6 inside the g6 repo
 
-When you're editing gstack skills and want to test them by actually using gstack
+When you're editing g6 skills and want to test them by actually using g6
 in the same repo, `bin/dev-setup` wires this up. It creates `.claude/skills/`
 symlinks (gitignored) pointing back to your working tree, so Claude Code uses
 your local edits instead of the global install.
@@ -348,14 +348,14 @@ When Conductor creates a new workspace, `bin/dev-setup` runs automatically. It d
 
 ## Testing your changes in a real project
 
-**This is the recommended way to develop gstack.** Symlink your gstack checkout
+**This is the recommended way to develop g6.** Symlink your g6 checkout
 into the project where you actually use it, so your changes are live while you
 do real work.
 
 ### Step 1: Symlink your checkout
 
 ```bash
-# In your core project (not the gstack repo)
+# In your core project (not the g6 repo)
 ln -sfn /path/to/your/g6-checkout .claude/skills/g6
 ```
 
@@ -391,7 +391,7 @@ to `gstack/...`, so they'll resolve to the global install automatically.
 
 ### Switching prefix mode
 
-If you installed gstack with one prefix setting and want to switch:
+If you installed g6 with one prefix setting and want to switch:
 
 ```bash
 cd .claude/skills/g6 && ./setup --no-prefix   # switch to /qa, /ship

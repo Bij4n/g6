@@ -2,7 +2,7 @@
 
 > "A small practice building, teaching, and securing software that belongs to the people using it." — Capitalism Killed Software
 
-I'm [Bij4n](https://github.com/Bij4n). g6 is my fork of [garrytan/gstack](https://github.com/garrytan/gstack). Garry's work is great — the bones are solid. It just wasn't built for how I work: privacy-first, security-forward, independent stack, teaching as I go. So I extended it.
+I'm [Bij4n](https://github.com/Bij4n). g6 is a standalone AI engineering workflow for solo builders — privacy-first, security-forward, and tuned for the stack I actually ship with.
 
 ## What g6 adds
 
@@ -22,7 +22,7 @@ I'm [Bij4n](https://github.com/Bij4n). g6 is my fork of [garrytan/gstack](https:
 | `/multi-tenant-audit` | Cross-tenant data leakage: DB tenant scoping, RLS tenant filters, cache key isolation, background job context, file storage paths, IDOR checks across Rails, Next.js, and FastAPI. |
 | `/mentor` | Teaching mode. Explains what just happened in plain language, calibrated to the learner's level. For the people I'm training. |
 
-**Auto-updates from this fork.** When you install g6, update checks point to `Bij4n/g6` — not upstream. You get Garry's improvements (I track upstream) plus g6's originals.
+**Auto-updates from `Bij4n/g6`.** Run `/g6-upgrade` to pull the latest.
 
 ## Quick start
 
@@ -204,22 +204,14 @@ It works on any stack — these are just the defaults that inform the g6-origina
 
 ## Updating
 
-To pull the latest: `/g6-upgrade` — checks and pulls from `Bij4n/g6`.
-
-To also pull upstream gstack improvements, merge from `garrytan/gstack`:
-
-```bash
-cd ~/.claude/skills/g6
-git remote add upstream https://github.com/garrytan/gstack.git 2>/dev/null || true
-git fetch upstream
-git merge upstream/main --no-edit
-./setup
-```
+Run `/g6-upgrade` — checks and pulls from `Bij4n/g6`, then re-runs `./setup`.
 
 ## License
 
-MIT. Same as upstream. Fork it, extend it, share it.
+MIT. Fork it, extend it, share it.
 
 ---
 
-*Built on [gstack](https://github.com/garrytan/gstack) by [Garry Tan](https://x.com/garrytan).*
+## Credits
+
+g6 started from [gstack](https://github.com/garrytan/gstack) by [Garry Tan](https://x.com/garrytan). I kept the core workflow (skills, browse binary, ship pipeline) and added the g6-original audit, health, teaching, and privacy skills listed above — plus defaults for my stack (Rails, FastAPI, Stripe, Supabase, no Google services).
