@@ -904,10 +904,10 @@ document.getElementById('conn-reconnect').addEventListener('click', () => {
 });
 
 document.getElementById('conn-copy').addEventListener('click', () => {
-  navigator.clipboard.writeText('/open-gstack-browser').then(() => {
+  navigator.clipboard.writeText('/open-g6-browser').then(() => {
     const btn = document.getElementById('conn-copy');
     btn.textContent = 'copied!';
-    setTimeout(() => { btn.textContent = '/open-gstack-browser'; }, 2000);
+    setTimeout(() => { btn.textContent = '/open-g6-browser'; }, 2000);
   });
 });
 
@@ -999,7 +999,7 @@ async function tryConnect() {
   } catch (e) {
     setLoadingStatus(
       `Server not reachable on port ${port} (attempt ${connectAttempts})`,
-      `GET /health failed: ${e.message}\n\nThe browse server may still be starting.\nRun /open-gstack-browser in Claude Code.`
+      `GET /health failed: ${e.message}\n\nThe browse server may still be starting.\nRun /open-g6-browser in Claude Code.`
     );
   }
 

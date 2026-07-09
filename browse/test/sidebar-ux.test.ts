@@ -1478,7 +1478,7 @@ describe('BROWSE_NO_AUTOSTART (sidebar headless prevention)', () => {
   });
 
   test('cli.ts shows actionable error message when BROWSE_NO_AUTOSTART blocks', () => {
-    expect(cliSrc).toContain('/open-gstack-browser');
+    expect(cliSrc).toContain('/open-g6-browser');
     expect(cliSrc).toContain('BROWSE_NO_AUTOSTART is set');
   });
 

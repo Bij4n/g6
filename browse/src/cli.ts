@@ -360,7 +360,7 @@ async function ensureServer(flags?: GlobalFlags): Promise<ServerState> {
   // fail fast with a clear error instead of silently starting a new one.
   if (process.env.BROWSE_NO_AUTOSTART === '1') {
     console.error('[browse] Server not available and BROWSE_NO_AUTOSTART is set.');
-    console.error('[browse] The headed browser may have been closed. Run /open-gstack-browser to restart.');
+    console.error('[browse] The headed browser may have been closed. Run /open-g6-browser to restart.');
     process.exit(1);
   }
 
@@ -369,7 +369,7 @@ async function ensureServer(flags?: GlobalFlags): Promise<ServerState> {
   // Silently replacing it would be confusing — tell the user to reconnect.
   if (state && state.mode === 'headed' && isProcessAlive(state.pid)) {
     console.error(`[browse] Headed server running (PID ${state.pid}) but not responding.`);
-    console.error(`[browse] Run '/open-gstack-browser' to restart.`);
+    console.error(`[browse] Run '/open-g6-browser' to restart.`);
     process.exit(1);
   }
 
@@ -895,7 +895,7 @@ async function main() {
   const args = globalFlags.args;
 
   if (args.length === 0 || args[0] === '--help' || args[0] === '-h') {
-    console.log(`gstack browse — Fast headless browser for AI coding agents
+    console.log(`g6 browse — Fast headless browser for AI coding agents
 
 Usage: browse <command> [args...]
 
