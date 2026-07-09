@@ -208,6 +208,28 @@ export class BrowserManager {
     }
   }
 
+  /**
+   * Chromium's sandbox needs unprivileged user namespaces. Those are
+   * unavailable in containers/CI, for root, and on Ubuntu 23.10+ desktops
+   * where AppArmor restricts them (sandbox setup dies with SIGTRAP before
+   * the browser starts). Every launch path must consult this — both
+   * launch() and the launchPersistentContext() paths.
+   */
+  private sandboxDisabled(): boolean {
+    const isRoot = typeof process.getuid === 'function' && process.getuid() === 0;
+    let userNsRestricted = false;
+    if (process.platform === 'linux') {
+      try {
+        const fs = require('fs');
+        userNsRestricted =
+          fs.readFileSync('/proc/sys/kernel/apparmor_restrict_unprivileged_userns', 'utf-8').trim() === '1';
+      } catch {
+        // sysctl absent (older kernel / non-AppArmor distro) — sandbox is fine
+      }
+    }
+    return Boolean(process.env.CI || process.env.CONTAINER) || isRoot || userNsRestricted;
+  }
+
   async launch() {
     // ─── Extension Support ────────────────────────────────────
     // BROWSE_EXTENSIONS_DIR points to an unpacked Chrome extension directory.
@@ -217,11 +239,8 @@ export class BrowserManager {
     const launchArgs: string[] = [...STEALTH_LAUNCH_ARGS];
     let useHeadless = true;
 
-    // Docker/CI/root: Chromium sandbox requires unprivileged user namespaces which
-    // are typically disabled in containers and are never available for the root
-    // user on Linux. Detect all three cases and add --no-sandbox automatically.
-    const isRoot = typeof process.getuid === 'function' && process.getuid() === 0;
-    if (process.env.CI || process.env.CONTAINER || isRoot) {
+    const sandboxDisabled = this.sandboxDisabled();
+    if (sandboxDisabled) {
       launchArgs.push('--no-sandbox');
     }
 
@@ -240,8 +259,10 @@ export class BrowserManager {
       headless: useHeadless,
       // On Windows, Chromium's sandbox fails when the server is spawned through
       // the Bun→Node process chain (GitHub #276). Disable it — local daemon
-      // browsing user-specified URLs has marginal sandbox benefit.
-      chromiumSandbox: process.platform !== 'win32',
+      // browsing user-specified URLs has marginal sandbox benefit. Also disabled
+      // wherever --no-sandbox was added above (CI, containers, root, AppArmor
+      // userns restriction) so Playwright doesn't re-enable what the args disable.
+      chromiumSandbox: process.platform !== 'win32' && !sandboxDisabled,
       ...(launchArgs.length > 0 ? { args: launchArgs } : {}),
       ...(this.proxyConfig ? { proxy: this.proxyConfig } : {}),
     });
@@ -419,8 +440,10 @@ export class BrowserManager {
       }
     }
 
+    if (this.sandboxDisabled()) launchArgs.push('--no-sandbox');
     this.context = await chromium.launchPersistentContext(userDataDir, {
       headless: false,
+      chromiumSandbox: process.platform !== 'win32' && !this.sandboxDisabled(),
       args: launchArgs,
       viewport: null,  // Use browser's default viewport (real window size)
       userAgent: this.customUserAgent || customUA,
@@ -1307,8 +1330,10 @@ export class BrowserManager {
       const userDataDir = path.join(process.env.HOME || '/tmp', '.gstack', 'chromium-profile');
       fs.mkdirSync(userDataDir, { recursive: true });
 
+      if (this.sandboxDisabled()) launchArgs.push('--no-sandbox');
       newContext = await chromium.launchPersistentContext(userDataDir, {
         headless: false,
+        chromiumSandbox: process.platform !== 'win32' && !this.sandboxDisabled(),
         args: launchArgs,
         viewport: null,
         ...(this.proxyConfig ? { proxy: this.proxyConfig } : {}),
