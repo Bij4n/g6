@@ -85,9 +85,164 @@ function startReconnect() {
 
 // ─── Chat path ripped ────────────────────────────────────────────
 // Chat queue + sendMessage + pollChat + switchChatTab + browser-tabs
-// strip + security banner all lived here. Replaced by the interactive
-// claude PTY in sidepanel-terminal.js (and terminal-agent.ts on the
-// server side).
+// strip all lived here. Replaced by the interactive claude PTY in
+// sidepanel-terminal.js (and terminal-agent.ts on the server side).
+
+// ─── Security shield + banner ────────────────────────────────────
+// Restored from the pre-PTY implementation. Data now flows queue-free:
+// the shield consumes /health.security on connect and every
+// /security-events poll; the banner renders ONLY block-verdict
+// security_event entries (canary leaks, ensemble BLOCK — see the
+// severity contract in browse/src/security-events.ts). The old
+// reviewable allow/block flow is NOT restored: its /security-decision
+// consumer (sidebar-agent) no longer exists.
+const SECURITY_LAYER_LABELS = {
+  testsavant_content: 'Content ML',
+  transcript_classifier: 'Transcript ML',
+  aria_regex: 'ARIA pattern',
+  canary: 'Canary leak',
+  content_security: 'Content strip',
+};
+
+function showSecurityBanner(event) {
+  const banner = document.getElementById('security-banner');
+  if (!banner) return;
+  const subtitle = document.getElementById('security-banner-subtitle');
+  const layersEl = document.getElementById('security-banner-layers');
+  const expandBtn = document.getElementById('security-banner-expand');
+  const details = document.getElementById('security-banner-details');
+  const chevron = banner.querySelector('.security-banner-chevron');
+
+  if (subtitle) {
+    const fromDomain = event.domain ? ` from ${event.domain}` : '';
+    subtitle.textContent = `— prompt injection detected${fromDomain}`;
+  }
+
+  // Layer signals list (mono scores): primary layer first, then extra signals
+  if (layersEl) {
+    layersEl.innerHTML = '';
+    const rows = [];
+    if (event.layer) {
+      rows.push({ layer: event.layer, confidence: event.confidence ?? 1.0 });
+    }
+    if (Array.isArray(event.signals)) {
+      for (const s of event.signals) {
+        if (s.layer && !rows.some(r => r.layer === s.layer)) {
+          rows.push({ layer: s.layer, confidence: s.confidence ?? 0 });
+        }
+      }
+    }
+    for (const row of rows) {
+      const div = document.createElement('div');
+      div.className = 'security-banner-layer';
+      const nameSpan = document.createElement('span');
+      nameSpan.className = 'security-banner-layer-name';
+      nameSpan.textContent = SECURITY_LAYER_LABELS[row.layer] || row.layer;
+      const scoreSpan = document.createElement('span');
+      scoreSpan.className = 'security-banner-layer-score';
+      scoreSpan.textContent = Number(row.confidence).toFixed(2);
+      div.appendChild(nameSpan);
+      div.appendChild(scoreSpan);
+      layersEl.appendChild(div);
+    }
+  }
+
+  // Reset expand state on each render
+  if (expandBtn && details) {
+    expandBtn.setAttribute('aria-expanded', 'false');
+    details.hidden = true;
+    if (chevron) chevron.style.transform = 'rotate(0deg)';
+  }
+
+  banner.style.display = 'block';
+}
+
+function hideSecurityBanner() {
+  const banner = document.getElementById('security-banner');
+  if (banner) banner.style.display = 'none';
+}
+
+const SHIELD_LABELS = {
+  protected: { label: 'SEC', aria: 'Security status: protected' },
+  degraded:  { label: 'SEC', aria: 'Security status: degraded (some layers offline)' },
+  inactive:  { label: 'SEC', aria: 'Security status: inactive (architectural controls only)' },
+};
+
+function updateSecurityShield(securityState) {
+  const shield = document.getElementById('security-shield');
+  const labelEl = document.getElementById('security-shield-label');
+  if (!shield || !securityState) return;
+  const status = securityState.status || 'inactive';
+  const info = SHIELD_LABELS[status] || SHIELD_LABELS.inactive;
+  shield.setAttribute('data-status', status);
+  shield.setAttribute('aria-label', info.aria);
+  shield.style.display = 'inline-flex';
+  if (labelEl) labelEl.textContent = info.label;
+  if (securityState.layers) {
+    const parts = Object.entries(securityState.layers).map(([k, v]) => `${k}:${v}`);
+    shield.setAttribute('title', `Security — ${status}\n${parts.join('\n')}`);
+  } else {
+    shield.setAttribute('title', `Security — ${status}`);
+  }
+}
+
+// Poll GET /security-events for new entries + fresh shield state.
+// Banner fires ONLY on verdict === 'block'.
+let securityEventsAfter = 0;
+let securityPollTimer = null;
+
+async function pollSecurityEvents() {
+  if (!serverUrl) return;
+  try {
+    const resp = await fetch(`${serverUrl}/security-events?after=${securityEventsAfter}`, {
+      headers: authHeaders(),
+    });
+    if (!resp.ok) return;
+    const data = await resp.json();
+    if (data.security) updateSecurityShield(data.security);
+    for (const entry of data.entries || []) {
+      if (typeof entry.id === 'number' && entry.id > securityEventsAfter) {
+        securityEventsAfter = entry.id;
+      }
+      if (entry.type === 'security_event' && entry.verdict === 'block') {
+        showSecurityBanner(entry);
+      }
+    }
+  } catch {
+    // transient — next poll retries; connection loss is handled by the
+    // SSE state machine, not here
+  }
+}
+
+function startSecurityPolling() {
+  if (securityPollTimer) return;
+  pollSecurityEvents();
+  securityPollTimer = setInterval(pollSecurityEvents, 5000);
+}
+
+// Banner interactivity — wired once at load
+(() => {
+  const banner = document.getElementById('security-banner');
+  const closeBtn = document.getElementById('security-banner-close');
+  const expandBtn = document.getElementById('security-banner-expand');
+  if (closeBtn) closeBtn.addEventListener('click', hideSecurityBanner);
+  if (expandBtn) {
+    expandBtn.addEventListener('click', () => {
+      const details = document.getElementById('security-banner-details');
+      const chevron = banner && banner.querySelector('.security-banner-chevron');
+      if (!details) return;
+      const open = !details.hidden;
+      details.hidden = open;
+      expandBtn.setAttribute('aria-expanded', String(!open));
+      if (chevron) chevron.style.transform = open ? 'rotate(0deg)' : 'rotate(180deg)';
+    });
+  }
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && banner && banner.style.display !== 'none') {
+      hideSecurityBanner();
+    }
+  });
+})();
 
 // ─── Reload Sidebar ─────────────────────────────────────────────
 document.getElementById('reload-sidebar').addEventListener('click', () => {
@@ -842,6 +997,9 @@ function updateConnection(url, token) {
   // the bootstrap token to POST /pty-session and the port to derive the WS
   // URL. We never expose the PTY token — it lives in an HttpOnly cookie.
   if (url) {
+    // Shield + banner data: poll /security-events (also refreshes the
+    // shield via the response's `security` field on every tick).
+    startSecurityPolling();
     try { window.gstackServerPort = parseInt(new URL(url).port, 10); } catch {}
     window.gstackAuthToken = token || null;
   } else {
@@ -981,9 +1139,10 @@ async function tryConnect() {
           `token: yes (from /health)\nStarting SSE + activity feed...`
         );
         updateConnection(`http://127.0.0.1:${port}`, data.token);
-        // The SEC shield used to drive off /health.security via the chat
-        // path's classifier; with the chat path ripped, the indicator is
-        // not driven yet. Leaving the shield element hidden by default.
+        // Drive the SEC shield from this /health response immediately;
+        // the /security-events poll (started by updateConnection) keeps
+        // it fresh from here on.
+        if (data.security) updateSecurityShield(data.security);
         return;
       }
       setLoadingStatus(
