@@ -335,6 +335,9 @@ function startBasicPicker() {
 chrome.runtime.onMessage.addListener((msg) => {
   // Sidebar actually opened — now hide the welcome page arrow hint
   if (msg.type === 'sidebarOpened') {
+    document.dispatchEvent(new CustomEvent('g6-extension-ready'));
+    // Legacy event name — welcome pages baked into pre-rename browse
+    // binaries still listen for this. Remove after a deprecation cycle.
     document.dispatchEvent(new CustomEvent('gstack-extension-ready'));
     return;
   }
