@@ -1,5 +1,35 @@
 # Changelog
 
+## [1.43.0.0] - 2026-07-09
+
+## **The security shield is back on: the sidebar shows you your protection status again.**
+
+The sidebar's SEC shield and prompt-injection banner went dark when the chat queue was replaced by the PTY terminal — the server kept computing security status, but nothing displayed it. Now the shield is live again: it lights up green (protected), amber (degraded), or grey (inactive) from the server's real security state, refreshing every five seconds, with per-layer detail on hover. The injection banner is wired to a new `/security-events` feed and renders per-layer confidence scores with expand, close, and Escape-to-dismiss — and it only fires on session-terminating block verdicts, never on routine content strips, so an alert always means something.
+
+### The numbers that matter
+
+| | |
+|---|---|
+| Sidebar security indicators driven by real data | 0 → shield + banner |
+| Shield refresh | never → every 5s |
+| Banner false-alarm sources | strips excluded by contract |
+| Tests covering the security UI | 6 skipped → 10 green |
+
+### What this means
+
+While the browser works on your behalf, you can see at a glance whether the prompt-injection defenses are fully armed — and if a session ever gets terminated for an injection, the banner tells you which layer caught it and how confident it was.
+
+### Itemized changes
+
+### Added
+- `GET /security-events` — authenticated, token-free feed of security events plus current shield state; ring-buffered with cursor semantics
+- Content-security strips now publish informational entries (domain + command channel) to the feed
+- Unit tests for the event buffer; the 6 sidepanel security DOM tests are unskipped and green
+
+### Changed
+- Sidebar shield driven from `/health.security` on connect and every feed poll; injection banner restored (layer scores, expand/collapse, Escape dismiss) and gated to block verdicts only
+- Queue-era `sidebar-integration.test.ts` removed — it tested the deleted chat-queue HTTP API, now replaced by the covered events feed
+
 ## [1.42.0.0] - 2026-07-09
 
 ## **The connect command is now /open-g6-browser — and every old name still works.**

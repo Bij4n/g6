@@ -5,8 +5,8 @@
  *
  * Uses Playwright + BrowserManager. The extension sidepanel is loaded via
  * file:// with a stubbed window.fetch that simulates the browse server
- * returning /health + /sidebar-chat responses. We inject security_event
- * entries via the stubbed /sidebar-chat response and assert:
+ * returning /health + /security-events responses. We inject security_event
+ * entries via the stubbed /security-events response and assert:
  *
  *   * Banner renders (display: block, not display: none)
  *   * Title + subtitle text reflects domain + layer
@@ -102,12 +102,9 @@ async function installStubsBeforeLoad(page: Page, scenario: {
           security: scenarioRef.healthSecurity ?? { status: 'degraded', layers: {}, lastUpdated: '' },
         }), { status: 200, headers: { 'Content-Type': 'application/json' } });
       }
-      if (url.includes('/sidebar-chat')) {
+      if (url.includes('/security-events')) {
         return new Response(JSON.stringify({
           entries: scenarioRef.securityEntries ?? [],
-          total: (scenarioRef.securityEntries ?? []).length,
-          agentStatus: 'idle',
-          activeTabId: 1,
           security: scenarioRef.healthSecurity ?? { status: 'degraded', layers: {} },
         }), { status: 200, headers: { 'Content-Type': 'application/json' } });
       }
@@ -154,12 +151,7 @@ afterAll(async () => {
   }
 });
 
-// SKIPPED: the security shield/banner UI is currently NOT driven — the chat
-// poll that powered /health.security updates was removed in the PTY rewrite
-// (sidepanel.js: "Leaving the shield element hidden by default"). These tests
-// are the spec for that UX. Unskip when the shield is re-driven from the
-// PTY/SSE flow. Tracked in TODOS.md (P1: re-drive sidebar security UI).
-describe.skip('sidepanel security DOM', () => {
+describe('sidepanel security DOM', () => {
   test.skipIf(!CHROMIUM_AVAILABLE)('shield icon reflects /health.security.status', async () => {
     const context = await browser!.newContext();
     const page = await context.newPage();
@@ -232,8 +224,8 @@ describe.skip('sidepanel security DOM', () => {
     });
     await page.goto(SIDEPANEL_URL);
 
-    // The banner should become visible once /sidebar-chat poll delivers the
-    // security_event entry and addChatEntry routes it to showSecurityBanner.
+    // The banner should become visible once the /security-events poll
+    // delivers the block-verdict entry to showSecurityBanner.
     await page.waitForSelector('#security-banner', { state: 'visible', timeout: 5000 });
     const displayed = await page.$eval('#security-banner', (el) =>
       window.getComputedStyle(el).display !== 'none',
