@@ -1157,7 +1157,7 @@ Refs:           After 'snapshot', use @e1, @e2... as selectors:
     // Ensure headed mode — the user should see the browser window
     // when sharing it with another agent. Feels safer, more impressive.
     if (state.mode !== 'headed' && !hasFlag(commandArgs, '--headless')) {
-      console.log('[browse] Opening GStack Browser so you can see what the remote agent does...');
+      console.log('[browse] Opening g6 Browser so you can see what the remote agent does...');
       // In compiled binaries, process.argv[1] is /$bunfs/... (virtual).
       // Use process.execPath which is the real binary on disk.
       const browseBin = process.execPath;

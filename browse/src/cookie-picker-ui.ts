@@ -309,7 +309,7 @@ export function getCookiePickerHTML(serverPort: number): string {
   <span class="port">localhost:${serverPort}</span>
 </div>
 
-<p class="subtitle">Select the domains of cookies you want to import to GStack Browser. You'll be able to browse those sites with the same login as your other browser.</p>
+<p class="subtitle">Select the domains of cookies you want to import to g6 Browser. You'll be able to browse those sites with the same login as your other browser.</p>
 
 <div id="banner" class="banner"></div>
 
