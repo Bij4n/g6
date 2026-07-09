@@ -79,7 +79,13 @@ async function resetState() {
   fs.writeFileSync(queueFile, '');
 }
 
-describe('sidebar auth', () => {
+// SKIPPED: the /sidebar-command, /sidebar-chat, /sidebar-agent/* and
+// /sidebar-session/* endpoints these tests exercise were removed when the
+// chat queue was replaced by the interactive PTY terminal (see server.ts
+// "Sidebar chat endpoints ripped"). Kept as the spec for the queue-era API;
+// delete once the PTY-era integration suite covers equivalent flows.
+// Tracked in TODOS.md (P1: re-drive sidebar security UI / PTY-era tests).
+describe.skip('sidebar auth', () => {
   test('rejects request without auth token', async () => {
     const resp = await api('/sidebar-command', {
       method: 'POST',
@@ -109,7 +115,7 @@ describe('sidebar auth', () => {
   });
 });
 
-describe('sidebar-command → queue', () => {
+describe.skip('sidebar-command → queue', () => {
   test('writes queue entry with activeTabUrl', async () => {
     await resetState();
 
@@ -185,7 +191,7 @@ describe('sidebar-command → queue', () => {
   });
 });
 
-describe('sidebar-agent/event → chat buffer', () => {
+describe.skip('sidebar-agent/event → chat buffer', () => {
   test('agent events appear in /sidebar-chat', async () => {
     await resetState();
 
@@ -231,7 +237,7 @@ describe('sidebar-agent/event → chat buffer', () => {
   });
 });
 
-describe('message queuing', () => {
+describe.skip('message queuing', () => {
   test('queues message when agent is processing', async () => {
     await resetState();
 
@@ -282,7 +288,7 @@ describe('message queuing', () => {
   });
 });
 
-describe('chat clear', () => {
+describe.skip('chat clear', () => {
   test('clears chat buffer', async () => {
     await resetState();
     // Add some entries
@@ -299,7 +305,7 @@ describe('chat clear', () => {
   });
 });
 
-describe('agent kill', () => {
+describe.skip('agent kill', () => {
   test('kill adds error entry and returns to idle', async () => {
     await resetState();
 
