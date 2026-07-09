@@ -21,22 +21,25 @@ pointing at the working tree — remove the symlink for the duration
 
 ## Sidebar security UI
 
-### P1: Re-drive the security shield/banner from the PTY-era data flow
+### P2: Wire block-verdict producers into the security-events feed
 
-**What:** The extension's security shield + event banner UI exists in
-sidepanel.html/.css but is no longer driven: the chat poll that updated it
-from `/health.security` was removed in the PTY terminal rewrite
-(`extension/sidepanel.js` ~984: "Leaving the shield element hidden by
-default"). Users get no visual signal from the six-layer prompt-injection
-stack while browsing.
+**What:** The shield + banner are live again (v1.43.0.0): shield driven from
+`/health.security` + the `GET /security-events` poll, banner renders
+block-verdict entries. But the only production emitter today is the
+content-security strip path ('strip' severity — informational, never
+banners). The verdict pipeline (`security.ts combineVerdict`,
+`checkCanaryInStructure`, the ML classifiers) is dormant library code with
+no runtime callers since the sidebar-agent rip, so nothing emits a 'block'
+in production yet.
 
-**Spec preserved:** `browse/test/security-sidepanel-dom.test.ts` (6 tests,
-`describe.skip`) documents the intended UX — shield status attr, banner
-render, layer scores, Escape dismiss. `browse/test/sidebar-integration.test.ts`
-(11 tests, skipped) is the queue-era HTTP spec; decide whether to port it to
-PTY-era endpoints or delete it when the shield work happens.
+**How:** When the terminal-agent (or any successor) re-arms the classifier
+pipeline, publish verdicts with one call: `emitSecurityEvent()` in
+`browse/src/security-events.ts` (severity contract documented there). The
+banner UX is already test-covered (`security-sidepanel-dom.test.ts`, 6
+tests, unskipped and green).
 
-**Priority:** P1
+**Priority:** P2 — the UI and transport are done; this is the detection
+re-arming, which belongs with terminal-agent security work.
 
 ## /sync-gbrain memory stage perf follow-up
 
