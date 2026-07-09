@@ -1,5 +1,37 @@
 # Changelog
 
+## [1.41.1.0] - 2026-07-09
+
+## **The browser window is finally yours: open g6 Browser and every pixel says g6, not GStack.**
+
+Until now, launching the headed browser popped a window titled "GStack Browser" with a GStack logo, a Garry Tan footer, and a Hacker News demo prompt — for you and for anyone who cloned the repo. The v1.41.0.0 rename covered the skills but missed the browser surface itself. This release finishes the job: the welcome page, the macOS Dock/menu-bar app name, the cookie import page, the server fallback page, and the CLI messages all say g6 Browser. The footer now credits [capitalismkilledsoftware.com](https://capitalismkilledsoftware.com) and links to the g6 repo, and the try-it example uses Wikipedia instead of Y Combinator's news site.
+
+The riskiest part of that surface — the code that renames Chromium's app bundle by rewriting its Info.plist — also got hardened: the write is now atomic (temp file + rename), so a crash or two daemons launching at once can no longer leave a torn plist that permanently breaks browser launches. Machines already patched to "GStack Browser" self-repair to "g6 Browser" on next launch.
+
+### The numbers that matter
+
+| | |
+|---|---|
+| User-visible "GStack" strings in the browser UI | 12 → 0 |
+| Y Combinator / upstream-founder references on the welcome page | 3 → 0 |
+| Info.plist write | in-place → atomic |
+
+### What this means
+
+Clone the repo, run the browser, and it's your product on screen — no upstream branding leaking into demos or screenshots.
+
+### Itemized changes
+
+### Changed
+- Welcome page rebranded: title, logo, sidebar hint, and footer now say g6 Browser; footer credits capitalismkilledsoftware.com and github.com/Bij4n/g6
+- Welcome page try-it example now uses en.wikipedia.org instead of news.ycombinator.com
+- macOS Dock/menu-bar app name patch now writes "g6 Browser" (and migrates installs previously patched to "GStack Browser")
+- Cookie import page, server fallback page, pair-agent CLI message, and browser user-agent marker rebranded to g6
+- Dock icon lookup fixed to the `~/.claude/skills/g6/` install path (was still pointing at the old `gstack` path)
+
+### Fixed
+- Info.plist rebrand write is now atomic (temp file + rename) — a crash mid-write can no longer corrupt Chromium's bundle and brick headed launches
+
 ## [1.41.0.0] - 2026-06-03
 
 ## **Thirteen skills you already had but agents couldn't see are now discoverable, and the whole suite finally calls itself g6 everywhere a user looks.**
