@@ -1548,15 +1548,23 @@ describe('Doc inventory cross-check', () => {
   ]);
 
   function discoverSkillDirs(): string[] {
-    const dirs: string[] = [];
+    // Returns the skill's invocation name (frontmatter `name:`), falling back
+    // to the directory name. The g6 rename kept some directory names
+    // (gstack-upgrade, open-gstack-browser) while renaming the skills
+    // themselves (/g6-upgrade, /open-g6-browser) — docs reference the
+    // invocation name, so that's what we cross-check.
+    const names: string[] = [];
     for (const entry of fs.readdirSync(ROOT, { withFileTypes: true })) {
       if (!entry.isDirectory()) continue;
       if (entry.name.startsWith('.')) continue;
       if (DOC_INVENTORY_EXCLUDE.has(entry.name)) continue;
       const tmplPath = path.join(ROOT, entry.name, 'SKILL.md.tmpl');
-      if (fs.existsSync(tmplPath)) dirs.push(entry.name);
+      if (!fs.existsSync(tmplPath)) continue;
+      const tmpl = fs.readFileSync(tmplPath, 'utf-8');
+      const m = tmpl.match(/^name:\s*(\S+)\s*$/m);
+      names.push(m ? m[1] : entry.name);
     }
-    return dirs.sort();
+    return names.sort();
   }
 
   test('every skill is documented in AGENTS.md', () => {

@@ -50,9 +50,9 @@ Detailed guides for every gstack skill — philosophy, workflow, and examples.
 | [`/freeze`](#safety--guardrails) | **Edit Lock** | Restrict all file edits to a single directory. Blocks Edit and Write outside the boundary. Accident prevention for debugging. |
 | [`/guard`](#safety--guardrails) | **Full Safety** | Combines /careful + /freeze in one command. Maximum safety for prod work. |
 | [`/unfreeze`](#safety--guardrails) | **Unlock** | Remove the /freeze boundary, allowing edits everywhere again. |
-| [`/open-gstack-browser`](#open-gstack-browser) | **GStack Browser** | Launch GStack Browser with sidebar, anti-bot stealth, auto model routing, cookie import, and Claude Code integration. Watch every action live. |
+| [`/open-g6-browser`](#open-g6-browser) | **GStack Browser** | Launch GStack Browser with sidebar, anti-bot stealth, auto model routing, cookie import, and Claude Code integration. Watch every action live. |
 | [`/setup-deploy`](#setup-deploy) | **Deploy Configurator** | One-time setup for `/land-and-deploy`. Detects your platform, production URL, and deploy commands. |
-| [`/gstack-upgrade`](#gstack-upgrade) | **Self-Updater** | Upgrade gstack to the latest version. Detects global vs vendored install, syncs both, shows what changed. |
+| [`/g6-upgrade`](#g6-upgrade) | **Self-Updater** | Upgrade gstack to the latest version. Detects global vs vendored install, syncs both, shows what changed. |
 | [`/make-pdf`](#make-pdf) | **PDF Generator** | Turn any markdown file into a publication-quality PDF. Proper margins, page numbers, cover pages, clickable TOC. |
 
 ---
@@ -970,18 +970,18 @@ Claude: 23 learnings for this project (14 high confidence, 6 medium, 3 low)
 
 ---
 
-## `/open-gstack-browser`
+## `/open-g6-browser`
 
 This is my **co-presence mode**.
 
-`/browse` runs headless by default. You don't see what the agent sees. `/open-gstack-browser` changes that. It launches GStack Browser (rebranded Chromium with anti-bot stealth) controlled by Playwright, with the sidebar extension auto-loaded. You watch every action in real time.
+`/browse` runs headless by default. You don't see what the agent sees. `/open-g6-browser` changes that. It launches GStack Browser (rebranded Chromium with anti-bot stealth) controlled by Playwright, with the sidebar extension auto-loaded. You watch every action in real time.
 
 The sidebar chat is a Claude instance that controls the browser. It auto-routes to the right model: Sonnet for navigation and actions (click, goto, fill, screenshot), Opus for reading and analysis (summarize, find bugs, describe). One-click cookie import from the sidebar footer. The browser stays alive as long as the window is open... no idle timeout in headed mode. The menu bar says "GStack Browser" instead of "Chrome for Testing."
 
 The sidebar agent ships a layered prompt injection defense: a local 22MB ML classifier scans every page and tool output, a Haiku transcript check votes on the full conversation, a canary token catches session-exfil attempts, and a verdict combiner requires two classifiers to agree before blocking. A shield icon in the header shows status (green/amber/red). Details in [ARCHITECTURE.md](../ARCHITECTURE.md#prompt-injection-defense-sidebar-agent).
 
 ```
-You:   /open-gstack-browser
+You:   /open-g6-browser
 
 Claude: Launched GStack Browser with sidebar extension.
         Anti-bot stealth active. All $B commands run in headed mode.
@@ -1097,12 +1097,12 @@ Remove the `/freeze` boundary, allowing edits everywhere again. The hooks stay r
 
 ---
 
-## `/gstack-upgrade`
+## `/g6-upgrade`
 
 Keep gstack current with one command. It detects your install type (global at `~/.claude/skills/g6` vs vendored in your project at `.claude/skills/g6`), runs the upgrade, syncs both copies if you have dual installs, and shows you what changed.
 
 ```
-You:   /gstack-upgrade
+You:   /g6-upgrade
 
 Claude: Current version: 0.7.4
         Latest version: 0.8.2

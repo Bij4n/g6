@@ -508,8 +508,9 @@ describe('host config correctness', () => {
   });
 
   test('every host has coAuthorTrailer or undefined', () => {
-    // Claude, Codex, Factory, OpenClaw have explicit trailers
-    expect(claude.coAuthorTrailer).toContain('Claude');
+    // Claude intentionally has no trailer — AI attribution was removed
+    // from commits (see commit 1c2d4a3). Codex, Factory, OpenClaw keep theirs.
+    expect(claude.coAuthorTrailer).toBeUndefined();
     expect(codex.coAuthorTrailer).toContain('Codex');
     expect(factory.coAuthorTrailer).toContain('Factory');
     expect(openclaw.coAuthorTrailer).toContain('OpenClaw');

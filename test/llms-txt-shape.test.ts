@@ -2,7 +2,7 @@ import { describe, test, expect, beforeAll } from 'bun:test';
 import * as fs from 'fs';
 import * as path from 'path';
 import { generateLlmsTxt } from '../scripts/gen-llms-txt';
-import { discoverTemplates } from '../scripts/discover-skills';
+import { discoverTemplates, discoverSkillFiles } from '../scripts/discover-skills';
 
 const ROOT = path.resolve(import.meta.dir, '..');
 
@@ -27,9 +27,12 @@ describe('gen-llms-txt — shape', () => {
 
   test('every skill .tmpl in the repo appears in the index', () => {
     const templates = discoverTemplates(ROOT);
-    // Filter to those that successfully parsed (have name + description).
+    // The index covers templated skills plus hand-written SKILL.md files
+    // with no .tmpl counterpart (v1.41.0.0 surfaced 13 of these), so bound
+    // against the union of both discovery sources.
+    const allSources = new Set([...templates.map((t) => t.output), ...discoverSkillFiles(ROOT)]);
     expect(generated.skills.length).toBeGreaterThan(0);
-    expect(generated.skills.length).toBeLessThanOrEqual(templates.length);
+    expect(generated.skills.length).toBeLessThanOrEqual(allSources.size);
 
     for (const skill of generated.skills) {
       expect(generated.content).toMatch(new RegExp(`/${skill.name}\\b`));
