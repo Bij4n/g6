@@ -11,7 +11,7 @@
  * --dry-run to exercise the D5 detect-first path end-to-end.
  */
 
-import { describe, test, expect, beforeEach, afterEach } from 'bun:test';
+import { describe, test, expect, beforeEach, afterEach, afterAll } from 'bun:test';
 import * as fs from 'fs';
 import * as path from 'path';
 import * as os from 'os';
@@ -25,7 +25,14 @@ const INSTALL = path.join(ROOT, 'bin', 'gstack-gbrain-install');
 // dirs — this keeps `gbrain` out of PATH deterministically across dev machines
 // while still finding jq, git, curl, sed, cat, etc. Each test can prepend a
 // fake-gbrain dir when it wants to simulate presence.
-const SAFE_PATH = '/usr/bin:/bin:/usr/sbin:/sbin:/opt/homebrew/bin:/usr/local/bin';
+// The detect script runs via `#!/usr/bin/env -S bun run`, so bun itself must be
+// findable on any overridden PATH. Bun's install dir varies by machine
+// (/opt/homebrew/bin on macOS brew, ~/.bun/bin on Linux), so instead of guessing,
+// symlink the currently-running bun into a dedicated shim dir and append it.
+// The shim dir contains ONLY bun — gbrain stays off PATH deterministically.
+const BUN_SHIM_DIR = fs.mkdtempSync(path.join(os.tmpdir(), 'bun-shim-'));
+fs.symlinkSync(process.execPath, path.join(BUN_SHIM_DIR, 'bun'));
+const SAFE_PATH = `/usr/bin:/bin:/usr/sbin:/sbin:/opt/homebrew/bin:/usr/local/bin:${BUN_SHIM_DIR}`;
 
 let tmpHome: string;
 let tmpHomeReal: string;
@@ -58,6 +65,10 @@ beforeEach(() => {
 afterEach(() => {
   fs.rmSync(tmpHome, { recursive: true, force: true });
   fs.rmSync(tmpHomeReal, { recursive: true, force: true });
+});
+
+afterAll(() => {
+  fs.rmSync(BUN_SHIM_DIR, { recursive: true, force: true });
 });
 
 describe('gstack-gbrain-detect', () => {

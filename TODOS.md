@@ -1,22 +1,23 @@
 # TODOS
 
-## Testing environment
+## Sidebar security UI
 
-### P0: 35 pre-existing test failures on this machine (Chromium sandbox + sidepanel env)
+### P1: Re-drive the security shield/banner from the PTY-era data flow
 
-**What:** `bun test` fails 35 tests identically on clean main and feature branches
-(verified twice on 2026-07-09 via clean-tree comparison). Clusters: Playwright
-live-fixture tests (`security-live-playwright.test.ts` — Chromium exits with
-SIGTRAP at `browser-manager.ts:239`), sidepanel security DOM, sidebar
-queue/auth/chat-buffer, gstack-team-init, gstack-relink, host-config.
+**What:** The extension's security shield + event banner UI exists in
+sidepanel.html/.css but is no longer driven: the chat poll that updated it
+from `/health.security` was removed in the PTY terminal rewrite
+(`extension/sidepanel.js` ~984: "Leaving the shield element hidden by
+default"). Users get no visual signal from the six-layer prompt-injection
+stack while browsing.
 
-**Why:** Every branch ships against a red suite, masking real regressions.
-Matches the known "Chromium sandbox is the gating blocker" note from the
-2026-06 runtime-verification session.
+**Spec preserved:** `browse/test/security-sidepanel-dom.test.ts` (6 tests,
+`describe.skip`) documents the intended UX — shield status attr, banner
+render, layer scores, Escape dismiss. `browse/test/sidebar-integration.test.ts`
+(11 tests, skipped) is the queue-era HTTP spec; decide whether to port it to
+PTY-era endpoints or delete it when the shield work happens.
 
-**Priority:** P0
-
-**Noticed on:** feat/g6-browser-rebrand (failures are pre-existing, not branch-caused)
+**Priority:** P1
 
 ## /sync-gbrain memory stage perf follow-up
 
