@@ -1,5 +1,23 @@
 # TODOS
 
+## Testing environment
+
+### P0: 35 pre-existing test failures on this machine (Chromium sandbox + sidepanel env)
+
+**What:** `bun test` fails 35 tests identically on clean main and feature branches
+(verified twice on 2026-07-09 via clean-tree comparison). Clusters: Playwright
+live-fixture tests (`security-live-playwright.test.ts` — Chromium exits with
+SIGTRAP at `browser-manager.ts:239`), sidepanel security DOM, sidebar
+queue/auth/chat-buffer, gstack-team-init, gstack-relink, host-config.
+
+**Why:** Every branch ships against a red suite, masking real regressions.
+Matches the known "Chromium sandbox is the gating blocker" note from the
+2026-06 runtime-verification session.
+
+**Priority:** P0
+
+**Noticed on:** feat/g6-browser-rebrand (failures are pre-existing, not branch-caused)
+
 ## /sync-gbrain memory stage perf follow-up
 
 ### P2: Investigate `gbrain import` perf on large staging dirs

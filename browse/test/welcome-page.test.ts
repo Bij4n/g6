@@ -77,9 +77,9 @@ describe('welcome page served via HTTP', () => {
 
   // ─── Branding ─────────────────────────────────────────────────────
 
-  test('has GStack Browser title and branding', () => {
-    expect(html).toContain('<title>GStack Browser</title>');
-    expect(html).toContain('GStack Browser');
+  test('has g6 Browser title and branding', () => {
+    expect(html).toContain('<title>g6 Browser</title>');
+    expect(html).toContain('class="logo-text">g6 Browser<');
   });
 
   test('has amber dot logo', () => {
@@ -102,7 +102,7 @@ describe('welcome page served via HTTP', () => {
 
   test('has try-it section with example prompts', () => {
     expect(html).toContain('Try it now');
-    expect(html).toContain('news.ycombinator.com');
+    expect(html).toContain('en.wikipedia.org');
   });
 
   // ─── Extension auto-hide ──────────────────────────────────────────
@@ -137,7 +137,7 @@ describe('welcome page served via HTTP', () => {
   // ─── Footer ───────────────────────────────────────────────────────
 
   test('has footer with attribution', () => {
-    expect(html).toContain('Garry Tan');
-    expect(html).toContain('github.com/garrytan/gstack');
+    expect(html).toContain('capitalismkilledsoftware.com');
+    expect(html).toContain('github.com/Bij4n/g6');
   });
 });

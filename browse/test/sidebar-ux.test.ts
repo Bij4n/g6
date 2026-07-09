@@ -1211,8 +1211,8 @@ describe('welcome page', () => {
     expect(welcomeExists).toBe(true);
   });
 
-  test('welcome page has GStack Browser branding', () => {
-    expect(welcomeSrc).toContain('GStack Browser');
+  test('welcome page has g6 Browser branding', () => {
+    expect(welcomeSrc).toContain('g6 Browser');
   });
 
   test('welcome page has extension-ready listener to hide prompt', () => {
@@ -1260,7 +1260,7 @@ describe('server /welcome endpoint', () => {
     );
     // Changed from 302 redirect to about:blank (ERR_UNSAFE_REDIRECT on Windows)
     // to inline HTML fallback page (PR #822)
-    expect(welcomeSection).toContain('GStack Browser ready');
+    expect(welcomeSection).toContain('g6 Browser ready');
     expect(welcomeSection).toContain('status: 200');
   });
 });

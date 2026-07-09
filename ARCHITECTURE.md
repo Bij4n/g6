@@ -108,7 +108,7 @@ ngrok forwards only the tunnel port. The security property comes from **physical
 | `POST /token`, `DELETE /token/:id` | root-only | 404 | Scoped token mint/revoke |
 | `GET /cookie-picker`, `GET /cookie-picker/*` | public UI, auth API | 404 | Local-only — reads local browser DBs |
 | `GET /inspector`, `/inspector/events`, etc. | auth | 404 | Extension callback, local-only |
-| `GET /welcome` | public | 404 | GStack Browser landing page, local-only |
+| `GET /welcome` | public | 404 | g6 Browser landing page, local-only |
 | `GET /refs` | auth | 404 | Ref map — internal state |
 | `GET /activity/stream` | Bearer OR HttpOnly `gstack_sse` cookie | 404 | SSE. ?token= query param no longer accepted |
 | `GET /inspector/events` | Bearer OR HttpOnly `gstack_sse` cookie | 404 | SSE. Same cookie as /activity/stream |
