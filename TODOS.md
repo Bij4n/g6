@@ -1,5 +1,24 @@
 # TODOS
 
+## Rebrand phase 4 — internal identifier migration
+
+### P2: Finish the g6 rename behind the UI (skill dir, env vars, paths) with a migration
+
+**What:** Remaining `gstack` identifiers after the v1.41.1.0 browser rebrand:
+`open-gstack-browser/` skill dir (the sidebar's connect button displays this
+command — label and skill must rename together), `GSTACK_*` env vars,
+`~/.gstack` config/state paths, `gstack-extension-ready` DOM event,
+CLI help text ("gstack browse"), and `browser-manager.ts:findExtensionPath`
+still probing `skills/gstack/extension`.
+
+**How:** Aliases first (read both old and new, prefer new), a migration script
+in `gstack-upgrade/migrations/` per CONTRIBUTING.md, then remove old names a
+release later. Do NOT do this with a live dev symlink at `~/.claude/skills/g6`
+pointing at the working tree — remove the symlink for the duration
+(CLAUDE.md "Dev symlink awareness").
+
+**Priority:** P2 — invisible to users day-to-day; correctness risk if rushed.
+
 ## Sidebar security UI
 
 ### P1: Re-drive the security shield/banner from the PTY-era data flow
