@@ -25,7 +25,9 @@ function run(cmd: string, env: Record<string, string> = {}, expectFail = false):
   try {
     return execSync(cmd, {
       cwd: ROOT,
-      env: { ...process.env, GSTACK_STATE_DIR: tmpDir, ...env },
+      // gstack-config prefers GSTACK_HOME over the legacy GSTACK_STATE_DIR alias;
+      // pin both so an ambient GSTACK_HOME can't leak the real ~/.gstack config in.
+      env: { ...process.env, GSTACK_HOME: tmpDir, GSTACK_STATE_DIR: tmpDir, ...env },
       encoding: 'utf-8',
       timeout: 10000,
       stdio: ['pipe', 'pipe', 'pipe'],

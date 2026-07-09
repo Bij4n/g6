@@ -260,7 +260,7 @@ describe('gstack-team-init', () => {
 
   test('removes vendored copy when present', () => {
     // Create a fake vendored gstack with VERSION file
-    const vendoredDir = path.join(tmpDir, '.claude', 'skills', 'gstack');
+    const vendoredDir = path.join(tmpDir, '.claude', 'skills', 'g6');
     fs.mkdirSync(vendoredDir, { recursive: true });
     fs.writeFileSync(path.join(vendoredDir, 'VERSION'), '0.14.0.0');
     fs.writeFileSync(path.join(vendoredDir, 'README.md'), 'vendored');
@@ -291,19 +291,19 @@ describe('gstack-team-init', () => {
     fs.mkdirSync(skillsDir, { recursive: true });
     const targetDir = mkTmpDir();
     fs.writeFileSync(path.join(targetDir, 'VERSION'), '0.14.0.0');
-    fs.symlinkSync(targetDir, path.join(skillsDir, 'gstack'));
+    fs.symlinkSync(targetDir, path.join(skillsDir, 'g6'));
 
     const result = run(`${TEAM_INIT} optional`, { cwd: tmpDir });
     expect(result.exitCode).toBe(0);
     expect(result.stdout).not.toContain('Found vendored gstack copy');
     // Symlink should still exist
-    expect(fs.lstatSync(path.join(skillsDir, 'gstack')).isSymbolicLink()).toBe(true);
+    expect(fs.lstatSync(path.join(skillsDir, 'g6')).isSymbolicLink()).toBe(true);
     fs.rmSync(targetDir, { recursive: true, force: true });
   });
 
   test('does not duplicate .gitignore entry on re-run', () => {
     // Create vendored copy
-    const vendoredDir = path.join(tmpDir, '.claude', 'skills', 'gstack');
+    const vendoredDir = path.join(tmpDir, '.claude', 'skills', 'g6');
     fs.mkdirSync(vendoredDir, { recursive: true });
     fs.writeFileSync(path.join(vendoredDir, 'VERSION'), '0.14.0.0');
     execSync('git add .claude/skills/g6/', { cwd: tmpDir });
@@ -317,7 +317,7 @@ describe('gstack-team-init', () => {
     run(`${TEAM_INIT} optional`, { cwd: tmpDir });
 
     const gitignore = fs.readFileSync(path.join(tmpDir, '.gitignore'), 'utf-8');
-    const matches = gitignore.match(/\.claude\/skills\/gstack\//g);
+    const matches = gitignore.match(/\.claude\/skills\/g6\//g);
     expect(matches).toHaveLength(1);
   });
 });

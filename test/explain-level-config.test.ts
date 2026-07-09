@@ -29,7 +29,10 @@ afterEach(() => {
 
 function run(...args: string[]): { stdout: string; stderr: string; status: number } {
   const res = spawnSync(BIN_CONFIG, args, {
-    env: { ...process.env, GSTACK_STATE_DIR: tmpHome },
+    // gstack-config prefers GSTACK_HOME over the legacy GSTACK_STATE_DIR alias;
+    // pin both so an ambient GSTACK_HOME in the developer's shell can't leak the
+    // real ~/.gstack config into these tests.
+    env: { ...process.env, GSTACK_HOME: tmpHome, GSTACK_STATE_DIR: tmpHome },
     encoding: 'utf-8',
     cwd: ROOT,
   });
