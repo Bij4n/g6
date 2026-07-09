@@ -47,7 +47,7 @@ const SKILL_GLOBS = [
   'benchmark',
   'benchmark-models',
   'make-pdf',
-  'open-gstack-browser',
+  'open-g6-browser',
   'gstack-upgrade',
   'pair-agent',
   'design-html',
