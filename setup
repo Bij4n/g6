@@ -47,7 +47,7 @@ _link_or_copy() {
     rm -rf "$dst"
     # Unix `ln -snf` accepts a name-only or relative-path source even when the
     # target doesn't resolve from CWD (e.g. the connect-chrome alias points at
-    # the sibling-relative "gstack/open-gstack-browser"). On Windows the
+    # the sibling-relative "gstack/open-g6-browser"). On Windows the
     # equivalent semantics don't exist — we'd need a real source on disk to
     # copy. Skip the alias quietly rather than aborting setup under `set -e`.
     if [ ! -e "$src" ]; then
@@ -845,13 +845,13 @@ if [ "$INSTALL_CLAUDE" -eq 1 ]; then
     if [ -x "$GSTACK_RELINK" ]; then
       GSTACK_SKILLS_DIR="$INSTALL_SKILLS_DIR" GSTACK_INSTALL_DIR="$SOURCE_GSTACK_DIR" "$GSTACK_RELINK" >/dev/null 2>&1 || true
     fi
-    # Backwards-compat alias: /connect-chrome → /open-gstack-browser
+    # Backwards-compat alias: /connect-chrome → /open-g6-browser
     _OGB_LINK="$INSTALL_SKILLS_DIR/connect-chrome"
     if [ "$SKILL_PREFIX" -eq 1 ]; then
       _OGB_LINK="$INSTALL_SKILLS_DIR/gstack-connect-chrome"
     fi
     if [ -L "$_OGB_LINK" ] || [ ! -e "$_OGB_LINK" ]; then
-      _link_or_copy "gstack/open-gstack-browser" "$_OGB_LINK"
+      _link_or_copy "gstack/open-g6-browser" "$_OGB_LINK"
     fi
     if [ "$LOCAL_INSTALL" -eq 1 ]; then
       log "gstack ready (project-local)."
@@ -918,7 +918,7 @@ if [ "$INSTALL_CLAUDE" -eq 1 ]; then
         _OGB_LINK="$INSTALL_SKILLS_DIR/gstack-connect-chrome"
       fi
       if [ -L "$_OGB_LINK" ] || [ ! -e "$_OGB_LINK" ]; then
-        _link_or_copy "gstack/open-gstack-browser" "$_OGB_LINK"
+        _link_or_copy "gstack/open-g6-browser" "$_OGB_LINK"
       fi
       log "gstack ready (claude)."
       log "  browse: $BROWSE_BIN"

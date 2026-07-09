@@ -1,5 +1,32 @@
 # Changelog
 
+## [1.42.0.0] - 2026-07-09
+
+## **The connect command is now /open-g6-browser — and every old name still works.**
+
+The last user-facing gstack leftover is gone: the skill directory is now `open-g6-browser/`, the sidebar's connect button copies `/open-g6-browser`, and the CLI's restart hints and help headers say g6 browse. Nothing breaks on the way there — a compat symlink keeps `open-gstack-browser` resolving, `/connect-chrome` still works, the extension-ready DOM event dispatches both its new and legacy names, and an upgrade migration repairs any install links that still point at the old directory. Old commands, old binaries, old installs: all keep working.
+
+### The numbers that matter
+
+| | |
+|---|---|
+| User-visible surfaces still saying "gstack" | button + 6 CLI/help strings → 0 |
+| Old names that stop working | 0 (symlinks + dual-dispatch + migration) |
+
+### What this means
+
+Users are told one consistent command everywhere, and existing installs upgrade without noticing anything changed.
+
+### Itemized changes
+
+### Changed
+- Skill directory `open-gstack-browser/` renamed to `open-g6-browser/` with a backwards-compat symlink; `/connect-chrome` repointed
+- Sidebar connect button, clipboard payload, /health error hint, and browse CLI restart hints + help headers now say `/open-g6-browser` and "g6 browse"
+- Extension-ready DOM event renamed to `g6-extension-ready` with legacy dual-dispatch for pre-rename binaries and extensions
+
+### Added
+- v1.42.0.0 upgrade migration: re-links installed skills and repairs dangling aliases from the directory rename
+
 ## [1.41.3.0] - 2026-07-09
 
 ## **The Dock rename can no longer break Chromium — and a branding scan guards the rebrand forever.**

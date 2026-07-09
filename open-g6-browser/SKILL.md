@@ -759,7 +759,7 @@ Replace `SKILL_NAME`, `OUTCOME`, and `USED_BROWSE` before running.
 
 Skills that run plan reviews (`/plan-*-review`, `/codex review`) include the EXIT PLAN MODE GATE blocking checklist at the end of the skill, which verifies the plan file ends with `## GSTACK REVIEW REPORT` before ExitPlanMode is called. Skills that don't run plan reviews (operational skills like `/ship`, `/qa`, `/review`) typically don't operate in plan mode and have no review report to verify; this footer is a no-op for them. Writing the plan file is the one edit allowed in plan mode.
 
-# /open-gstack-browser — Launch GStack Browser
+# /open-g6-browser — Launch g6 Browser
 
 Launch GStack Browser — AI-controlled Chromium with the sidebar extension,
 anti-bot stealth, and custom branding. You see every action in real time.

@@ -225,13 +225,16 @@
 
 <script>
 // Hide sidebar prompt ONLY when the sidebar is actually opened.
-// The content script dispatches 'gstack-extension-ready' when it receives
+// The content script dispatches 'g6-extension-ready' when it receives
 // a 'sidebarOpened' message from the side panel (via background.js).
 // This means the arrow stays visible until the user actually opens the sidebar.
-document.addEventListener('gstack-extension-ready', () => {
+const hideSidebarPrompt = () => {
   const prompt = document.getElementById('sidebar-prompt');
   if (prompt) prompt.classList.add('hidden');
-});
+};
+document.addEventListener('g6-extension-ready', hideSidebarPrompt);
+// Legacy event name — old extension builds still dispatch this.
+document.addEventListener('gstack-extension-ready', hideSidebarPrompt);
 </script>
 </body>
 </html>
