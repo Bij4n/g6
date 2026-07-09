@@ -893,6 +893,21 @@ async function handleCommandInternalImpl(
           const strippedDescs = await markHiddenElements(page);
           if (strippedDescs.length > 0) {
             console.warn(`[browse] Content security: ${strippedDescs.length} hidden elements flagged on ${command} for ${tokenInfo.clientId}`);
+            // Informational feed entry ('strip' severity — never banners;
+            // see the severity contract in security-events.ts).
+            try {
+              const { emitSecurityEvent } = require('./security-events');
+              let domain: string | undefined;
+              try { domain = new URL(page.url()).hostname; } catch {}
+              emitSecurityEvent({
+                verdict: 'strip',
+                reason: 'hidden_content_flagged',
+                layer: 'content_security',
+                confidence: 1.0,
+                ...(domain ? { domain } : {}),
+                channel: `command:${command}`,
+              });
+            } catch {}
             hiddenContentWarnings = strippedDescs.slice(0, 8).map(d =>
               `hidden content: ${d.slice(0, 120)}`,
             );
@@ -1936,6 +1951,28 @@ export function buildFetchHandler(cfg: ServerConfig): ServerHandle {
       // here. They drove the one-shot claude -p chat queue. Replaced by
       // the interactive PTY in terminal-agent.ts; the queue + browser-tab
       // multiplexing are no longer needed.
+
+      // ─── Security events feed ────────────────────────────────────────
+      // Queue-free replacement for the security_event flow that died with
+      // /sidebar-chat. The sidepanel polls this to drive the shield icon
+      // (from `security`) and the injection banner (block-verdict entries
+      // only — see severity contract in security-events.ts). Auth required;
+      // response carries no tokens (ARCHITECTURE.md /health token rule).
+      if (url.pathname === '/security-events' && req.method === 'GET') {
+        const tokenInfo = getTokenInfo(req);
+        if (!tokenInfo) {
+          return new Response(JSON.stringify({ error: 'Unauthorized' }), {
+            status: 401,
+            headers: { 'Content-Type': 'application/json' },
+          });
+        }
+        const after = parseInt(url.searchParams.get('after') || '0', 10) || 0;
+        const { getSecurityEvents } = require('./security-events');
+        return new Response(
+          JSON.stringify({ entries: getSecurityEvents(after), security: getSecurityStatus() }),
+          { status: 200, headers: { 'Content-Type': 'application/json' } },
+        );
+      }
 
 
       // ─── Batch endpoint — N commands, 1 HTTP round-trip ─────────────
