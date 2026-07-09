@@ -1,5 +1,34 @@
 # Changelog
 
+## [1.41.3.0] - 2026-07-09
+
+## **The Dock rename can no longer break Chromium — and a branding scan guards the rebrand forever.**
+
+Renaming the browser in the macOS Dock used to work by editing Chromium's own app bundle in Playwright's shared cache. That invalidated the app's code signature (hardened builds get killed at launch), could corrupt bundle internals via blind find-and-replace, and quietly rebranded Chromium for every other tool on the machine. Now g6 copies the app once into `~/.gstack/g6-browser/`, renames only the two display-name fields in the copy, re-signs it, and launches that. If anything goes wrong, you get a working browser with the stock name — never a broken one. Machines previously patched to "GStack Browser" migrate automatically.
+
+Also new: a branding regression test that greps every user-visible surface (welcome page, cookie picker, extension UI, CLI messages) for upstream branding — the test that would have caught the "window says GStack" bug before anyone saw it.
+
+### The numbers that matter
+
+| | |
+|---|---|
+| Plist fields touched by the rename | all matches → 2 (display names only) |
+| Shared Playwright cache mutations | every launch → zero |
+| Code signature after rename | broken → re-signed |
+
+### What this means
+
+The Dock says g6 Browser without putting your browser install at risk, and any future branding regression fails the free test suite instead of shipping.
+
+### Itemized changes
+
+### Fixed
+- macOS Dock rename copies + re-signs the Chromium app instead of mutating Playwright's shared cache; failures fall back to the unbranded original (end-to-end launch pending a macOS smoke test — the transform and paths are unit-tested)
+
+### Added
+- `chromium-rebrand` module with a pure, key-scoped, idempotent plist transform and atomic writes, unit-tested against a realistic Chrome-for-Testing plist
+- Branding regression scan across all user-visible browse/extension surfaces
+
 ## [1.41.2.0] - 2026-07-09
 
 ## **The test suite is green again: 35 failures to zero, and the browser now launches on locked-down Ubuntu desktops.**

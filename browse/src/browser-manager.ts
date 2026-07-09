@@ -372,59 +372,29 @@ export class BrowserManager {
     const executablePath = process.env.GSTACK_CHROMIUM_PATH || undefined;
 
     // Rebrand Chromium → g6 Browser in macOS menu bar / Dock / Cmd+Tab.
-    // Patch the Chromium .app's Info.plist so macOS shows our name.
-    // This works for both dev mode (system Playwright cache) and .app bundle.
-    const chromePath = executablePath || chromium.executablePath();
-    try {
-      // Walk up from binary to the .app's Info.plist
-      // e.g. .../Google Chrome for Testing.app/Contents/MacOS/Google Chrome for Testing
-      //   → .../Google Chrome for Testing.app/Contents/Info.plist
-      const chromeContentsDir = path.resolve(path.dirname(chromePath), '..');
-      const chromePlist = path.join(chromeContentsDir, 'Info.plist');
-      if (fs.existsSync(chromePlist)) {
-        const plistContent = fs.readFileSync(chromePlist, 'utf-8');
-        if (plistContent.includes('Google Chrome for Testing') || plistContent.includes('GStack Browser')) {
-          const patched = plistContent
-            .replace(/Google Chrome for Testing/g, 'g6 Browser')
-            .replace(/GStack Browser/g, 'g6 Browser');
-          // Atomic write: a crash or concurrent daemon mid-write must not
-          // leave a torn Info.plist (Chromium would never launch again and
-          // the includes() gate would skip the repair forever).
-          const tmpPlist = chromePlist + '.tmp';
-          fs.writeFileSync(tmpPlist, patched);
-          fs.renameSync(tmpPlist, chromePlist);
-        }
-        // Replace Chromium's Dock icon with ours (Chromium's process owns the Dock icon)
-        const iconCandidates = [
-          path.join(__dirname, '..', '..', 'scripts', 'app', 'icon.icns'),       // repo dev mode
-          path.join(process.env.HOME || '', '.claude', 'skills', 'g6', 'scripts', 'app', 'icon.icns'), // global install
-        ];
-        const iconSrc = iconCandidates.find(p => fs.existsSync(p));
-        if (iconSrc) {
-          const chromeResources = path.join(chromeContentsDir, 'Resources');
-          // Read original icon name from plist
-          const iconMatch = plistContent.match(/<key>CFBundleIconFile<\/key>\s*<string>([^<]+)<\/string>/);
-          let origIcon = iconMatch ? iconMatch[1] : 'app';
-          if (!origIcon.endsWith('.icns')) origIcon += '.icns';
-          const destIcon = path.join(chromeResources, origIcon);
-          try {
-            fs.copyFileSync(iconSrc, destIcon);
-          } catch (err: any) {
-            if (err?.code !== 'ENOENT' && err?.code !== 'EACCES') throw err;
-          }
-        }
-      }
-    } catch (err: any) {
-      // Non-fatal: app name stays as Chrome for Testing (ENOENT/EACCES expected)
-      if (err?.code !== 'ENOENT' && err?.code !== 'EACCES') throw err;
+    // We never mutate the shared Playwright cache: a branded copy of the
+    // .app is prepared under ~/.gstack/g6-browser/ (display-name keys only,
+    // ad-hoc re-signed) and launched instead. Skipped for custom bundles
+    // (GSTACK_CHROMIUM_PATH — they ship their own branding) and on failure,
+    // where we launch the original unbranded binary.
+    let brandedPath: string | undefined;
+    if (!executablePath) {
+      const { prepareBrandedChromium } = require('./chromium-rebrand');
+      const iconCandidates = [
+        path.join(__dirname, '..', '..', 'scripts', 'app', 'icon.icns'),       // repo dev mode
+        path.join(process.env.HOME || '', '.claude', 'skills', 'g6', 'scripts', 'app', 'icon.icns'), // global install
+      ];
+      const iconSource = iconCandidates.find((p: string) => fs.existsSync(p)) || null;
+      brandedPath = prepareBrandedChromium(chromium.executablePath(), { iconSource }) || undefined;
     }
+    const chromePath = executablePath || brandedPath || chromium.executablePath();
 
     // Build custom user agent: keep Chrome version for site compatibility,
     // but replace "Chrome for Testing" branding with "G6Browser"
     let customUA: string | undefined;
     if (!this.customUserAgent) {
-      // Detect Chrome version from the Chromium binary
-      const chromePath = executablePath || chromium.executablePath();
+      // Detect Chrome version from the Chromium binary (branded copy is fine —
+      // same binary, same --version output)
       try {
         const versionProc = Bun.spawnSync([chromePath, '--version'], {
           stdout: 'pipe', stderr: 'pipe', timeout: 5000,
@@ -447,7 +417,7 @@ export class BrowserManager {
       args: launchArgs,
       viewport: null,  // Use browser's default viewport (real window size)
       userAgent: this.customUserAgent || customUA,
-      ...(executablePath ? { executablePath } : {}),
+      ...(executablePath || brandedPath ? { executablePath: chromePath } : {}),
       ...(this.proxyConfig ? { proxy: this.proxyConfig } : {}),
       // Playwright adds flags that block extension loading
       ignoreDefaultArgs: [
