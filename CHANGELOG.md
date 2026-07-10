@@ -1,5 +1,33 @@
 # Changelog
 
+## [1.44.0.0] - 2026-07-09
+
+## **Your g6 state now lives in ~/.g6 — and not a single old path stops working.**
+
+The last structural gstack leftover: all of g6's state (config, learnings, projects, analytics) lived in `~/.gstack`. On upgrade it moves to `~/.g6` with an atomic rename, and `~/.gstack` becomes a symlink pointing at it — so every one of the hundreds of hardcoded references in scripts, skills, and your own shell history keeps resolving, and even processes that were running mid-migration keep their open files. The migration refuses to guess when it can't be safe: if both directories somehow exist, it touches nothing and tells you. `G6_HOME` is now the preferred override env var everywhere, with `GSTACK_HOME` still honored.
+
+### The numbers that matter
+
+| | |
+|---|---|
+| State directory | `~/.gstack` → `~/.g6` (compat symlink kept) |
+| Legacy path references that needed rewriting | 769 → 0 (symlink serves them all) |
+| Migration behaviors under test | 4/4 (move, idempotent, conflict, fresh) |
+
+### What this means
+
+`ls ~` shows a `.g6` directory instead of a stranger's brand, upgrades migrate automatically and reversibly, and nothing you or your tools reference by the old path breaks — ever.
+
+### Itemized changes
+
+### Changed
+- State root canonical location is `~/.g6`; `~/.gstack` remains as a compat symlink (created by migration on upgrade, by setup on fresh POSIX installs; Windows keeps the plain directory)
+- `G6_HOME` is the preferred state-dir override in browse, gstack-config, and gstack-paths; `GSTACK_HOME`/`GSTACK_STATE_DIR` still honored
+
+### Added
+- v1.44.0.0 migration: atomic move + symlink, idempotent, conflict-safe (never merges, never deletes), self-reverting if the symlink can't be created
+- Migration test suite (fake-HOME only) and G6_HOME precedence/hermeticity tests
+
 ## [1.43.0.0] - 2026-07-09
 
 ## **The security shield is back on: the sidebar shows you your protection status again.**
