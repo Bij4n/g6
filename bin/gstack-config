@@ -8,11 +8,12 @@
 #   gstack-config defaults           — show just the defaults table
 #
 # Env overrides (for testing):
-#   GSTACK_HOME       — override ~/.gstack state directory (aligns with writer scripts)
+#   G6_HOME           — override the state directory (preferred name)
+#   GSTACK_HOME       — legacy override, still honored
 #   GSTACK_STATE_DIR  — legacy alias for GSTACK_HOME (kept for backwards compat)
 set -euo pipefail
 
-STATE_DIR="${GSTACK_HOME:-${GSTACK_STATE_DIR:-$HOME/.gstack}}"
+STATE_DIR="${G6_HOME:-${GSTACK_HOME:-${GSTACK_STATE_DIR:-$HOME/.gstack}}}"
 CONFIG_FILE="$STATE_DIR/config.yaml"
 
 # Annotated header for new config files. Written once on first `set`.

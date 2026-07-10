@@ -9,7 +9,7 @@
 # CI / container env where HOME may be unset.
 #
 # Chains:
-#   GSTACK_STATE_ROOT: GSTACK_HOME -> CLAUDE_PLUGIN_DATA -> $HOME/.gstack -> .gstack
+#   GSTACK_STATE_ROOT: G6_HOME -> GSTACK_HOME -> CLAUDE_PLUGIN_DATA -> $HOME/.gstack -> .gstack
 #   PLAN_ROOT:         GSTACK_PLAN_DIR -> CLAUDE_PLANS_DIR -> $HOME/.claude/plans -> .claude/plans
 #   TMP_ROOT:          TMPDIR -> TMP -> .gstack/tmp (and mkdir -p, best-effort)
 #
@@ -19,7 +19,9 @@
 set -u
 
 # State root: where gstack writes projects/, sessions/, analytics/.
-if [ -n "${GSTACK_HOME:-}" ]; then
+if [ -n "${G6_HOME:-}" ]; then
+  _state_root="$G6_HOME"
+elif [ -n "${GSTACK_HOME:-}" ]; then
   _state_root="$GSTACK_HOME"
 elif [ -n "${CLAUDE_PLUGIN_DATA:-}" ]; then
   _state_root="$CLAUDE_PLUGIN_DATA"

@@ -63,7 +63,7 @@ export interface DomainSkillRow {
 const PROMOTE_THRESHOLD = 3;
 
 function gstackHome(): string {
-  return process.env.GSTACK_HOME || path.join(os.homedir(), '.gstack');
+  return process.env.G6_HOME || process.env.GSTACK_HOME || path.join(os.homedir(), '.gstack');
 }
 
 function globalFile(): string {
