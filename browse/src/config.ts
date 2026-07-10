@@ -158,11 +158,13 @@ export function readVersionHash(execPath: string = process.execPath): string | n
  * Resolve the gstack home directory.
  *
  * Honors the existing convention used by telemetry.ts and domain-skills.ts:
- *   1. GSTACK_HOME env (explicit override)
- *   2. $HOME/.gstack (default)
+ *   1. G6_HOME env (explicit override, preferred name)
+ *   2. GSTACK_HOME env (legacy override, still honored)
+ *   3. $HOME/.gstack (default — post-v1.44 this is a symlink to $HOME/.g6,
+ *      so the literal spelling keeps working everywhere)
  */
 export function resolveGstackHome(): string {
-  return process.env.GSTACK_HOME || path.join(os.homedir(), '.gstack');
+  return process.env.G6_HOME || process.env.GSTACK_HOME || path.join(os.homedir(), '.gstack');
 }
 
 /**

@@ -403,6 +403,20 @@ if ! ensure_playwright_browser; then
 fi
 
 # 3. Ensure ~/.gstack global state directory exists
+# State root: canonical location is ~/.g6 (v1.44.0.0); ~/.gstack stays a
+# compat symlink so every legacy path reference keeps resolving. Windows
+# gets a plain ~/.gstack dir (no symlinks there — see _link_or_copy);
+# POSIX only creates the symlink when it actually succeeds, so a failure
+# can never manufacture the both-dirs conflict state.
+if [ "$IS_WINDOWS" -eq 0 ] && [ ! -e "$HOME/.gstack" ] && [ ! -e "$HOME/.g6" ]; then
+  mkdir -p "$HOME/.g6"
+  _link_or_copy ".g6" "$HOME/.gstack" 2>/dev/null || true
+  if [ ! -L "$HOME/.gstack" ]; then
+    # Symlink didn't take (exotic fs) — drop the empty .g6 and let the
+    # legacy mkdir below create a plain ~/.gstack as before.
+    rmdir "$HOME/.g6" 2>/dev/null || true
+  fi
+fi
 mkdir -p "$HOME/.gstack/projects"
 
 # ─── Helper: link Claude skill subdirectories into a skills parent directory ──

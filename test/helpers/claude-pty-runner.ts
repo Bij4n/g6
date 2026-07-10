@@ -707,6 +707,7 @@ export type ClassifyResult =
 const SANCTIONED_WRITE_SUBSTRINGS = [
   '.claude/plans',
   '.gstack/',
+  '.g6/',
   '/.context/',
   'CHANGELOG.md',
   'TODOS.md',

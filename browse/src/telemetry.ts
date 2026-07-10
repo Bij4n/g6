@@ -23,7 +23,7 @@ import * as path from 'path';
 import * as os from 'os';
 
 function gstackHome(): string {
-  return process.env.GSTACK_HOME || path.join(os.homedir(), '.gstack');
+  return process.env.G6_HOME || process.env.GSTACK_HOME || path.join(os.homedir(), '.gstack');
 }
 
 function analyticsDir(): string {
