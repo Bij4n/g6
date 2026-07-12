@@ -24,6 +24,7 @@ Conventions:
 - [/crypto-audit](crypto-audit/SKILL.md): Security audit specific to Bitcoin and cryptocurrency code.
 - [/cso](cso/SKILL.md): Chief Security Officer mode.
 - [/db-audit](db-audit/SKILL.md): Postgres health audit: missing indexes on foreign keys and query columns, table bloat, connection pool sizing, slow query patterns, SQLAlchemy and ActiveRecord N+1 risks at the database level.
+- [/degoogle](degoogle/SKILL.md): Finds every Google dependency in an app and replaces it with a self-hosted or privacy-respecting equivalent.
 - [/design-consultation](design-consultation/SKILL.md): Design consultation: understands your product, researches the landscape, proposes a complete design system (aesthetic, typography, color, layout, spacing, motion), and generates font+color preview pages.
 - [/design-html](design-html/SKILL.md): Design finalization: generates production-quality Pretext-native HTML/CSS.
 - [/design-review](design-review/SKILL.md): Designer's eye QA: finds visual inconsistency, spacing issues, hierarchy problems, AI slop patterns, and slow interactions — then fixes them.
@@ -63,6 +64,7 @@ Conventions:
 - [/retro](retro/SKILL.md): Weekly engineering retrospective.
 - [/review](review/SKILL.md): Pre-landing PR review.
 - [/scrape](scrape/SKILL.md): Pull data from a web page.
+- [/self-host-audit](self-host-audit/SKILL.md): Scores how portable an app is off managed SaaS and produces a concrete migration plan toward self-hosting.
 - [/setup-browser-cookies](setup-browser-cookies/SKILL.md): Import cookies from your real Chromium browser into the headless browse session.
 - [/setup-deploy](setup-deploy/SKILL.md): Configure deployment settings for /land-and-deploy.
 - [/setup-gbrain](setup-gbrain/SKILL.md): Set up gbrain for this coding agent: install the CLI, initialize a local PGLite or Supabase brain, register MCP, capture per-remote trust policy.
