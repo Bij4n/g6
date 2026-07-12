@@ -50,6 +50,7 @@ Conventions:
 - [/onboard](onboard/SKILL.md): Generates a structured onboarding guide for a new developer joining a project.
 - [/open-g6-browser](open-g6-browser/SKILL.md): Launch g6 Browser — AI-controlled Chromium with the sidebar extension baked in.
 - [/pair-agent](pair-agent/SKILL.md): Pair a remote AI agent with your browser.
+- [/phi-audit](phi-audit/SKILL.md): Health-data compliance audit for apps that touch PHI (protected health information).
 - [/plan-ceo-review](plan-ceo-review/SKILL.md): CEO/founder-mode plan review.
 - [/plan-design-review](plan-design-review/SKILL.md): Designer's eye plan review — interactive, like CEO and Eng review.
 - [/plan-devex-review](plan-devex-review/SKILL.md): Interactive developer experience plan review.
