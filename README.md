@@ -40,6 +40,9 @@ g6 started as a fork of [gstack](https://github.com/garrytan/gstack) (credit bel
 | `/supabase-deploy` | Safe migration deploys: diff what's pending, flag destructive statements, confirm, apply, re-check RLS. |
 | `/multi-tenant-audit` | Cross-tenant leakage across Rails, Next.js, and FastAPI: DB scoping, RLS filters, cache key isolation, IDOR checks. |
 | `/mentor` | Teaching mode. Explains what just happened at whatever level the reader needs. |
+| `/explain-diff` | Walks through a diff or PR in plain language at the reader's level: what changed, why, what could break, what to test. |
+| `/walkthrough` | An interactive tour of a codebase or subsystem for a newcomer: entry points, how a request flows, the mental model, the gotchas. |
+| `/quiz-me` | Generates grounded questions about the code (or a topic you name), grades your answers with explanations, and adapts the difficulty. |
 
 Everything else comes from gstack and is listed further down.
 
@@ -97,7 +100,7 @@ The sidebar opens automatically after loading. Click the g6 icon in the toolbar 
 
 Open Claude Code and paste this prompt exactly:
 
-> Add a "g6" section to CLAUDE.md that says: use the /browse skill from g6 for all web browsing, never use mcp\_\_claude-in-chrome\_\_\* tools, no Google services (Fonts, Analytics, reCAPTCHA) anywhere. List these available skills: /office-hours, /plan-ceo-review, /plan-eng-review, /plan-design-review, /plan-devex-review, /autoplan, /review, /codex, /investigate, /incident, /onboard, /design-consultation, /design-shotgun, /design-html, /design-review, /qa, /qa-only, /devex-review, /ship, /land-and-deploy, /canary, /setup-deploy, /document-release, /document-generate, /cso, /phi-audit, /privacy-audit, /self-host-audit, /degoogle, /rails-health, /api-audit, /stripe-audit, /supabase-audit, /env-audit, /db-audit, /crypto-audit, /supabase-deploy, /multi-tenant-audit, /node-health, /mentor, /retro, /health, /sidekiq-monitor, /benchmark, /benchmark-models, /make-pdf, /learn, /context-save, /context-restore, /browse, /scrape, /skillify, /pair-agent, /open-g6-browser, /setup-browser-cookies, /careful, /freeze, /guard, /unfreeze, /g6-upgrade.
+> Add a "g6" section to CLAUDE.md that says: use the /browse skill from g6 for all web browsing, never use mcp\_\_claude-in-chrome\_\_\* tools, no Google services (Fonts, Analytics, reCAPTCHA) anywhere. List these available skills: /office-hours, /plan-ceo-review, /plan-eng-review, /plan-design-review, /plan-devex-review, /autoplan, /review, /codex, /investigate, /incident, /onboard, /design-consultation, /design-shotgun, /design-html, /design-review, /qa, /qa-only, /devex-review, /ship, /land-and-deploy, /canary, /setup-deploy, /document-release, /document-generate, /cso, /phi-audit, /privacy-audit, /self-host-audit, /degoogle, /rails-health, /api-audit, /stripe-audit, /supabase-audit, /env-audit, /db-audit, /crypto-audit, /supabase-deploy, /multi-tenant-audit, /node-health, /mentor, /explain-diff, /walkthrough, /quiz-me, /retro, /health, /sidekiq-monitor, /benchmark, /benchmark-models, /make-pdf, /learn, /context-save, /context-restore, /browse, /scrape, /skillify, /pair-agent, /open-g6-browser, /setup-browser-cookies, /careful, /freeze, /guard, /unfreeze, /g6-upgrade.
 
 ### Step 3: Team mode — auto-update for shared repos (optional)
 
@@ -177,6 +180,9 @@ The full set, grouped by what you're doing. Skills marked ★ are ones I built; 
 | Skill | What it does |
 |-------|-------------|
 | `/mentor` | ★ g6 original. Explains what just happened in plain language. Beginner → advanced. |
+| `/explain-diff` | ★ g6 original. Plain-language walkthrough of a diff or PR at the reader's level: what changed, why, blast radius, what to test. |
+| `/walkthrough` | ★ g6 original. Interactive tour of a codebase or subsystem: entry points, request flow, mental model, key files, gotchas. Pairs with `/onboard`. |
+| `/quiz-me` | ★ g6 original. Grounded questions about the code or a named topic, graded with explanations, adaptive difficulty. |
 
 ### Operational
 
