@@ -2,35 +2,57 @@
 
 > "A small practice building, teaching, and securing software that belongs to the people using it." — Capitalism Killed Software
 
-I'm [Bij4n](https://github.com/Bij4n). g6 is a standalone AI engineering workflow for solo builders — privacy-first, security-forward, and tuned for the stack I actually ship with.
+g6 is a set of AI engineering skills for [Claude Code](https://docs.anthropic.com/en/docs/claude-code). You type a command like `/review` or `/privacy-audit` and Claude runs a full workflow for you — planning a feature, auditing security, shipping a PR, teaching a junior dev what just happened.
 
-## What g6 adds
+I'm [Bij4n](https://github.com/Bij4n), and I built g6 around how I actually work: mostly solo, privacy-first, shipping to real users on Rails, FastAPI, and Supabase. But none of that is required. Most of the skills here don't care what stack you use, and you can pick up as many or as few as you want.
 
-| Skill | Why it exists |
+## Who this is for
+
+You don't have to adopt the whole thing. People use g6 in a few different ways:
+
+- **Shipping a side project alone.** Plan it (`/office-hours`), build and review it (`/review`), and get it out the door (`/ship`) without a team.
+- **Securing an app before launch.** Run `/cso`, `/privacy-audit`, and whatever stack-specific audit fits (`/stripe-audit`, `/supabase-audit`, `/api-audit`) and fix what they find.
+- **Keeping something in production healthy.** `/health`, `/rails-health`, `/node-health`, `/sidekiq-monitor`, and `/canary` are dashboards you run when you want to know what's actually going on.
+- **Teaching or learning.** `/mentor` explains what just happened in plain language, tuned to the level of whoever's reading.
+- **Automating browser work.** `/browse` and `/scrape` drive a real headless Chromium for QA, testing, and data collection.
+
+Jump to [all skills](#all-skills) for the full list, grouped by what they're for.
+
+## The skills I built
+
+g6 started as a fork of [gstack](https://github.com/garrytan/gstack) (credit below). These are the ones I added — mostly security and health audits for the stacks I ship on, plus a teaching mode:
+
+| Skill | What it checks |
 |-------|--------------|
-| `/privacy-audit` | Finds third-party phone-homes, PII exposure, and self-hosting blockers. Non-negotiable for software that claims to respect its users. |
-| `/rails-health` | Rails 8 + Sidekiq dashboard: credentials, N+1s, schema drift, gem CVEs, Stripe webhook security. |
+| `/phi-audit` | Health-data (PHI) compliance pre-check: PHI in logs/URLs, encryption, audit-log coverage, BAA-required vendors, minimum-necessary collection. Engineering pass, not legal advice. |
+| `/privacy-audit` | Third-party phone-homes, PII exposure, and anything blocking you from self-hosting. |
+| `/rails-health` | Rails 8 + Sidekiq: credentials, N+1s, schema drift, gem CVEs, Stripe webhook security. |
 | `/api-audit` | FastAPI/REST: auth coverage, rate limiting, key exposure, CORS, TILA compliance for financial APIs. |
-| `/stripe-audit` | Stripe security for solo operators running multiple products on one account. Catches the mistakes that cost real money. |
-| `/supabase-audit` | Supabase RLS coverage, storage bucket policies, service_role key isolation, Edge Function auth, and pg_cron security. One RLS gap exposes every user's records. |
-| `/env-audit` | Extract every env var from source, diff against `.env.example`, find hardcoded secrets, verify `.gitignore` coverage, and check Render/Vercel deployment completeness. |
-| `/db-audit` | Postgres health: missing indexes, table bloat, connection pool sizing, N+1 patterns at the DB level. Static analysis + live psql if available. |
-| `/crypto-audit` | Security audit for Bitcoin and cryptocurrency code: key generation entropy, seed phrase storage, private key exposure, wallet encryption. |
-| `/node-health` | Node.js/Express health dashboard: npm CVEs, security middleware (helmet, rate-limit, CORS, CSRF), SQL and MongoDB injection risks, auth hygiene, error handling gaps. |
-| `/sidekiq-monitor` | Live Sidekiq runtime: queue depths, busy workers, dead jobs, retry exhaustion, scheduled job backlog. Run this when jobs are actually failing, not just for static analysis. |
-| `/supabase-deploy` | Safe Supabase migration deployment: diffs pending migrations, flags destructive statements, requires explicit confirmation before applying, verifies RLS post-deploy. |
-| `/multi-tenant-audit` | Cross-tenant data leakage: DB tenant scoping, RLS tenant filters, cache key isolation, background job context, file storage paths, IDOR checks across Rails, Next.js, and FastAPI. |
-| `/mentor` | Teaching mode. Explains what just happened in plain language, calibrated to the learner's level. For the people I'm training. |
+| `/stripe-audit` | Stripe for anyone running multiple products on one account. Catches the mistakes that cost real money. |
+| `/supabase-audit` | RLS coverage, storage bucket policies, service_role key isolation, Edge Function auth, pg_cron. One RLS gap exposes every user's records. |
+| `/env-audit` | Every env var pulled from source, diffed against `.env.example`, plus hardcoded secrets and `.gitignore` gaps. |
+| `/db-audit` | Postgres health: missing indexes, table bloat, connection pool sizing, N+1 patterns. Static analysis, or live `psql` if it's available. |
+| `/crypto-audit` | Bitcoin and crypto code: key generation entropy, seed phrase storage, private key exposure, wallet encryption. |
+| `/node-health` | Node/Express: npm CVEs, security middleware (helmet, rate-limit, CORS, CSRF), SQL and MongoDB injection, auth hygiene. |
+| `/sidekiq-monitor` | Live Sidekiq: queue depths, busy workers, dead jobs, retry exhaustion, scheduled backlog. Run it when jobs are actually failing. |
+| `/supabase-deploy` | Safe migration deploys: diff what's pending, flag destructive statements, confirm, apply, re-check RLS. |
+| `/multi-tenant-audit` | Cross-tenant leakage across Rails, Next.js, and FastAPI: DB scoping, RLS filters, cache key isolation, IDOR checks. |
+| `/mentor` | Teaching mode. Explains what just happened at whatever level the reader needs. |
+
+Everything else comes from gstack and is listed further down.
 
 **Auto-updates from `Bij4n/g6`.** Run `/g6-upgrade` to pull the latest.
 
 ## Quick start
 
-1. Install g6 (30 seconds — see below)
-2. Run `/office-hours` — describe what you're building
-3. Run `/privacy-audit` — find any third-party phone-homes before you launch
-4. Run `/cso` — full OWASP + STRIDE security audit
-5. Run `/review` on any branch before you push
+Once it's installed (below), a typical first run looks like this:
+
+1. `/office-hours` — talk through what you're building and find the smallest thing worth shipping.
+2. `/privacy-audit` — catch any third-party phone-homes before you launch.
+3. `/cso` — full OWASP + STRIDE security pass.
+4. `/review` — run this on any branch before you push it.
+
+None of these depend on each other, so start with whichever one matches what you're doing today.
 
 ## Install — 2 minutes
 
@@ -54,7 +76,7 @@ Run this in your terminal (not inside Claude Code — just a regular terminal):
 mkdir -p ~/.claude/skills && git clone --single-branch --depth 1 https://github.com/Bij4n/g6.git ~/.claude/skills/g6 && cd ~/.claude/skills/g6 && ./setup
 ```
 
-That's it. Setup compiles the browser binary, downloads Chromium, and links all skills into Claude Code. Takes about 60 seconds.
+Setup compiles the browser binary, downloads Chromium, and links every skill into Claude Code. It runs for about a minute and then you're done.
 
 ### Optional: Install the browser extension
 
@@ -73,7 +95,7 @@ The sidebar opens automatically after loading. Click the g6 icon in the toolbar 
 
 Open Claude Code and paste this prompt exactly:
 
-> Add a "g6" section to CLAUDE.md that says: use the /browse skill from g6 for all web browsing, never use mcp\_\_claude-in-chrome\_\_\* tools, no Google services (Fonts, Analytics, reCAPTCHA) anywhere. List these available skills: /office-hours, /plan-ceo-review, /plan-eng-review, /plan-design-review, /plan-devex-review, /autoplan, /review, /codex, /investigate, /incident, /onboard, /design-consultation, /design-shotgun, /design-html, /design-review, /qa, /qa-only, /devex-review, /ship, /land-and-deploy, /canary, /setup-deploy, /document-release, /document-generate, /cso, /privacy-audit, /rails-health, /api-audit, /stripe-audit, /supabase-audit, /env-audit, /db-audit, /crypto-audit, /supabase-deploy, /multi-tenant-audit, /node-health, /mentor, /retro, /health, /sidekiq-monitor, /benchmark, /benchmark-models, /make-pdf, /learn, /context-save, /context-restore, /browse, /scrape, /skillify, /pair-agent, /open-g6-browser, /setup-browser-cookies, /careful, /freeze, /guard, /unfreeze, /g6-upgrade.
+> Add a "g6" section to CLAUDE.md that says: use the /browse skill from g6 for all web browsing, never use mcp\_\_claude-in-chrome\_\_\* tools, no Google services (Fonts, Analytics, reCAPTCHA) anywhere. List these available skills: /office-hours, /plan-ceo-review, /plan-eng-review, /plan-design-review, /plan-devex-review, /autoplan, /review, /codex, /investigate, /incident, /onboard, /design-consultation, /design-shotgun, /design-html, /design-review, /qa, /qa-only, /devex-review, /ship, /land-and-deploy, /canary, /setup-deploy, /document-release, /document-generate, /cso, /phi-audit, /privacy-audit, /rails-health, /api-audit, /stripe-audit, /supabase-audit, /env-audit, /db-audit, /crypto-audit, /supabase-deploy, /multi-tenant-audit, /node-health, /mentor, /retro, /health, /sidekiq-monitor, /benchmark, /benchmark-models, /make-pdf, /learn, /context-save, /context-restore, /browse, /scrape, /skillify, /pair-agent, /open-g6-browser, /setup-browser-cookies, /careful, /freeze, /guard, /unfreeze, /g6-upgrade.
 
 ### Step 3: Team mode — auto-update for shared repos (optional)
 
@@ -86,6 +108,8 @@ If you want everyone working in a repo to get g6 automatically, run this from in
 This commits the skill config. Any teammate who opens Claude Code in that repo gets g6 without doing anything.
 
 ## All skills
+
+The full set, grouped by what you're doing. Skills marked ★ are ones I built; the rest come from gstack.
 
 ### Plan before you build
 
@@ -131,6 +155,7 @@ This commits the skill config. Any teammate who opens Claude Code in that repo g
 | Skill | What it does |
 |-------|-------------|
 | `/cso` | OWASP Top 10 + STRIDE threat modeling. Full security audit. |
+| `/phi-audit` | ★ g6 original. Health-data (PHI) compliance pre-check: PHI in logs/URLs, encryption at rest/transit, audit-log coverage, BAA-required vendors, minimum-necessary + retention. |
 | `/privacy-audit` | ★ g6 original. Find phone-homes, PII exposure, data minimization gaps, self-hosting blockers. |
 | `/rails-health` | ★ g6 original. Rails 8 health: credentials, Sidekiq, N+1s, schema drift, gem CVEs. |
 | `/api-audit` | ★ g6 original. REST/FastAPI: auth, rate limiting, key exposure, CORS, TILA compliance. |
@@ -183,24 +208,27 @@ This commits the skill config. Any teammate who opens Claude Code in that repo g
 | `/guard` | Activate both careful + freeze. |
 | `/unfreeze` | Remove restrictions. |
 
-## My principles (what g6 is tuned for)
+## What g6 is opinionated about
 
-**No Google services.** No Fonts, no Analytics, no reCAPTCHA, no Tag Manager. Every external service is a dependency, a tracking surface, and a SPOF you didn't choose. Self-host what you can.
+A few defaults are baked into the skills. You can ignore them, but they're why g6 looks the way it does.
 
-**Security is not a phase.** `/cso`, `/privacy-audit`, and `/stripe-audit` run before deploys, not after incidents. The tools make this fast enough that there's no excuse.
+**No Google services.** I don't pull in Fonts, Analytics, reCAPTCHA, or Tag Manager. Each one is a dependency and a tracking surface I didn't choose, so `/privacy-audit` flags them and the design skills avoid them. Self-host what you reasonably can.
 
-**Software should belong to the people using it.** Self-hosting paths, minimal data collection, encrypted at rest, no behavioral surveillance. These aren't features — they're the baseline.
+**Run the security audits early.** `/cso`, `/privacy-audit`, and `/stripe-audit` are fast enough to run before a deploy instead of after an incident. That's the whole point of packaging them as one command.
+
+**Software should stay with the people using it.** Self-hosting paths, minimal data collection, encryption at rest, no behavioral tracking. The audit skills treat these as the default expectation, not a nice-to-have.
 
 ## Stack defaults
 
-g6 is tuned for my stack:
+The g6-original skills know my stack best, so that's what they assume out of the box:
+
 - **Backend**: Ruby on Rails 8, FastAPI, Sidekiq, Postgres
 - **Frontend**: React/Vite, plain HTML/CSS
 - **Deploy**: Vercel, Render
-- **Payments**: Stripe (single account, multiple products)
-- **Language**: Python, Ruby, TypeScript
+- **Payments**: Stripe (one account, several products)
+- **Languages**: Python, Ruby, TypeScript
 
-It works on any stack — these are just the defaults that inform the g6-original skills.
+The workflow skills (planning, review, ship, browse) don't care about any of this and work anywhere.
 
 ## Updating
 
@@ -214,4 +242,4 @@ MIT. Fork it, extend it, share it.
 
 ## Credits
 
-g6 started from [gstack](https://github.com/garrytan/gstack) by [Garry Tan](https://x.com/garrytan). I kept the core workflow (skills, browse binary, ship pipeline) and added the g6-original audit, health, teaching, and privacy skills listed above — plus defaults for my stack (Rails, FastAPI, Stripe, Supabase, no Google services).
+g6 is a fork of [gstack](https://github.com/garrytan/gstack) by [Garry Tan](https://x.com/garrytan). The core workflow — the skill system, the browse binary, the ship pipeline — is his work, and it's genuinely good. What I added on top is the audit and health suite, the teaching mode, and the stack defaults I ship with. Those are marked ★ throughout this README so it's clear which is which.
