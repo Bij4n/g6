@@ -1,10 +1,12 @@
 # g6
 
+*Get you fly like a g6* — one founder, a whole engineering team's worth of skills.
+
 > "A small practice building, teaching, and securing software that belongs to the people using it." — Capitalism Killed Software
 
-g6 is a set of AI engineering skills for [Claude Code](https://docs.anthropic.com/en/docs/claude-code). You type a command like `/review` or `/privacy-audit` and Claude runs a full workflow for you — planning a feature, auditing security, shipping a PR, teaching a junior dev what just happened.
+g6 is a set of AI engineering skills for [Claude Code](https://docs.anthropic.com/en/docs/claude-code). You type a command like `/review` or `/privacy-audit` and Claude runs a full workflow for you — planning a feature, auditing security, shipping a PR, watching the burn rate, teaching a junior dev what just happened.
 
-I'm [Bij4n](https://github.com/Bij4n), and I built g6 around how I actually work: mostly solo, privacy-first, shipping to real users on Rails, FastAPI, and Supabase. But none of that is required. Most of the skills here don't care what stack you use, and you can pick up as many or as few as you want.
+I'm [Bij4n](https://github.com/Bij4n), and I built g6 around how I actually work: mostly solo, privacy-first, shipping to real users on Rails, FastAPI, and Supabase. The point is to give one person building a product the coverage a whole team would — the reviewer, the security lead, the ops on-call, the person who remembers where you left off. But none of that is required. Most of the skills here don't care what stack you use, and you can pick up as many or as few as you want.
 
 ## Who this is for
 
@@ -15,8 +17,24 @@ You don't have to adopt the whole thing. People use g6 in a few different ways:
 - **Keeping something in production healthy.** `/health`, `/rails-health`, `/node-health`, `/sidekiq-monitor`, and `/canary` are dashboards you run when you want to know what's actually going on.
 - **Teaching or learning.** `/mentor` explains what just happened in plain language, tuned to the level of whoever's reading.
 - **Automating browser work.** `/browse` and `/scrape` drive a real headless Chromium for QA, testing, and data collection.
+- **Running the whole thing solo.** `/solo-standup` catches you up each morning, `/cost-audit` tells you what you're burning, and `/kill-switch` is the map you want *before* something's on fire.
 
 Jump to [all skills](#all-skills) for the full list, grouped by what they're for.
+
+## How it fits together
+
+The skills aren't a random toolbox. They map to the loop a solo founder actually runs — from an idea to, eventually, an incident — so that at every stage there's a command covering the hat you'd otherwise be wearing alone:
+
+| Stage | You're doing | Reach for |
+|-------|-------------|-----------|
+| **Think & plan** | deciding what's worth building | `/office-hours` → `/plan-ceo-review`, `/plan-eng-review`, `/autoplan` |
+| **Build & review** | writing it and catching your own mistakes | `/review`, `/investigate`, `/codex`, the design skills |
+| **Secure** | closing holes before anyone sees it | `/cso`, `/privacy-audit`, and the stack audits (`/stripe-audit`, `/supabase-audit`, …) |
+| **Ship** | getting it out and confirming it's healthy | `/ship`, `/land-and-deploy`, `/canary` |
+| **Operate** | keeping it alive and staying on track | `/solo-standup`, `/cost-audit`, `/health`, `/retro` |
+| **Contain** | when something breaks at 3am | `/kill-switch` stops the bleeding, `/incident` runs the recovery |
+
+You can still pick up any one on its own — nothing here requires the rest. But run together, they cover the full arc of shipping and operating a product when there's no one else to hand a piece to.
 
 ## The skills I built
 
@@ -43,6 +61,9 @@ g6 started as a fork of [gstack](https://github.com/garrytan/gstack) (credit bel
 | `/explain-diff` | Walks through a diff or PR in plain language at the reader's level: what changed, why, what could break, what to test. |
 | `/walkthrough` | An interactive tour of a codebase or subsystem for a newcomer: entry points, how a request flows, the mental model, the gotchas. |
 | `/quiz-me` | Generates grounded questions about the code (or a topic you name), grades your answers with explanations, and adapts the difficulty. |
+| `/solo-standup` | A daily standup for a team of one: what moved, what's in flight, what's blocking you, and the one thing most worth doing today. |
+| `/cost-audit` | Every recurring cost the code implies — hosts, managed services, LLM API spend, SaaS, payment fees — with a rough monthly burn and a ranked plan to cut it. |
+| `/kill-switch` | The emergency lever map: rotate secrets, revoke sessions, roll back a deploy, cap a runaway bill. Report-first, confirmation-gated, and it flags the switches you don't have yet. |
 
 Everything else comes from gstack and is listed further down.
 
@@ -100,7 +121,7 @@ The sidebar opens automatically after loading. Click the g6 icon in the toolbar 
 
 Open Claude Code and paste this prompt exactly:
 
-> Add a "g6" section to CLAUDE.md that says: use the /browse skill from g6 for all web browsing, never use mcp\_\_claude-in-chrome\_\_\* tools, no Google services (Fonts, Analytics, reCAPTCHA) anywhere. List these available skills: /office-hours, /plan-ceo-review, /plan-eng-review, /plan-design-review, /plan-devex-review, /autoplan, /review, /codex, /investigate, /incident, /onboard, /design-consultation, /design-shotgun, /design-html, /design-review, /qa, /qa-only, /devex-review, /ship, /land-and-deploy, /canary, /setup-deploy, /document-release, /document-generate, /cso, /phi-audit, /privacy-audit, /self-host-audit, /degoogle, /rails-health, /api-audit, /stripe-audit, /supabase-audit, /env-audit, /db-audit, /crypto-audit, /supabase-deploy, /multi-tenant-audit, /node-health, /mentor, /explain-diff, /walkthrough, /quiz-me, /retro, /health, /sidekiq-monitor, /benchmark, /benchmark-models, /make-pdf, /learn, /context-save, /context-restore, /browse, /scrape, /skillify, /pair-agent, /open-g6-browser, /setup-browser-cookies, /careful, /freeze, /guard, /unfreeze, /g6-upgrade.
+> Add a "g6" section to CLAUDE.md that says: use the /browse skill from g6 for all web browsing, never use mcp\_\_claude-in-chrome\_\_\* tools, no Google services (Fonts, Analytics, reCAPTCHA) anywhere. List these available skills: /office-hours, /plan-ceo-review, /plan-eng-review, /plan-design-review, /plan-devex-review, /autoplan, /review, /codex, /investigate, /incident, /onboard, /design-consultation, /design-shotgun, /design-html, /design-review, /qa, /qa-only, /devex-review, /ship, /land-and-deploy, /canary, /setup-deploy, /document-release, /document-generate, /cso, /phi-audit, /privacy-audit, /self-host-audit, /degoogle, /rails-health, /api-audit, /stripe-audit, /supabase-audit, /env-audit, /db-audit, /crypto-audit, /supabase-deploy, /multi-tenant-audit, /node-health, /mentor, /explain-diff, /walkthrough, /quiz-me, /solo-standup, /cost-audit, /kill-switch, /retro, /health, /sidekiq-monitor, /benchmark, /benchmark-models, /make-pdf, /learn, /context-save, /context-restore, /browse, /scrape, /skillify, /pair-agent, /open-g6-browser, /setup-browser-cookies, /careful, /freeze, /guard, /unfreeze, /g6-upgrade.
 
 ### Step 3: Team mode — auto-update for shared repos (optional)
 
@@ -184,6 +205,16 @@ The full set, grouped by what you're doing. Skills marked ★ are ones I built; 
 | `/walkthrough` | ★ g6 original. Interactive tour of a codebase or subsystem: entry points, request flow, mental model, key files, gotchas. Pairs with `/onboard`. |
 | `/quiz-me` | ★ g6 original. Grounded questions about the code or a named topic, graded with explanations, adaptive difficulty. |
 
+### Solo-founder ops
+
+The team you don't have. Run these to stay oriented, watch what you're spending, and know which levers to pull when something breaks.
+
+| Skill | What it does |
+|-------|-------------|
+| `/solo-standup` | ★ g6 original. A daily standup for a team of one: what shipped, what's in flight, what's blocked, and today's single highest-leverage action. Daily companion to `/retro`. |
+| `/cost-audit` | ★ g6 original. Finds every recurring cost the code implies — deploy hosts, managed services, LLM/AI API spend, SaaS, payment fees — estimates monthly burn, and ranks the cuts by dollars saved per hour of effort. Pairs with `/self-host-audit` and `/degoogle`. |
+| `/kill-switch` | ★ g6 original. Maps every emergency lever (rotate secrets, revoke sessions, roll back a deploy, cap a runaway bill), gives an ordered playbook per situation, and flags the switches you're missing. Report-first, confirmation-gated. Hands off to `/incident` for full recovery. |
+
 ### Operational
 
 | Skill | What it does |
@@ -252,4 +283,4 @@ MIT. Fork it, extend it, share it.
 
 ## Credits
 
-g6 is a fork of [gstack](https://github.com/garrytan/gstack) by [Garry Tan](https://x.com/garrytan). The core workflow — the skill system, the browse binary, the ship pipeline — is his work, and it's genuinely good. What I added on top is the audit and health suite, the teaching mode, and the stack defaults I ship with. Those are marked ★ throughout this README so it's clear which is which.
+g6 is a fork of [gstack](https://github.com/garrytan/gstack) by [Garry Tan](https://x.com/garrytan). The core workflow — the skill system, the browse binary, the ship pipeline — is his work, and it's genuinely good. What I added on top is the audit and health suite, the teaching mode, the solo-founder ops, and the stack defaults I ship with. Those are marked ★ throughout this README so it's clear which is which.
