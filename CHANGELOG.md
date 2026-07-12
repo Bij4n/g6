@@ -1,5 +1,36 @@
 # Changelog
 
+## [1.45.0.0] - 2026-07-12
+
+## **Six new skills — health-data compliance, a self-hosting toolkit, and a way to actually teach the codebase.**
+
+This release is the first wave of skills built for g6 specifically, not inherited from gstack. `/phi-audit` gives you a HIPAA engineering pre-check for anything touching protected health information: it finds PHI in logs and URLs, checks encryption and audit-log coverage, and builds a table of vendors that need a signed BAA. `/self-host-audit` scores how locked-in you are to managed SaaS and writes a phased plan to get off it, and `/degoogle` finds every Google dependency and swaps each one for a self-hosted or privacy-respecting equivalent. On the teaching side, `/explain-diff`, `/walkthrough`, and `/quiz-me` turn a codebase into something you can hand to a newcomer: explain a diff in plain language, take an interactive tour of a subsystem, or get quizzed on what you just read. The README was also rewritten to lead with who g6 is for and what you can do with it.
+
+### The numbers that matter
+
+| | |
+|---|---|
+| New skills | 6 (phi-audit, self-host-audit, degoogle, explain-diff, walkthrough, quiz-me) |
+| Themes | Health-data compliance · self-hosting · teaching |
+| Skill validation | 327/327 pass |
+
+### What this means
+
+If you build for health, privacy, or independence from big SaaS, g6 now has audits that speak your language. And if you're teaching someone the codebase, three new skills do the explaining for you.
+
+### Itemized changes
+
+### Added
+- `/phi-audit` — health-data (PHI) compliance pre-check: PHI in logs/URLs/errors, encryption at rest and in transit, audit-log coverage of PHI access, BAA-required vendor table, minimum-necessary and retention review. Quick and full modes. Explicitly an engineering pass, not legal certification.
+- `/self-host-audit` — portability score and phased exit plan off managed SaaS: hosted-dependency inventory, portability classification, hardcoded-provider hunt, Docker and data-export readiness.
+- `/degoogle` — finds every Google dependency (Fonts, Analytics, Tag Manager, reCAPTCHA, Maps, OAuth, Firebase, AdSense) and swaps each for a self-hosted or privacy-respecting equivalent. Report-only or apply mode; can persist a "No Google services" policy to CLAUDE.md.
+- `/explain-diff` — plain-language walkthrough of a diff or PR at the reader's level: what changed, why, blast radius, what to test. Detects the base branch dynamically.
+- `/walkthrough` — interactive tour of a codebase or subsystem for a newcomer: entry points, request flow, mental model, key files, gotchas. Complements `/onboard`.
+- `/quiz-me` — grounded questions about the code or a named topic, graded with file:line explanations, adaptive difficulty.
+
+### Changed
+- README rewritten to lead with what g6 is and who it's for: new "Who this is for" section covering distinct use cases, and the g6-original skills grouped and marked throughout.
+
 ## [1.44.0.0] - 2026-07-09
 
 ## **Your g6 state now lives in ~/.g6 — and not a single old path stops working.**
