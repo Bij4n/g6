@@ -30,6 +30,8 @@ g6 started as a fork of [gstack](https://github.com/garrytan/gstack) (credit bel
 | `/api-audit` | FastAPI/REST: auth coverage, rate limiting, key exposure, CORS, TILA compliance for financial APIs. |
 | `/stripe-audit` | Stripe for anyone running multiple products on one account. Catches the mistakes that cost real money. |
 | `/supabase-audit` | RLS coverage, storage bucket policies, service_role key isolation, Edge Function auth, pg_cron. One RLS gap exposes every user's records. |
+| `/self-host-audit` | Scores how locked-in you are to managed SaaS and writes a phased plan to get off it. Inventories every hosted dependency, rates data portability, checks for a Docker path. |
+| `/degoogle` | Finds every Google dependency (Fonts, Analytics, reCAPTCHA, Maps, Firebase, GTM) and swaps each for a self-hosted or privacy-respecting equivalent. |
 | `/env-audit` | Every env var pulled from source, diffed against `.env.example`, plus hardcoded secrets and `.gitignore` gaps. |
 | `/db-audit` | Postgres health: missing indexes, table bloat, connection pool sizing, N+1 patterns. Static analysis, or live `psql` if it's available. |
 | `/crypto-audit` | Bitcoin and crypto code: key generation entropy, seed phrase storage, private key exposure, wallet encryption. |
@@ -95,7 +97,7 @@ The sidebar opens automatically after loading. Click the g6 icon in the toolbar 
 
 Open Claude Code and paste this prompt exactly:
 
-> Add a "g6" section to CLAUDE.md that says: use the /browse skill from g6 for all web browsing, never use mcp\_\_claude-in-chrome\_\_\* tools, no Google services (Fonts, Analytics, reCAPTCHA) anywhere. List these available skills: /office-hours, /plan-ceo-review, /plan-eng-review, /plan-design-review, /plan-devex-review, /autoplan, /review, /codex, /investigate, /incident, /onboard, /design-consultation, /design-shotgun, /design-html, /design-review, /qa, /qa-only, /devex-review, /ship, /land-and-deploy, /canary, /setup-deploy, /document-release, /document-generate, /cso, /phi-audit, /privacy-audit, /rails-health, /api-audit, /stripe-audit, /supabase-audit, /env-audit, /db-audit, /crypto-audit, /supabase-deploy, /multi-tenant-audit, /node-health, /mentor, /retro, /health, /sidekiq-monitor, /benchmark, /benchmark-models, /make-pdf, /learn, /context-save, /context-restore, /browse, /scrape, /skillify, /pair-agent, /open-g6-browser, /setup-browser-cookies, /careful, /freeze, /guard, /unfreeze, /g6-upgrade.
+> Add a "g6" section to CLAUDE.md that says: use the /browse skill from g6 for all web browsing, never use mcp\_\_claude-in-chrome\_\_\* tools, no Google services (Fonts, Analytics, reCAPTCHA) anywhere. List these available skills: /office-hours, /plan-ceo-review, /plan-eng-review, /plan-design-review, /plan-devex-review, /autoplan, /review, /codex, /investigate, /incident, /onboard, /design-consultation, /design-shotgun, /design-html, /design-review, /qa, /qa-only, /devex-review, /ship, /land-and-deploy, /canary, /setup-deploy, /document-release, /document-generate, /cso, /phi-audit, /privacy-audit, /self-host-audit, /degoogle, /rails-health, /api-audit, /stripe-audit, /supabase-audit, /env-audit, /db-audit, /crypto-audit, /supabase-deploy, /multi-tenant-audit, /node-health, /mentor, /retro, /health, /sidekiq-monitor, /benchmark, /benchmark-models, /make-pdf, /learn, /context-save, /context-restore, /browse, /scrape, /skillify, /pair-agent, /open-g6-browser, /setup-browser-cookies, /careful, /freeze, /guard, /unfreeze, /g6-upgrade.
 
 ### Step 3: Team mode — auto-update for shared repos (optional)
 
@@ -157,6 +159,8 @@ The full set, grouped by what you're doing. Skills marked ★ are ones I built; 
 | `/cso` | OWASP Top 10 + STRIDE threat modeling. Full security audit. |
 | `/phi-audit` | ★ g6 original. Health-data (PHI) compliance pre-check: PHI in logs/URLs, encryption at rest/transit, audit-log coverage, BAA-required vendors, minimum-necessary + retention. |
 | `/privacy-audit` | ★ g6 original. Find phone-homes, PII exposure, data minimization gaps, self-hosting blockers. |
+| `/self-host-audit` | ★ g6 original. Portability score + phased exit plan off managed SaaS: dependency inventory, data-export path, Docker readiness, hardcoded-provider hunt. |
+| `/degoogle` | ★ g6 original. Locate every Google dependency and swap it for a self-hosted / privacy-respecting equivalent (Bunny Fonts, Plausible, hCaptcha, MapLibre). Report or apply. |
 | `/rails-health` | ★ g6 original. Rails 8 health: credentials, Sidekiq, N+1s, schema drift, gem CVEs. |
 | `/api-audit` | ★ g6 original. REST/FastAPI: auth, rate limiting, key exposure, CORS, TILA compliance. |
 | `/stripe-audit` | ★ g6 original. Stripe: webhook verification, key hygiene, idempotency, multi-product isolation. |
