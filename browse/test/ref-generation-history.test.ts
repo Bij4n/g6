@@ -3,7 +3,7 @@
  * browser can't reach cheaply.
  *
  * `ref-generation.test.ts` drives the same code through a real page and covers the
- * headline case (reuse a number after a re-snapshot → "that element is now @eN").
+ * headline case (reuse a number after a re-snapshot → names the surviving ref).
  * The remaining branches need more ref sets than a page test wants to build, or a
  * current set deliberately shaped to have zero or two candidate matches:
  *
@@ -81,8 +81,8 @@ describe('ref generation history', () => {
     const goneMsg = await missingRefError(gone, '@e5');
     expect(goneMsg).toContain('earlier ref set (#2)');
     expect(goneMsg).toContain('button "mark complete"');
-    expect(goneMsg).toContain('No single element with that role and name');
-    expect(goneMsg).not.toContain('is now @');
+    expect(goneMsg).toContain('do not identify a single replacement');
+    expect(goneMsg).not.toContain('same role and name — @');
 
     // Two equally good candidates — guessing one would be worse than declining.
     const ambiguous = new TabSession(mockPage());
@@ -93,9 +93,36 @@ describe('ref generation history', () => {
     ]));
 
     const ambiguousMsg = await missingRefError(ambiguous, '@e5');
-    expect(ambiguousMsg).toContain('No single element with that role and name');
-    expect(ambiguousMsg).not.toContain('is now @');
+    expect(ambiguousMsg).toContain('do not identify a single replacement');
+    expect(ambiguousMsg).not.toContain('same role and name — @');
     expect(ambiguousMsg).toContain('Current set is #3 with 2 refs.');
+  });
+
+  test('duplicates in the PRIOR set mean no suggestion, even when one survives', async () => {
+    // Two "Delete" buttons, row 2 removed. Role+name never identified this ref, so
+    // naming the survivor would aim a destructive action at the wrong row.
+    const session = new TabSession(mockPage());
+    session.setRefMap(mk([
+      ['e1', 'button', 'Delete'],
+      ['e2', 'button', 'Delete'],
+    ]));
+    session.setRefMap(mk([['e1', 'button', 'Delete']]));
+
+    const msg = await missingRefError(session, '@e2');
+    expect(msg).toContain('earlier ref set (#2)');
+    expect(msg).toContain('button "Delete"');
+    expect(msg).toContain('do not identify a single replacement');
+    expect(msg).not.toContain('same role and name — @');
+  });
+
+  test('an archived name is truncated so page text cannot flood the error', async () => {
+    const session = new TabSession(mockPage());
+    session.setRefMap(mk([['e5', 'button', 'x'.repeat(500)]]));
+    session.setRefMap(mk([['e1', 'link', 'other']]));
+
+    const msg = await missingRefError(session, '@e5');
+    expect(msg).toContain('…');
+    expect(msg).not.toContain('x'.repeat(200));
   });
 
   test('a set ended by navigation blames navigation, not renumbering', async () => {

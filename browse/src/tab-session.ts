@@ -17,6 +17,7 @@
  */
 
 import type { Page, Locator, Frame } from 'playwright';
+import { escapeEnvelopeSentinels } from './content-security';
 
 export interface RefEntry {
   locator: Locator;
@@ -32,6 +33,17 @@ export type SetContentWaitUntil = 'load' | 'domcontentloaded' | 'networkidle';
  * with room to spare, and each entry is only role+name strings.
  */
 const REF_HISTORY_DEPTH = 3;
+
+/**
+ * Cap on an archived accessible name. Names come from the page, can be ~900 chars,
+ * and the history now survives navigation — so this bounds both the memory a hostile
+ * or merely huge page can pin and how much page text an error string can carry.
+ */
+const MAX_ARCHIVED_NAME = 80;
+
+function truncateName(name: string): string {
+  return name.length <= MAX_ARCHIVED_NAME ? name : `${name.slice(0, MAX_ARCHIVED_NAME)}…`;
+}
 
 export class TabSession {
   readonly page: Page;
@@ -117,7 +129,10 @@ export class TabSession {
     if (this.refMap.size > 0) {
       const archived = new Map<string, { role: string; name: string }>();
       for (const [ref, entry] of this.refMap) {
-        archived.set(ref, { role: entry.role, name: entry.name });
+        // Truncate on the way in. Accessible names are page-controlled and can run to
+        // ~900 chars; the archive only needs enough to identify the element, and this
+        // history now outlives the page it came from.
+        archived.set(ref, { role: entry.role, name: truncateName(entry.name) });
       }
       this.priorRefs.unshift({ generation: this.refGeneration, endedBy, refs: archived });
       if (this.priorRefs.length > REF_HISTORY_DEPTH) {
@@ -130,13 +145,17 @@ export class TabSession {
   /**
    * Explain a ref that isn't in the current set.
    *
-   * If we remember it from a superseded set, say what it was and — when exactly one
-   * element in the current set has the same role and name — which ref it became.
-   * Only suggest on a unique match; pointing at the wrong element is worse than
-   * pointing at none.
+   * If we remember it from a superseded set, say what it was and — when role+name
+   * identifies exactly one element in BOTH the prior and the current set — which ref
+   * it became.
    *
-   * Every branch keeps the words "not found" so callers (and tests) that key off the
-   * old phrasing still match.
+   * Both sides of that check matter. Role+name is not identity: if the prior set held
+   * two "Delete" buttons, the ref never had a role+name identity to begin with, and
+   * naming a survivor would point the caller at the wrong row of a destructive action.
+   * The suggestion is hedged for the same reason — it is a lead, not a fact.
+   *
+   * Every branch keeps the words "not found" so the phrasing pinned by
+   * snapshot.test.ts still matches.
    */
   private explainMissingRef(selector: string, ref: string): string {
     const available = this.refMap.size > 0
@@ -149,14 +168,22 @@ export class TabSession {
     }
 
     const was = prior.refs.get(ref)!;
-    const label = was.name ? `${was.role} "${was.name}"` : was.role;
+    // Page-controlled text crosses into an error string that is NOT wrapped in the
+    // untrusted-content envelope the snapshot path uses, so neutralize the sentinels.
+    const safeName = escapeEnvelopeSentinels(was.name);
+    const label = was.name ? `${was.role} "${safeName}"` : was.role;
 
+    const sameRoleName = (e: { role: string; name: string }) =>
+      e.role === was.role && e.name === was.name;
+    const priorMatches = Array.from(prior.refs.values()).filter(sameRoleName).length;
     const matches = Array.from(this.refMap.entries())
-      .filter(([, e]) => e.role === was.role && e.name === was.name)
+      .filter(([, e]) => sameRoleName(e))
       .map(([r]) => r);
-    const nowIs = matches.length === 1
-      ? `That element is now @${matches[0]}.`
-      : `No single element with that role and name is in the current set.`;
+
+    const nowIs = priorMatches === 1 && matches.length === 1
+      ? `One element in the current set has the same role and name — @${matches[0]} — ` +
+        `but role and name are not identity, so verify before acting on it.`
+      : `Role and name do not identify a single replacement in the current set.`;
 
     const why = prior.endedBy === 'navigation'
       ? `Refs are cleared when the page or frame navigates — take a fresh snapshot.`

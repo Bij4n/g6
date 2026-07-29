@@ -72,7 +72,7 @@ describe('ref generations', () => {
     const msg = await clickError(`@${oldRef}`);
     expect(msg).toContain('earlier ref set');
     expect(msg).toContain('mark complete');
-    expect(msg).toContain(`now @${newRef}`);
+    expect(msg).toContain(`same role and name — @${newRef}`);
     expect(msg).toContain('renumbered by every snapshot');
     // The old message was actively misleading here; make sure it's gone.
     expect(msg).not.toBe(`Ref @${oldRef} not found. Run 'snapshot' to get fresh refs.`);
