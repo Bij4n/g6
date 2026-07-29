@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<html>
+<head><title>Click Ref Strict</title></head>
+<body>
+  <h1>Ref Strict</h1>
+  <p id="log">none</p>
+
+  <!-- One button named exactly "Save", one named "Save draft".
+       Exact count for "Save" is 1, so no nth() disambiguation is applied —
+       but getByRole({name:'Save'}) substring-matches BOTH buttons, so the
+       click hits Playwright strict mode. -->
+  <button id="btn-save" onclick="fire('save')">Save</button>
+  <button id="btn-save-draft" onclick="fire('save-draft')">Save draft</button>
+
+  <script>
+    function fire(which) { document.getElementById('log').textContent = which; }
+  </script>
+</body>
+</html>
