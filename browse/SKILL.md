@@ -517,6 +517,37 @@ If `NEEDS_SETUP`:
    fi
    ```
 
+## Never throw away browse output
+
+Failures go to stderr with a non-zero exit. Discard either one and a broken command
+becomes indistinguishable from a working one — you'll debug the app instead of the
+command, sometimes for hours.
+
+```bash
+$B click @e12 >/dev/null 2>&1; sleep 5   # WRONG: hides the error, then ignores the exit code
+$B click @e12 && sleep 5                 # right: you see the failure, and you stop on it
+```
+
+- Never send a state-changing command (`click`, `fill`, `select`, `press`, `goto`) to
+  `/dev/null`. If the output is noisy, `2>&1 | tail -2` keeps the error.
+- Chain with `&&`, not `;`. After `;` the rest of your sequence runs as though the
+  failed step had worked.
+- Success means the event was dispatched — not that a handler ran. After anything you
+  believe changed state, confirm the side effect: `snapshot -D`, `is visible`, or a
+  read from the database or API.
+
+## Refs are renumbered by every snapshot
+
+`@e5` is a position in the *last* snapshot's output, not a stable id for an element.
+Take another snapshot and the same button may be `@e2`. Carrying a ref number across a
+snapshot is the most common way to hit the wrong element — or nothing at all.
+
+- Re-read the numbers from the newest snapshot output every time. Never reuse a ref
+  number you read before the most recent `snapshot`.
+- Never pipe a snapshot you intend to use into `/dev/null` — the numbers *are* the output.
+- Anything that re-renders can renumber refs: a click, a fill on a controlled React
+  input, a navigation.
+
 ## Core QA Patterns
 
 ### 1. Verify a page loads correctly
