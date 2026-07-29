@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html>
+<head><title>Ref Quoted Names</title></head>
+<body>
+  <h1>Quoted Names</h1>
+  <p id="log">none</p>
+
+  <!-- Accessible names that force Playwright to escape or YAML-quote the aria line.
+       Playwright writes each node key as `role + JSON.stringify(name)` and then
+       single-quotes the whole key when it contains ": ", " #", "{", a backtick, etc:
+
+         - button "Delete \"Report\""
+         - 'button "Filter: All"'
+         - 'button "Issue #42"'
+         - button "Open C:\\temp"
+
+       A line the parser drops still gets matched by getByRole, so it shifts the
+       nth() index of every later ref sharing its role — the two icon buttons below
+       are the ones that silently rewire. -->
+  <button onclick="fire('quoted')">Delete "Report"</button>
+  <button onclick="fire('colon')">Filter: All</button>
+  <button onclick="fire('hash')">Issue #42</button>
+  <button onclick="fire('backslash')">Open C:\temp</button>
+
+  <button onclick="fire('icon-a')"><svg width="10" height="10"></svg></button>
+  <button onclick="fire('icon-b')"><svg width="10" height="10"></svg></button>
+
+  <script>
+    function fire(which) { document.getElementById('log').textContent = which; }
+  </script>
+</body>
+</html>

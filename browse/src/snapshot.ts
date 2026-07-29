@@ -113,20 +113,57 @@ export function parseSnapshotArgs(args: string[]): SnapshotOptions {
  *   - textbox "Name"
  *   - paragraph: Some text
  *   - combobox "Role":
+ *   - button "Delete \"Report\""      (name written with JSON.stringify)
+ *   - 'button "Filter: All"'          (whole key YAML-quoted)
+ *
+ * Playwright builds each node key as `role + JSON.stringify(name)`, then YAML-quotes
+ * the entire key when it contains `: `, ` #`, `{`, a backtick, and so on. Failing to
+ * parse one of those lines is NOT harmless: `getByRole` still matches the element, so
+ * an unparsed node silently shifts the nth() index of every later ref that shares its
+ * role — a real, visible, wrong element gets clicked. Names like "Status: Active" and
+ * `Delete "Q3 Report"` are ordinary, so both forms have to round-trip.
  */
 function parseLine(line: string): ParsedNode | null {
-  // Match: (indent)(- )(role)( "name")?( [props])?(: inline)?
-  const match = line.match(/^(\s*)-\s+(\w+)(?:\s+"([^"]*)")?(?:\s+(\[.*?\]))?\s*(?::\s*(.*))?$/);
+  const head = line.match(/^(\s*)-\s+(.*)$/);
+  if (!head) return null;
+  const indent = head[1].length;
+  let body = head[2];
+
+  // Unwrap a YAML single-quoted key, un-doubling '' back to '. Props and inline
+  // children sit outside the quotes, so keep whatever follows.
+  if (body.startsWith("'")) {
+    let unquoted = '';
+    let i = 1;
+    for (; i < body.length; i++) {
+      if (body[i] !== "'") { unquoted += body[i]; continue; }
+      if (body[i + 1] === "'") { unquoted += "'"; i++; continue; }
+      break;
+    }
+    if (i >= body.length) return null; // unterminated — not a node line
+    body = unquoted + body.slice(i + 1);
+  }
+
+  // Roles can contain hyphens (doc-abstract). The name allows backslash escapes.
+  const match = body.match(/^([\w-]+)(?:\s+"((?:[^"\\]|\\.)*)")?(?:\s+(\[.*?\]))?\s*(?::\s*(.*))?$/);
   if (!match) {
     // Skip metadata lines like "- /url: /a"
     return null;
   }
+
+  let name: string | null = match[2] ?? null;
+  if (name !== null) {
+    // The name was written with JSON.stringify, so unescape it. Without this,
+    // `exact: true` compares `Open C:\\temp` against the real name `Open C:\temp`
+    // and the ref resolves to nothing while claiming the element is gone.
+    try { name = JSON.parse(`"${name}"`); } catch { /* malformed — keep the raw capture */ }
+  }
+
   return {
-    indent: match[1].length,
-    role: match[2],
-    name: match[3] ?? null,
-    props: match[4] || '',
-    children: match[5]?.trim() || '',
+    indent,
+    role: match[1],
+    name,
+    props: match[3] || '',
+    children: match[4]?.trim() || '',
     rawLine: line,
   };
 }
@@ -190,10 +227,22 @@ export async function handleSnapshot(
   const roleSeen = new Map<string, number>();
   const nameKeyOf = (node: ParsedNode) => `${node.role}:${node.name}`;
 
+  // Parse once. Both passes and the scope-root check below read the same nodes.
+  const nodes = lines.map(parseLine).filter((n): n is ParsedNode => n !== null);
+
+  // With -s, ariaSnapshot includes a node for the scope element itself, but
+  // `locator(sel).getByRole(...)` matches only its DESCENDANTS. Left in, the scope's
+  // own ref resolves to a descendant that shares its role, and every sibling ref
+  // shifts by one. When the scope element has a role it is the single indent-0 node
+  // (its children are indented beneath it); when its role is pruned — a plain <div>
+  // is `generic` — several nodes sit at indent 0 and there is no root line to drop.
+  const scopeRoot = opts.selector && nodes.filter(n => n.indent === 0).length === 1
+    ? nodes.find(n => n.indent === 0)
+    : undefined;
+  const refNodes = scopeRoot ? nodes.filter(n => n !== scopeRoot) : nodes;
+
   // First pass: count both populations
-  for (const line of lines) {
-    const node = parseLine(line);
-    if (!node) continue;
+  for (const node of refNodes) {
     if (node.name) {
       const key = nameKeyOf(node);
       namedCounts.set(key, (namedCounts.get(key) || 0) + 1);
@@ -202,10 +251,7 @@ export async function handleSnapshot(
   }
 
   // Second pass: assign refs and build locators
-  for (const line of lines) {
-    const node = parseLine(line);
-    if (!node) continue;
-
+  for (const node of refNodes) {
     // Advance the occurrence counters for EVERY node, before any filter below can
     // skip it. A filtered-out node is still matched by getByRole, so skipping it
     // here would shift every later ref of the same role.

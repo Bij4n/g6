@@ -126,6 +126,40 @@ describe('snapshot ref identity', () => {
     expect(await logText()).toBe('save');
   }, 30000);
 
+  test('names that force YAML quoting or escaping still get refs and do not shift others', async () => {
+    // Playwright renders the node key as `role + JSON.stringify(name)` and YAML-quotes
+    // it whole when the name contains ": ", " #", "{" and friends. Lines the parser
+    // drops are still matched by getByRole, so before the parser handled these forms
+    // the four named buttons were invisible AND both icon refs were off by one.
+    await handleWriteCommand('goto', [baseUrl + '/ref-quoted-names.html'], bm);
+    const snap = await handleMetaCommand('snapshot', ['-i'], bm, shutdown);
+
+    const refFor = (needle: string) => {
+      const line = snap.split('\n').map(l => l.trim()).find(l => l.includes(needle));
+      if (!line) throw new Error(`no snapshot line containing ${needle}:\n${snap}`);
+      return line.match(/^@(\S+)/)![1];
+    };
+
+    // Each awkward name survives the round trip, unescaped.
+    for (const [needle, expected] of [
+      ['Delete "Report"', 'quoted'],
+      ['Filter: All', 'colon'],
+      ['Issue #42', 'hash'],
+      ['Open C:\\temp', 'backslash'],
+    ] as const) {
+      await handleWriteCommand('click', [`@${refFor(needle)}`], bm);
+      expect(await logText()).toBe(expected);
+    }
+
+    // And the unnamed buttons after them still land on themselves.
+    const icons = unnamedButtonRefs(snap);
+    expect(icons.length).toBe(2);
+    await handleWriteCommand('click', [`@${icons[0]}`], bm);
+    expect(await logText()).toBe('icon-a');
+    await handleWriteCommand('click', [`@${icons[1]}`], bm);
+    expect(await logText()).toBe('icon-b');
+  }, 30000);
+
   test('a ref survives the -d filter hiding an earlier button of the same name', async () => {
     // The output filters run AFTER the occurrence counters advance, because a node
     // the filter drops is still matched by getByRole. `-d 1` hides the button nested
