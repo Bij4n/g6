@@ -225,6 +225,22 @@ When you need to interact with a browser (QA, dogfooding, cookie setup), use the
 `mcp__claude-in-chrome__*` tools — they are slow, unreliable, and not what this
 project uses.
 
+**Two rules that cost hours when broken** (full versions in `browse/SKILL.md`;
+repeated here because driving `$B` directly skips that file):
+
+- **Never throw away browse output.** Failures go to stderr with a non-zero exit.
+  Send a state-changing command (`click`, `fill`, `select`, `press`, `goto`) to
+  `/dev/null` and a broken command becomes indistinguishable from a working one —
+  you'll debug the app instead of the command. Chain with `&&`, not `;`. Don't pipe
+  a command whose exit code you rely on unless you `set -o pipefail` first, because
+  a pipe reports the *last* command's status. Success means the event was
+  dispatched, not that a handler ran: confirm the side effect with `snapshot -D`,
+  `is visible`, or a read from the DB/API.
+- **Refs are renumbered by every snapshot.** `@e5` is a position in the last
+  snapshot's output, not a stable element id. Re-read the numbers from the newest
+  snapshot every time; never carry a ref number across a `snapshot`, a click, a
+  fill on a controlled input, or a navigation.
+
 **Sidebar / server / security internals.** Before modifying `sidepanel.js`,
 `background.js`, `content.js`, `terminal-agent.ts`, `server.ts`,
 `sse-session-cookie.ts`, `tunnel-denial-log.ts`, or any sidebar/security module,

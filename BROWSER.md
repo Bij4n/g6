@@ -365,9 +365,33 @@ Just Playwright's native AX API.
 
 1. `page.locator(scope).ariaSnapshot()` returns a YAML-like accessibility tree.
 2. The snapshot parser assigns refs (`@e1`, `@e2`, ...) to each element.
-3. For each ref, it builds a Playwright `Locator` (using `getByRole` + nth-child).
+3. For each ref, it builds a Playwright `Locator` — `getByRole(role, { name,
+   exact: true }).nth(i)` for a named node, `getByRole(role).nth(i)` for an
+   unnamed one. Named nodes are counted per role+name; unnamed nodes are counted
+   per role across their named siblings, because `getByRole(role)` with no name
+   matches those too. The index and the count always come from the same
+   population — see [ARCHITECTURE.md](ARCHITECTURE.md#the-ref-system) for why
+   that invariant is load-bearing.
 4. The ref→Locator map is stored on `BrowserManager`.
 5. Later commands like `click @e3` look up the Locator and call `locator.click()`.
+
+### Refs are positional, not stable ids
+
+`@e5` is a position in the **last** snapshot's output, not a durable handle on an
+element. Take another snapshot and the same button may be `@e2`. Carrying a ref
+number across a snapshot is the most common way to hit the wrong element, or
+nothing at all.
+
+- Re-read the numbers from the newest snapshot output every time. Never reuse a
+  number you read before the most recent `snapshot`.
+- Anything that re-renders can renumber refs: a click, a fill on a controlled
+  React input, a navigation.
+- Never discard snapshot output you intend to act on — the numbers *are* the
+  output. Same for state-changing commands (`click`, `fill`, `select`, `press`,
+  `goto`): a discarded stderr plus an ignored exit code makes a broken command
+  look exactly like a working one. Chain with `&&`, not `;`, and if you pipe a
+  command whose exit code you rely on, `set -o pipefail` first — a pipe reports
+  the *last* command's status.
 
 ### Ref staleness detection
 
@@ -377,6 +401,14 @@ point to elements that no longer exist. `resolveRef()` runs an async
 `count()` check before using any ref — if the element count is 0, it throws
 immediately with a message telling the agent to re-run `snapshot`. Fails fast
 (~5ms) instead of waiting for Playwright's 30-second action timeout.
+
+A number that isn't in the current ref set at all gets a different, more useful
+error. Every ref set bumps a generation counter, and the role+name of the last
+three superseded sets is kept, so reusing `@e40` reports what `@e40` used to be,
+whether a snapshot renumbered it or a navigation cleared it, and — only when role
+and name identify exactly one element in both the old and the current set — which
+ref to look at instead. That last part is hedged on purpose: role and name are not
+identity.
 
 ### Extended snapshot features
 
@@ -1196,7 +1228,7 @@ browse/
 │   ├── cdp-inspector.ts         # $B inspect — persistent CDP session per page
 │   ├── activity.ts              # ActivityEntry, CircularBuffer, SSE subscribers, privacy filtering
 │   ├── buffers.ts               # Console/network/dialog circular buffers (O(1) ring)
-│   ├── tab-session.ts           # Per-tab session state (load-html replay, ref map scope)
+│   ├── tab-session.ts           # Per-tab session state (load-html replay, ref map scope, ref generations)
 │   ├── token-registry.ts        # Mint/validate/revoke for root + setup keys + scoped tokens
 │   ├── sse-session-cookie.ts    # 30-min HttpOnly cookie for /activity/stream + /inspector/events
 │   ├── pty-session-cookie.ts    # Separate scope: live Claude PTY auth
@@ -1275,6 +1307,8 @@ produces a single ~58MB executable at `browse/dist/browse` using Bun's
 bun test                                    # all tests
 bun test browse/test/commands               # command integration tests
 bun test browse/test/snapshot               # snapshot tests
+bun test browse/test/click-ref-desync       # ref → element resolution regressions
+bun test browse/test/ref-generation         # ref generations + reused-ref history
 bun test browse/test/cookie-import-browser  # cookie import unit tests
 bun test browse/test/browser-skill-write    # D3 atomic-write helper tests
 bun test browse/test/tunnel-gate-unit       # canDispatchOverTunnel pure tests
