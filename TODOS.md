@@ -1,5 +1,56 @@
 # TODOS
 
+## Snapshot ref identity (v1.46.0.0 follow-ups)
+
+### P1: Replace role+index ref reconstruction with Playwright's `aria-ref` engine
+
+**What:** v1.46.0.0 fixed five ways the counted population diverged from the
+population `getByRole` matches, but refs are still *reconstructed* from role plus an
+index. One failure mode survives by construction: the accessibility tree honors
+`aria-owns` (reparenting owned nodes at the owner's position) and walks flattened
+`<slot>` order, while the `internal:role` engine returns DOM order. When those
+disagree, `nth()` picks the wrong element and `nth()` suppresses strict mode, so it
+is silent. Both were reproduced against Chromium during the v1.46.0.0 review.
+`aria-owns` is standard in ARIA combobox/tree/tablist widgets.
+
+**How:** Playwright 1.58 already ships element-identity refs. `page._snapshotForAI()`
+returns `{ full }` with `[ref=eN]` markers (unnamed nodes included) and
+`page.locator('aria-ref=eN')` resolves them. Verified working on the pinned version:
+correct element clicked, stale refs fail loudly. Two frictions to design around —
+refs are page-wide, and `frame.ariaSnapshot(selector)` takes no ref option, so
+`snapshot -s` scoping needs rework; and `_snapshotForAI` is underscore-prefixed
+private API (Playwright's own MCP server uses it), so pin the version and add a
+contract test that fails loudly on upgrade.
+
+**Priority:** P1 — removes the last silent wrong-element class in the ref system,
+and would have removed four of the five bugs v1.46.0.0 fixed by hand.
+
+### P3: `bin/gstack-diff-scope` sets SCOPE_AUTH on any path matching `*session*`
+
+**What:** `browse/src/tab-session.ts` is a per-tab state holder with no auth logic,
+but the auth glob matches it on substring, so SCOPE_AUTH is true for essentially
+every `browse` diff. That summons the security specialist unnecessarily and trains
+reviewers to discount the signal.
+
+**How:** Require a path segment rather than a substring (`*/auth/*`, `*_session*`,
+`*session_store*`), or exclude `browse/src/tab-session.ts` explicitly.
+
+**Priority:** P3 — noise, not incorrectness.
+
+### P3: A `process.exit(0)` teardown can truncate a whole free-suite shard
+
+**What:** Browser tests end `afterAll` with `setTimeout(() => process.exit(0), 500)`
+because `BrowserManager.close()` races a 5s internal timeout that collides with bun's
+hook limit. Whichever such file finishes first can kill the shard before later files
+run: shard 13 of 20 reported 0 tests across 7 files. Tests that never execute look
+identical to tests that pass.
+
+**How:** Either give `close()` a fast path that resolves inside bun's hook budget, or
+have the shard runner isolate browser tests one file per process, or fail a shard
+that reports fewer tests than it enumerated.
+
+**Priority:** P3 — silent coverage loss, no incorrect behavior shipped.
+
 ## Rebrand phase 4 — internal identifier migration
 
 ### P2: Finish the g6 rename behind the UI (skill dir, env vars, paths) with a migration
