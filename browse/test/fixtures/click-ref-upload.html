@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<html>
+<head><title>Click Ref Upload</title></head>
+<body>
+  <h1>Ref Upload</h1>
+  <p id="log">none</p>
+
+  <!-- Replicates the DOM that produced a real strict-mode violation:
+         getByRole('button', { name: 'upload' }) resolved to 2 elements:
+           1) <input type="file" ... aria-label="choose a file to upload">
+           2) the actual upload button
+       A file input carries role=button, and its accessible name CONTAINS
+       "upload", so a substring name match hit both. -->
+  <input type="file" required name="file" aria-label="choose a file to upload"
+         accept=".pdf,.docx,.png,.jpg,.jpeg,.webp" onchange="fire('file-chosen')" />
+  <button onclick="fire('upload')">upload</button>
+
+  <script>
+    function fire(which) { document.getElementById('log').textContent = which; }
+  </script>
+</body>
+</html>

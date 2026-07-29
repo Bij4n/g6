@@ -98,6 +98,21 @@ describe('snapshot ref identity', () => {
     expect(await logText()).toBe('icon-menu');
   }, 30000);
 
+  test('the production case: a file input does not shadow the "upload" button', async () => {
+    // The DOM that produced the real strict-mode violation. A file input carries
+    // role=button and its accessible name "choose a file to upload" contains
+    // "upload", so the substring match resolved to both elements.
+    await handleWriteCommand('goto', [baseUrl + '/click-ref-upload.html'], bm);
+    const snap = await handleMetaCommand('snapshot', ['-i'], bm, shutdown);
+
+    expect(refsForButton(snap, 'choose a file to upload').length).toBe(1);
+    const uploadRefs = refsForButton(snap, 'upload');
+    expect(uploadRefs.length).toBe(1);
+
+    await handleWriteCommand('click', [`@${uploadRefs[0]}`], bm);
+    expect(await logText()).toBe('upload');
+  }, 30000);
+
   test('a uniquely-named button does not trip strict mode via a substring sibling', async () => {
     await handleWriteCommand('goto', [baseUrl + '/click-ref-strict.html'], bm);
     const snap = await handleMetaCommand('snapshot', ['-i'], bm, shutdown);
