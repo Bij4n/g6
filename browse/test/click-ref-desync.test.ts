@@ -125,4 +125,37 @@ describe('snapshot ref identity', () => {
     await handleWriteCommand('click', [`@${saveRefs[0]}`], bm);
     expect(await logText()).toBe('save');
   }, 30000);
+
+  test('a ref survives the -d filter hiding an earlier button of the same name', async () => {
+    // The output filters run AFTER the occurrence counters advance, because a node
+    // the filter drops is still matched by getByRole. `-d 1` hides the button nested
+    // under nav > ul > li; the body-level button that remains is the SECOND "act" on
+    // the page, so its index has to be 1. Count after the filter instead and the
+    // ref silently rewires to the hidden button.
+    await handleWriteCommand('goto', [baseUrl + '/ref-depth-filter.html'], bm);
+    const snap = await handleMetaCommand('snapshot', ['-d', '1'], bm, shutdown);
+
+    const actRefs = refsForButton(snap, 'act');
+    expect(actRefs.length).toBe(1);
+
+    await handleWriteCommand('click', [`@${actRefs[0]}`], bm);
+    expect(await logText()).toBe('shallow-b');
+  }, 30000);
+
+  test('a ref from a -s scoped snapshot indexes within the scope', async () => {
+    // Two "Save" buttons in #sidebar, two in #main. `-s "#main"` counts only the
+    // scoped tree, so the nth() index means "nth inside #main" — the locator has to
+    // carry the same scope. Unscoped, nth(1) is the second SIDEBAR button.
+    await handleWriteCommand('goto', [baseUrl + '/ref-scoped-selector.html'], bm);
+    const snap = await handleMetaCommand('snapshot', ['-s', '#main', '-i'], bm, shutdown);
+
+    const saveRefs = refsForButton(snap, 'Save');
+    expect(saveRefs.length).toBe(2);
+
+    await handleWriteCommand('click', [`@${saveRefs[0]}`], bm);
+    expect(await logText()).toBe('main-save-a');
+
+    await handleWriteCommand('click', [`@${saveRefs[1]}`], bm);
+    expect(await logText()).toBe('main-save-b');
+  }, 30000);
 });
