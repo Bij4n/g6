@@ -529,9 +529,17 @@ $B click @e12 && sleep 5                 # right: you see the failure, and you s
 ```
 
 - Never send a state-changing command (`click`, `fill`, `select`, `press`, `goto`) to
-  `/dev/null`. If the output is noisy, `2>&1 | tail -2` keeps the error.
+  `/dev/null`.
 - Chain with `&&`, not `;`. After `;` the rest of your sequence runs as though the
   failed step had worked.
+- Don't pipe a command whose exit code you rely on. A pipe reports the *last*
+  command's status, so `$B click @e12 2>&1 | tail -2 && ...` proceeds even when the
+  click failed. If you need to trim noisy output, turn on `pipefail` first:
+
+```bash
+set -o pipefail
+$B click @e12 2>&1 | tail -2 && sleep 5   # now a failed click stops the chain
+```
 - Success means the event was dispatched — not that a handler ran. After anything you
   believe changed state, confirm the side effect: `snapshot -D`, `is visible`, or a
   read from the database or API.
