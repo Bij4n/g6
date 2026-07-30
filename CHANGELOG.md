@@ -30,6 +30,7 @@ If you drive `browse` for QA, a passing click now means more than it did. The fa
 - `snapshot -s <sel>` no longer mints a ref for the scope element itself, which used to resolve to a descendant sharing its role.
 - Reusing a ref number reports what the ref was and why it went away, instead of a bare "not found". A replacement is named only when role+name identified exactly one element in both the old and the current set.
 - Archived ref names are truncated and sentinel-escaped. They come from the page, and error strings do not pass through the untrusted-content envelope that snapshot output does.
+- Startup failures name the real layer. When the daemon starts but the CLI's health probe can't reach it, a raw TCP probe now separates "loopback networking is broken on this machine — reboot" (connect times out) from "the daemon is wedged" (TCP connects, `/health` never answers), and stops the unreachable daemon instead of leaving it running. Previously both cases surfaced as `Server failed to start:` plus whatever the daemon last wrote to stderr — on a machine with broken loopback that pinned a kernel fault on an unrelated welcome-page warning.
 
 ### Changed
 - `browse` skill guidance: never discard output from a state-changing command, chain with `&&` rather than `;`, don't pipe a command whose exit code you rely on (a pipe reports the last command's status — use `set -o pipefail`), and re-read ref numbers from the newest snapshot because every snapshot renumbers them.
