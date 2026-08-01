@@ -1,5 +1,6 @@
 import { describe, test, expect } from 'bun:test';
-import { resolveConfig, ensureStateDir, readVersionHash, getGitRoot, getRemoteSlug, resolveGstackHome, resolveChromiumProfile, cleanSingletonLocks } from '../src/config';
+import { resolveConfig, ensureStateDir, readVersionHash, getGitRoot, getRemoteSlug, resolveGstackHome, resolveChromiumProfile, cleanSingletonLocks, killSingletonOrphan } from '../src/config';
+import { isProcessAlive } from '../src/error-handling';
 import * as fs from 'fs';
 import * as path from 'path';
 import * as os from 'os';
@@ -440,6 +441,56 @@ describe('cleanSingletonLocks', () => {
     fs.mkdirSync(tmpDir, { recursive: true });
     expect(() => cleanSingletonLocks(tmpDir)).not.toThrow();
     expect(() => cleanSingletonLocks(tmpDir)).not.toThrow();
+    fs.rmSync(path.dirname(tmpDir), { recursive: true, force: true });
+  });
+});
+
+describe('killSingletonOrphan', () => {
+  test('kills a live orphan named in the SingletonLock symlink', async () => {
+    const tmpDir = path.join(os.tmpdir(), `orphan-kill-${Date.now()}`, 'chromium-profile');
+    fs.mkdirSync(tmpDir, { recursive: true });
+    const orphan = Bun.spawn(['sleep', '30']);
+    try {
+      fs.symlinkSync(`${os.hostname()}-${orphan.pid}`, path.join(tmpDir, 'SingletonLock'));
+      await killSingletonOrphan(tmpDir);
+      expect(isProcessAlive(orphan.pid)).toBe(false);
+    } finally {
+      orphan.kill();
+      fs.rmSync(path.dirname(tmpDir), { recursive: true, force: true });
+    }
+  });
+
+  test('refuses unrecognized profile dir — orphan survives', async () => {
+    const tmpDir = path.join(os.tmpdir(), `orphan-guard-${Date.now()}`);
+    fs.mkdirSync(tmpDir, { recursive: true });
+    const orphan = Bun.spawn(['sleep', '30']);
+    try {
+      fs.symlinkSync(`${os.hostname()}-${orphan.pid}`, path.join(tmpDir, 'SingletonLock'));
+      await killSingletonOrphan(tmpDir);
+      expect(isProcessAlive(orphan.pid)).toBe(true);
+    } finally {
+      orphan.kill();
+      fs.rmSync(tmpDir, { recursive: true, force: true });
+    }
+  });
+
+  test('no-op when SingletonLock is absent or a regular file', async () => {
+    const tmpDir = path.join(os.tmpdir(), `orphan-nolock-${Date.now()}`, 'chromium-profile');
+    fs.mkdirSync(tmpDir, { recursive: true });
+    await killSingletonOrphan(tmpDir); // absent — ENOENT swallowed
+    fs.writeFileSync(path.join(tmpDir, 'SingletonLock'), 'not-a-symlink');
+    await killSingletonOrphan(tmpDir); // regular file — EINVAL swallowed
+    expect(fs.existsSync(path.join(tmpDir, 'SingletonLock'))).toBe(true); // kill helper never deletes
+    fs.rmSync(path.dirname(tmpDir), { recursive: true, force: true });
+  });
+
+  test('no-op when the lock names a dead PID', async () => {
+    const tmpDir = path.join(os.tmpdir(), `orphan-dead-${Date.now()}`, 'chromium-profile');
+    fs.mkdirSync(tmpDir, { recursive: true });
+    const shortLived = Bun.spawn(['true']);
+    await shortLived.exited;
+    fs.symlinkSync(`${os.hostname()}-${shortLived.pid}`, path.join(tmpDir, 'SingletonLock'));
+    await killSingletonOrphan(tmpDir); // dead PID — returns before any kill/sleep
     fs.rmSync(path.dirname(tmpDir), { recursive: true, force: true });
   });
 });

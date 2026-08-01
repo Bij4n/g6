@@ -20,7 +20,7 @@ import { writeSecureFile, mkdirSecure } from './file-permissions';
 import { addConsoleEntry, addNetworkEntry, addDialogEntry, networkBuffer, type DialogEntry } from './buffers';
 import { validateNavigationUrl } from './url-validation';
 import { TabSession, type RefEntry } from './tab-session';
-import { resolveChromiumProfile, cleanSingletonLocks } from './config';
+import { resolveChromiumProfile, cleanSingletonLocks, killSingletonOrphan } from './config';
 
 /**
  * Detect whether GSTACK_CHROMIUM_PATH points at a custom Chromium build that
@@ -1284,7 +1284,6 @@ export class BrowserManager {
     let newContext: BrowserContext;
     try {
       const fs = require('fs');
-      const path = require('path');
       const extensionPath = this.findExtensionPath();
       const launchArgs = ['--hide-crash-restore-bubble'];
       if (extensionPath) {
@@ -1297,8 +1296,16 @@ export class BrowserManager {
         console.log('[browse] Handoff: extension not found — headed mode without side panel');
       }
 
-      const userDataDir = path.join(process.env.HOME || '/tmp', '.gstack', 'chromium-profile');
+      const userDataDir = resolveChromiumProfile();
       fs.mkdirSync(userDataDir, { recursive: true });
+
+      // An orphan Chromium still owning this profile's singleton (left when a
+      // failed daemon was killed without its Chromium child) makes this launch
+      // defer to it and exit — Playwright reports "Target.createTarget: Failed
+      // to open a new tab". Kill the orphan and clear stale locks, the same
+      // cleanup the connect path (cli.ts) does before launching.
+      await killSingletonOrphan(userDataDir);
+      cleanSingletonLocks(userDataDir);
 
       if (this.sandboxDisabled()) launchArgs.push('--no-sandbox');
       newContext = await chromium.launchPersistentContext(userDataDir, {

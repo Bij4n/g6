@@ -14,7 +14,7 @@ import * as fs from 'fs';
 import * as os from 'os';
 import * as path from 'path';
 import { mkdirSecure } from './file-permissions';
-import { safeUnlinkQuiet } from './error-handling';
+import { isProcessAlive, safeKill, safeUnlinkQuiet } from './error-handling';
 
 export interface BrowseConfig {
   projectDir: string;
@@ -200,23 +200,57 @@ export function resolveChromiumProfile(explicit?: string): string {
  * peer is using this profile (gbd.lock for gbrowser; single-instance CLI
  * check for gstack).
  */
+function isRecognizedProfileDir(resolved: string): boolean {
+  const explicitProfile = process.env.CHROMIUM_PROFILE;
+  const explicitAbs = explicitProfile && path.isAbsolute(explicitProfile)
+    ? path.resolve(explicitProfile)
+    : null;
+  return path.basename(resolved) === 'chromium-profile' || (explicitAbs !== null && resolved === explicitAbs);
+}
+
 export function cleanSingletonLocks(userDataDir: string): void {
   if (!path.isAbsolute(userDataDir)) {
     console.warn(`[browse] cleanSingletonLocks: refusing relative path: ${userDataDir}`);
     return;
   }
   const resolved = path.resolve(userDataDir);
-  const basename = path.basename(resolved);
-  const explicitProfile = process.env.CHROMIUM_PROFILE;
-  const explicitAbs = explicitProfile && path.isAbsolute(explicitProfile)
-    ? path.resolve(explicitProfile)
-    : null;
-  const isSafe = basename === 'chromium-profile' || (explicitAbs !== null && resolved === explicitAbs);
-  if (!isSafe) {
+  if (!isRecognizedProfileDir(resolved)) {
     console.warn(`[browse] cleanSingletonLocks: refusing to clean unrecognized profile dir: ${resolved}`);
     return;
   }
   for (const lockFile of ['SingletonLock', 'SingletonSocket', 'SingletonCookie']) {
     safeUnlinkQuiet(path.join(resolved, lockFile));
+  }
+}
+
+/**
+ * Kill a live orphan Chromium that still owns this profile's ProcessSingleton.
+ * SingletonLock is a symlink to "hostname-PID"; while that PID is alive, a new
+ * launchPersistentContext() on the same profile defers to the existing
+ * instance and exits, which Playwright surfaces as CDP errors like
+ * "Target.createTarget: Failed to open a new tab". Orphans happen when a
+ * daemon dies (SIGKILL, crash) without taking its Chromium child along.
+ *
+ * Same recognized-dir guard as cleanSingletonLocks(). Never throws: if the
+ * orphan can't be identified or killed, the launch fails with the same error
+ * this cleanup exists to prevent, and the caller reports that.
+ */
+export async function killSingletonOrphan(userDataDir: string): Promise<void> {
+  if (!path.isAbsolute(userDataDir)) return;
+  const resolved = path.resolve(userDataDir);
+  if (!isRecognizedProfileDir(resolved)) return;
+  let orphanPid = NaN;
+  try {
+    const lockTarget = fs.readlinkSync(path.join(resolved, 'SingletonLock')); // "hostname-12345"
+    orphanPid = parseInt(lockTarget.split('-').pop() || '', 10);
+  } catch {
+    return; // no lock (ENOENT) or not a symlink (EINVAL) — nothing holds the profile
+  }
+  if (!orphanPid || !isProcessAlive(orphanPid)) return;
+  safeKill(orphanPid, 'SIGTERM');
+  await new Promise(resolve => setTimeout(resolve, 1000));
+  if (isProcessAlive(orphanPid)) {
+    safeKill(orphanPid, 'SIGKILL');
+    await new Promise(resolve => setTimeout(resolve, 500));
   }
 }
