@@ -61,12 +61,17 @@ policy:
 `;
 }
 
-/** Compute skill name for external hosts (Codex, Factory, etc.) */
-export function externalSkillName(skillDir: string): string {
+/** Compute skill name for external hosts (Codex, Factory, etc.). */
+export function externalSkillName(skillDir: string, frontmatterName?: string): string {
   if (skillDir === '.' || skillDir === '') return 'gstack';
-  // Don't double-prefix: gstack-upgrade → gstack-upgrade (not gstack-gstack-upgrade)
+
+  // Runtime asset directories keep their stable path even if the user-facing
+  // skill was renamed (for example gstack-upgrade has name: g6-upgrade).
   if (skillDir.startsWith('gstack-')) return skillDir;
-  return `gstack-${skillDir}`;
+
+  const skillName = frontmatterName || skillDir;
+  if (skillName.startsWith('gstack-')) return skillName;
+  return `gstack-${skillName}`;
 }
 
 /**
