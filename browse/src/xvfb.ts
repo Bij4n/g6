@@ -108,14 +108,15 @@ export function readPidCmdline(pid: number): string {
 
 /**
  * Validate that PID is still our Xvfb child. Both checks must pass:
- *   1. /proc/<pid>/cmdline contains 'Xvfb' (string match — Xvfb's argv[0] is
- *      always 'Xvfb' or a full path ending in /Xvfb)
+ *   1. /proc/<pid>/cmdline argv[0] is 'Xvfb' (or a full path ending in
+ *      /Xvfb). Arguments containing the word must not count.
  *   2. Start time matches the recorded value (PID reuse defense)
  */
 export function isOurXvfb(pid: number, recordedStartTime: string): boolean {
   if (!pid || !recordedStartTime) return false;
   const cmdline = readPidCmdline(pid);
-  if (!cmdline.toLowerCase().includes('xvfb')) return false;
+  const executable = cmdline.split(' ', 1)[0] || '';
+  if (path.basename(executable).toLowerCase() !== 'xvfb') return false;
   const currentStart = readPidStartTime(pid);
   if (!currentStart) return false;
   return currentStart === recordedStartTime;
