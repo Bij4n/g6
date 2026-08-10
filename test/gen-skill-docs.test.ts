@@ -4,6 +4,7 @@ import { SNAPSHOT_FLAGS } from '../browse/src/snapshot';
 import * as fs from 'fs';
 import * as path from 'path';
 import * as os from 'os';
+import { externalSkillName } from '../scripts/resolvers/codex-helpers';
 
 const ROOT = path.resolve(import.meta.dir, '..');
 const MAX_SKILL_DESCRIPTION_LENGTH = 1024;
@@ -1611,11 +1612,12 @@ describe('Codex generation (--host codex)', () => {
     cwd: ROOT, stdout: 'pipe', stderr: 'pipe',
   });
 
-  // Dynamic discovery of expected Codex skills: all templates except /codex
+  // Dynamic discovery of expected Codex skills: all templates and standalone
+  // SKILL.md sources except /codex.
   // Also excludes skills where .agents/skills/{name} is a symlink back to the repo root
   // (vendored dev mode — gen-skill-docs skips these to avoid overwriting Claude SKILL.md)
   const CODEX_SKILLS = (() => {
-    const skills: Array<{ dir: string; codexName: string }> = [];
+    const skills: Array<{ dir: string; codexName: string; sourceName: string }> = [];
     const isSymlinkLoop = (codexName: string): boolean => {
       const agentSkillDir = path.join(ROOT, '.agents', 'skills', codexName);
       try {
@@ -1624,21 +1626,23 @@ describe('Codex generation (--host codex)', () => {
     };
     if (fs.existsSync(path.join(ROOT, 'SKILL.md.tmpl'))) {
       if (!isSymlinkLoop('gstack')) {
-        skills.push({ dir: '.', codexName: 'gstack' });
+        skills.push({ dir: '.', codexName: 'gstack', sourceName: 'SKILL.md.tmpl' });
       }
     }
     for (const entry of fs.readdirSync(ROOT, { withFileTypes: true })) {
       if (!entry.isDirectory() || entry.name.startsWith('.') || entry.name === 'node_modules') continue;
       if (entry.name === 'codex') continue; // /codex is excluded from Codex output
       const tmplPath = path.join(ROOT, entry.name, 'SKILL.md.tmpl');
-      if (!fs.existsSync(tmplPath)) continue;
+      const skillPath = path.join(ROOT, entry.name, 'SKILL.md');
+      const sourcePath = fs.existsSync(tmplPath) ? tmplPath : skillPath;
+      if (!fs.existsSync(sourcePath)) continue;
       // Read skill name from frontmatter — may differ from directory name (e.g. open-gstack-browser → open-g6-browser)
-      const tmplContent = fs.readFileSync(tmplPath, 'utf-8');
-      const nameMatch = tmplContent.match(/^name:\s*(.+)$/m);
+      const sourceContent = fs.readFileSync(sourcePath, 'utf-8');
+      const nameMatch = sourceContent.match(/^name:\s*(.+)$/m);
       const skillName = nameMatch ? nameMatch[1].trim() : entry.name;
-      const codexName = skillName.startsWith('gstack-') ? skillName : `gstack-${skillName}`;
+      const codexName = externalSkillName(entry.name, skillName);
       if (isSymlinkLoop(codexName)) continue;
-      skills.push({ dir: entry.name, codexName });
+      skills.push({ dir: entry.name, codexName, sourceName: path.basename(sourcePath) });
     }
     return skills;
   })();
@@ -1669,6 +1673,18 @@ describe('Codex generation (--host codex)', () => {
     expect(fs.existsSync(path.join(AGENTS_DIR, 'gstack-upgrade', 'SKILL.md'))).toBe(true);
     // No double-prefix: gstack-gstack-upgrade must NOT exist
     expect(fs.existsSync(path.join(AGENTS_DIR, 'gstack-gstack-upgrade', 'SKILL.md'))).toBe(false);
+    // No stale rename alias: runtime preambles use the stable gstack-upgrade path
+    expect(fs.existsSync(path.join(AGENTS_DIR, 'gstack-g6-upgrade'))).toBe(false);
+  });
+
+  test('standalone g6 skills are generated for Codex', () => {
+    for (const skill of ['privacy-audit', 'phi-audit', 'api-audit', 'mentor', 'walkthrough']) {
+      const skillMd = path.join(AGENTS_DIR, `gstack-${skill}`, 'SKILL.md');
+      expect(fs.existsSync(skillMd)).toBe(true);
+      const content = fs.readFileSync(skillMd, 'utf-8');
+      expect(content).not.toContain('.claude/skills');
+      expect(content).not.toContain('~/.claude/');
+    }
   });
 
   test('Codex frontmatter has ONLY name + description', () => {
@@ -1802,7 +1818,7 @@ describe('Codex generation (--host codex)', () => {
   test('all Codex SKILL.md files have auto-generated header', () => {
     for (const skill of CODEX_SKILLS) {
       const content = fs.readFileSync(path.join(AGENTS_DIR, skill.codexName, 'SKILL.md'), 'utf-8');
-      expect(content).toContain('AUTO-GENERATED from SKILL.md.tmpl');
+      expect(content).toContain(`AUTO-GENERATED from ${skill.sourceName}`);
       expect(content).toContain('Regenerate: bun run gen:skill-docs');
     }
   });
@@ -1955,11 +1971,13 @@ describe('Factory generation (--host factory)', () => {
       if (!entry.isDirectory() || entry.name.startsWith('.') || entry.name === 'node_modules') continue;
       if (entry.name === 'codex') continue;
       const tmplPath = path.join(ROOT, entry.name, 'SKILL.md.tmpl');
-      if (!fs.existsSync(tmplPath)) continue;
-      const tmplContent = fs.readFileSync(tmplPath, 'utf-8');
-      const nameMatch = tmplContent.match(/^name:\s*(.+)$/m);
+      const skillPath = path.join(ROOT, entry.name, 'SKILL.md');
+      const sourcePath = fs.existsSync(tmplPath) ? tmplPath : skillPath;
+      if (!fs.existsSync(sourcePath)) continue;
+      const sourceContent = fs.readFileSync(sourcePath, 'utf-8');
+      const nameMatch = sourceContent.match(/^name:\s*(.+)$/m);
       const skillName = nameMatch ? nameMatch[1].trim() : entry.name;
-      const factoryName = skillName.startsWith('gstack-') ? skillName : `gstack-${skillName}`;
+      const factoryName = externalSkillName(entry.name, skillName);
       if (isSymlinkLoop(factoryName)) continue;
       skills.push({ dir: entry.name, factoryName });
     }
@@ -2172,6 +2190,20 @@ describe('--host all', () => {
     for (const hostConfig of getExternalHosts()) {
       expect(output).toContain(`FRESH: ${hostConfig.hostSubdir}/skills/`);
     }
+  });
+});
+
+describe('generation failure handling', () => {
+  test('all generation failures produce a nonzero exit', () => {
+    const source = fs.readFileSync(path.join(ROOT, 'scripts', 'gen-skill-docs.ts'), 'utf-8');
+    expect(source).toContain('if (failures.length > 0)');
+    expect(source).not.toContain("failures.some(f => f.host === 'claude')");
+  });
+
+  test('production build gates compilation on host generation', () => {
+    const pkg = JSON.parse(fs.readFileSync(path.join(ROOT, 'package.json'), 'utf-8'));
+    expect(pkg.scripts.build).toContain('gen:skill-docs --host all && bun build');
+    expect(pkg.scripts.build).not.toContain('gen:skill-docs --host all;');
   });
 });
 
