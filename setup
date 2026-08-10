@@ -568,6 +568,21 @@ link_codex_skill_dirs() {
   local skills_dir="$2"
   local agents_dir="$gstack_dir/.agents/skills"
   local linked=()
+  local legacy_upgrade
+  local legacy_dest
+
+  # v1.45 briefly generated this renamed skill at gstack-g6-upgrade while
+  # runtime preambles used the stable gstack-upgrade path. Remove only the
+  # known legacy entry before linking the corrected output.
+  legacy_upgrade="$skills_dir/gstack-g6-upgrade"
+  if [ -L "$legacy_upgrade" ]; then
+    legacy_dest="$(readlink "$legacy_upgrade" 2>/dev/null || true)"
+    case "$legacy_dest" in
+      *gstack-g6-upgrade*) rm -f "$legacy_upgrade" ;;
+    esac
+  elif [ "$IS_WINDOWS" -eq 1 ] && [ -d "$legacy_upgrade" ] && [ -f "$legacy_upgrade/SKILL.md" ] && grep -q '<!-- AUTO-GENERATED from ' "$legacy_upgrade/SKILL.md"; then
+    rm -rf "$legacy_upgrade"
+  fi
 
   if [ ! -d "$agents_dir" ]; then
     echo "  Generating .agents/ skill docs..."

@@ -11,7 +11,7 @@
 
 import { COMMAND_DESCRIPTIONS } from '../browse/src/commands';
 import { SNAPSHOT_FLAGS } from '../browse/src/snapshot';
-import { discoverTemplates } from './discover-skills';
+import { discoverTemplates, discoverSkillFiles } from './discover-skills';
 import { writeLlmsTxt } from './gen-llms-txt';
 import * as fs from 'fs';
 import * as path from 'path';
@@ -64,18 +64,6 @@ const MODEL_ARG_VAL: Model = (() => {
 // live in ./resolvers/constants and are consumed by resolvers directly.
 
 // ─── External Host Helpers ───────────────────────────────────
-
-// Re-export local copy for use in this file (matches codex-helpers.ts)
-// Accepts optional frontmatter name to support directory/invocation name divergence
-function externalSkillName(skillDir: string, frontmatterName?: string): string {
-  // Root skill (skillDir === '' or '.') always maps to 'gstack' regardless of frontmatter
-  if (skillDir === '.' || skillDir === '') return 'gstack';
-  // Use frontmatter name when it differs from directory name (e.g., run-tests/ with name: test)
-  const baseName = frontmatterName && frontmatterName !== skillDir ? frontmatterName : skillDir;
-  // Don't double-prefix: gstack-upgrade → gstack-upgrade (not gstack-gstack-upgrade)
-  if (baseName.startsWith('gstack-')) return baseName;
-  return `gstack-${baseName}`;
-}
 
 function extractNameAndDescription(content: string): { name: string; description: string } {
   const fmStart = content.indexOf('---\n');
@@ -488,23 +476,62 @@ function processTemplate(tmplPath: string, host: Host = 'claude'): { outputPath:
 
 // ─── Main ───────────────────────────────────────────────────
 
-function findTemplates(): string[] {
-  return discoverTemplates(ROOT).map(t => path.join(ROOT, t.tmpl));
+function findSkillSources(host: Host): string[] {
+  const templates = discoverTemplates(ROOT);
+  const templatePaths = templates.map(t => path.join(ROOT, t.tmpl));
+  if (host === 'claude') return templatePaths;
+
+  // Some g6-original skills are maintained directly as SKILL.md rather than
+  // generated from a template. External hosts still need transformed copies.
+  const generatedOutputs = new Set(templates.map(t => t.output));
+  const standaloneSkills = discoverSkillFiles(ROOT)
+    .filter(skillFile => !generatedOutputs.has(skillFile))
+    .map(skillFile => path.join(ROOT, skillFile));
+
+  return [...templatePaths, ...standaloneSkills];
 }
 
 const ALL_HOSTS: Host[] = ALL_HOST_NAMES as Host[];
 const hostsToRun: Host[] = HOST_ARG_VAL === 'all' ? ALL_HOSTS : [HOST];
 const failures: { host: string; error: Error }[] = [];
 
+function cleanupLegacyExternalSkillAliases(host: Host): boolean {
+  if (host === 'claude') return false;
+
+  const hostConfig = getHostConfig(host);
+  const legacyDirs = ['gstack-g6-upgrade'];
+  let changed = false;
+  for (const legacyDir of legacyDirs) {
+    const legacyPath = path.join(ROOT, hostConfig.hostSubdir, 'skills', legacyDir);
+    const skillPath = path.join(legacyPath, 'SKILL.md');
+    if (!fs.existsSync(skillPath)) continue;
+
+    // Only remove directories previously written by this generator. Never
+    // delete a user-maintained skill that happens to share the legacy name.
+    const content = fs.readFileSync(skillPath, 'utf-8');
+    if (!content.includes('<!-- AUTO-GENERATED from ')) continue;
+    changed = true;
+
+    if (DRY_RUN) {
+      console.log(`STALE: ${path.relative(ROOT, legacyPath)} (obsolete generated alias)`);
+      continue;
+    }
+
+    fs.rmSync(legacyPath, { recursive: true, force: true });
+    console.log(`REMOVED: ${path.relative(ROOT, legacyPath)} (obsolete generated alias)`);
+  }
+  return changed;
+}
+
 for (const currentHost of hostsToRun) {
   HOST = currentHost;
 
   try {
-    let hasChanges = false;
+    let hasChanges = cleanupLegacyExternalSkillAliases(currentHost);
     const tokenBudget: Array<{ skill: string; lines: number; tokens: number }> = [];
 
     const currentHostConfig = getHostConfig(currentHost);
-    for (const tmplPath of findTemplates()) {
+    for (const tmplPath of findSkillSources(currentHost)) {
       const dir = path.basename(path.dirname(tmplPath));
 
       // includeSkills allowlist (union logic: include minus skip)
@@ -644,12 +671,12 @@ The orchestrator will persist the plan link to its own memory/knowledge store.
   }
 }
 
-// --host all: report failures. Only exit(1) if claude failed.
-if (failures.length > 0 && HOST_ARG_VAL === 'all') {
+// Any requested host failing makes generation fail. A successful build must
+// never hide a missing or partially generated external-host skill set.
+if (failures.length > 0) {
   console.error(`\n${failures.length} host(s) failed: ${failures.map(f => f.host).join(', ')}`);
-  if (failures.some(f => f.host === 'claude')) process.exit(1);
+  process.exit(1);
 }
-// Single host dry-run failure already handled above
 
 // After all hosts processed, warn if prefix patches may need re-applying
 if (!DRY_RUN) {
