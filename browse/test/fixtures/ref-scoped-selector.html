@@ -19,6 +19,12 @@
     <button onclick="fire('main-save-b')">Save</button>
   </div>
 
+  <!-- A generic scope with one accessible descendant. The div is pruned from
+       ariaSnapshot, leaving the button as the only indent-zero node. -->
+  <div id="single">
+    <button onclick="fire('single-save')">Only action</button>
+  </div>
+
   <script>
     function fire(which) { document.getElementById('log').textContent = which; }
   </script>

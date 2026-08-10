@@ -29,12 +29,9 @@ beforeAll(async () => {
   await bm.launch();
 });
 
-// Matches every other browser test here (batch, snapshot, tab-isolation): bm.close()
-// races a 5s internal timeout that collides with bun's hook limit, so the suite is
-// sharded by `bun run test:free` instead of torn down in-process.
-afterAll(() => {
+afterAll(async () => {
   try { testServer.server.stop(); } catch {}
-  setTimeout(() => process.exit(0), 500);
+  await bm.close();
 });
 
 /** Ref whose snapshot line is exactly `[button] "<name>"`. */

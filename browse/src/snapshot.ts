@@ -230,15 +230,25 @@ export async function handleSnapshot(
   // Parse once. Both passes and the scope-root check below read the same nodes.
   const nodes = lines.map(parseLine).filter((n): n is ParsedNode => n !== null);
 
-  // With -s, ariaSnapshot includes a node for the scope element itself, but
+  // With -s, ariaSnapshot may include a node for the scope element itself, but
   // `locator(sel).getByRole(...)` matches only its DESCENDANTS. Left in, the scope's
   // own ref resolves to a descendant that shares its role, and every sibling ref
-  // shifts by one. When the scope element has a role it is the single indent-0 node
-  // (its children are indented beneath it); when its role is pruned — a plain <div>
-  // is `generic` — several nodes sit at indent 0 and there is no root line to drop.
-  const scopeRoot = opts.selector && nodes.filter(n => n.indent === 0).length === 1
-    ? nodes.find(n => n.indent === 0)
-    : undefined;
+  // shifts by one. Do not infer identity from indentation alone: when a generic
+  // scope is pruned and has exactly one accessible child, that child is also the
+  // sole indent-0 node. Intersect the candidate's role locator with rootLocator so
+  // we drop it only when it is the selected element itself.
+  let scopeRoot: ParsedNode | undefined;
+  const topLevelNodes = nodes.filter(node => node.indent === 0);
+  if (opts.selector && topLevelNodes.length === 1) {
+    const candidate = topLevelNodes[0];
+    const roleOptions: { name?: string; exact?: boolean } = candidate.name
+      ? { name: candidate.name, exact: true }
+      : {};
+    const candidateLocator = target.getByRole(candidate.role as any, roleOptions);
+    if (await rootLocator.and(candidateLocator).count() > 0) {
+      scopeRoot = candidate;
+    }
+  }
   const refNodes = scopeRoot ? nodes.filter(n => n !== scopeRoot) : nodes;
 
   // First pass: count both populations

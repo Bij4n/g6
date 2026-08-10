@@ -1,5 +1,5 @@
 import { describe, test, expect } from 'bun:test';
-import { resolveConfig, ensureStateDir, readVersionHash, getGitRoot, getRemoteSlug, resolveGstackHome, resolveChromiumProfile, cleanSingletonLocks, killSingletonOrphan } from '../src/config';
+import { resolveConfig, ensureStateDir, readVersionHash, getGitRoot, getRemoteSlug, resolveGstackHome, resolveChromiumProfile, cleanSingletonLocks, killSingletonOrphan, processCommandMatchesChromiumProfile } from '../src/config';
 import { isProcessAlive } from '../src/error-handling';
 import * as fs from 'fs';
 import * as path from 'path';
@@ -446,18 +446,81 @@ describe('cleanSingletonLocks', () => {
 });
 
 describe('killSingletonOrphan', () => {
-  test('kills a live orphan named in the SingletonLock symlink', async () => {
+  test('kills a live orphan only after its process ownership is verified', async () => {
     const tmpDir = path.join(os.tmpdir(), `orphan-kill-${Date.now()}`, 'chromium-profile');
     fs.mkdirSync(tmpDir, { recursive: true });
     const orphan = Bun.spawn(['sleep', '30']);
     try {
       fs.symlinkSync(`${os.hostname()}-${orphan.pid}`, path.join(tmpDir, 'SingletonLock'));
-      await killSingletonOrphan(tmpDir);
+      await killSingletonOrphan(tmpDir, () => true);
       expect(isProcessAlive(orphan.pid)).toBe(false);
     } finally {
       orphan.kill();
       fs.rmSync(path.dirname(tmpDir), { recursive: true, force: true });
     }
+  });
+
+  test('refuses a live PID that is not Chromium using this profile', async () => {
+    const tmpDir = path.join(os.tmpdir(), `orphan-owner-${Date.now()}`, 'chromium-profile');
+    fs.mkdirSync(tmpDir, { recursive: true });
+    const unrelated = Bun.spawn(['sleep', '30']);
+    try {
+      fs.symlinkSync(`${os.hostname()}-${unrelated.pid}`, path.join(tmpDir, 'SingletonLock'));
+      await killSingletonOrphan(tmpDir);
+      expect(isProcessAlive(unrelated.pid)).toBe(true);
+    } finally {
+      unrelated.kill();
+      fs.rmSync(path.dirname(tmpDir), { recursive: true, force: true });
+    }
+  });
+
+  test('refuses a lock written by another host even when the PID would otherwise match', async () => {
+    const tmpDir = path.join(os.tmpdir(), `orphan-host-${Date.now()}`, 'chromium-profile');
+    fs.mkdirSync(tmpDir, { recursive: true });
+    const unrelated = Bun.spawn(['sleep', '30']);
+    try {
+      fs.symlinkSync(`different-host-${unrelated.pid}`, path.join(tmpDir, 'SingletonLock'));
+      await killSingletonOrphan(tmpDir, () => true);
+      expect(isProcessAlive(unrelated.pid)).toBe(true);
+    } finally {
+      unrelated.kill();
+      fs.rmSync(path.dirname(tmpDir), { recursive: true, force: true });
+    }
+  });
+
+  test('matches only Chromium commands using the exact profile', () => {
+    const profile = path.join(os.tmpdir(), 'owner-match', 'chromium-profile');
+    expect(processCommandMatchesChromiumProfile([
+      '/opt/chrome-headless-shell',
+      `--user-data-dir=${profile}`,
+    ], profile)).toBe(true);
+    expect(processCommandMatchesChromiumProfile([
+      `/opt/chrome-headless-shell --headless ${`--user-data-dir=${profile}`} --remote-debugging-pipe`,
+    ], profile)).toBe(true);
+    expect(processCommandMatchesChromiumProfile([
+      '/usr/bin/sleep',
+      `--user-data-dir=${profile}`,
+    ], profile)).toBe(false);
+    expect(processCommandMatchesChromiumProfile(
+      `/usr/bin/node /tmp/chrome-helper.js ${`--user-data-dir=${profile}`}`,
+      profile,
+    )).toBe(false);
+    expect(processCommandMatchesChromiumProfile(
+      `/tmp/not-chrome-helper ${`--user-data-dir=${profile}`}`,
+      profile,
+    )).toBe(false);
+    expect(processCommandMatchesChromiumProfile(
+      `/Applications/Google Chrome for Testing.app/Contents/MacOS/Google Chrome for Testing ${`--user-data-dir=${profile}`}`,
+      profile,
+    )).toBe(true);
+    expect(processCommandMatchesChromiumProfile([
+      '/opt/chromium',
+      '--user-data-dir=/tmp/someone-else/chromium-profile',
+    ], profile)).toBe(false);
+    expect(processCommandMatchesChromiumProfile(
+      `/opt/chromium --user-data-dir=${profile}-different`,
+      profile,
+    )).toBe(false);
   });
 
   test('refuses unrecognized profile dir — orphan survives', async () => {

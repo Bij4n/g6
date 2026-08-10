@@ -41,9 +41,9 @@ beforeAll(async () => {
   await bm.launch();
 });
 
-afterAll(() => {
+afterAll(async () => {
   try { testServer.server.stop(); } catch {}
-  setTimeout(() => process.exit(0), 500);
+  await bm.close();
 });
 
 /** Refs whose snapshot line is exactly `[button] "<name>"`. */
@@ -191,5 +191,16 @@ describe('snapshot ref identity', () => {
 
     await handleWriteCommand('click', [`@${saveRefs[1]}`], bm);
     expect(await logText()).toBe('main-save-b');
+  }, 30000);
+
+  test('a generic -s scope keeps its only accessible descendant', async () => {
+    await handleWriteCommand('goto', [baseUrl + '/ref-scoped-selector.html'], bm);
+    const snap = await handleMetaCommand('snapshot', ['-s', '#single', '-i'], bm, shutdown);
+
+    const actionRefs = refsForButton(snap, 'Only action');
+    expect(actionRefs.length).toBe(1);
+
+    await handleWriteCommand('click', [`@${actionRefs[0]}`], bm);
+    expect(await logText()).toBe('single-save');
   }, 30000);
 });

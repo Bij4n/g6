@@ -32,9 +32,9 @@ beforeAll(async () => {
   await bm.launch();
 });
 
-afterAll(() => {
+afterAll(async () => {
   try { testServer.server.stop(); } catch {}
-  setTimeout(() => process.exit(0), 500);
+  await bm.close();
 });
 
 const txt = (sel: string) => bm.getActiveSession().getPage().textContent(sel);

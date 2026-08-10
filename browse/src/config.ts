@@ -224,6 +224,78 @@ export function cleanSingletonLocks(userDataDir: string): void {
 }
 
 /**
+ * Return whether a process command belongs to Chromium using this exact
+ * profile. Exported so the security-sensitive matcher can be unit tested
+ * without sending signals to arbitrary processes.
+ */
+export function processCommandMatchesChromiumProfile(
+  command: readonly string[] | string,
+  userDataDir: string,
+): boolean {
+  const expectedProfileArg = `--user-data-dir=${path.resolve(userDataDir)}`;
+  if (typeof command === 'string') {
+    const profileIndex = command.indexOf(expectedProfileArg);
+    if (profileIndex < 0) return false;
+    const before = profileIndex === 0 ? '' : command[profileIndex - 1];
+    const afterIndex = profileIndex + expectedProfileArg.length;
+    const after = afterIndex >= command.length ? '' : command[afterIndex];
+    const isWholeArgument = (!before || /\s|["']/.test(before))
+      && (!after || /\s|["']/.test(after));
+    if (!isWholeArgument) return false;
+
+    // Only argv[0] may establish Chromium identity. Do not accept a node/python
+    // process merely because a later script path or argument contains "chrome".
+    const launchPrefix = command.slice(0, profileIndex).trimStart();
+    const quotedExecutable = /^(?:"([^"]+)"|'([^']+)')/.exec(launchPrefix);
+    const executable = quotedExecutable
+      ? (quotedExecutable[1] || quotedExecutable[2])
+      : (launchPrefix.match(/^\S+/)?.[0] || '');
+    const executableName = path.basename(executable).toLowerCase();
+    const isChromium = /^(?:google[- ]chrome(?:[- ](?:stable|beta|unstable|for[- ]testing))?|chromium(?:-browser)?|chrome|chrome-headless-shell|headless[_-]shell)(?:\.exe)?$/
+      .test(executableName);
+    // `ps -o command=` does not quote macOS app bundle paths, whose executable
+    // names can contain spaces (for example, "Google Chrome for Testing").
+    const isUnquotedMacBundle = /^\S*\/(?:google chrome(?: for testing)?|chromium)\.app\/contents\/macos\/(?:google chrome(?: for testing)?|chromium)(?:\s|$)/i
+      .test(launchPrefix);
+    return isChromium || isUnquotedMacBundle;
+  }
+  // Bun can surface Linux /proc/<pid>/cmdline as one packed command string
+  // for Chromium's zygote launcher rather than one NUL-delimited entry per
+  // argument. Treat that shape like the ps output below.
+  if (command.length === 1 && command[0].includes(' ')) {
+    return processCommandMatchesChromiumProfile(command[0], userDataDir);
+  }
+  const executable = path.basename(command[0] || '').toLowerCase();
+  const isChromium = /chrom(?:e|ium)|headless[_-]shell/.test(executable);
+  return isChromium && command.includes(expectedProfileArg);
+}
+
+function isChromiumProfileProcess(pid: number, userDataDir: string): boolean {
+  if (!isProcessAlive(pid) || process.platform === 'win32') return false;
+
+  if (process.platform === 'linux') {
+    try {
+      const args = fs.readFileSync(`/proc/${pid}/cmdline`, 'utf-8')
+        .split('\0')
+        .filter(Boolean);
+      return processCommandMatchesChromiumProfile(args, userDataDir);
+    } catch {
+      return false;
+    }
+  }
+
+  try {
+    const proc = Bun.spawnSync(['ps', '-ww', '-p', String(pid), '-o', 'command='], {
+      stdout: 'pipe', stderr: 'pipe', timeout: 2000,
+    });
+    if (proc.exitCode !== 0) return false;
+    return processCommandMatchesChromiumProfile(proc.stdout.toString().trim(), userDataDir);
+  } catch {
+    return false;
+  }
+}
+
+/**
  * Kill a live orphan Chromium that still owns this profile's ProcessSingleton.
  * SingletonLock is a symlink to "hostname-PID"; while that PID is alive, a new
  * launchPersistentContext() on the same profile defers to the existing
@@ -235,21 +307,33 @@ export function cleanSingletonLocks(userDataDir: string): void {
  * orphan can't be identified or killed, the launch fails with the same error
  * this cleanup exists to prevent, and the caller reports that.
  */
-export async function killSingletonOrphan(userDataDir: string): Promise<void> {
+export async function killSingletonOrphan(
+  userDataDir: string,
+  processMatchesProfile: (pid: number, profileDir: string) => boolean = isChromiumProfileProcess,
+): Promise<void> {
   if (!path.isAbsolute(userDataDir)) return;
   const resolved = path.resolve(userDataDir);
   if (!isRecognizedProfileDir(resolved)) return;
-  let orphanPid = NaN;
+  let lockTarget = '';
   try {
-    const lockTarget = fs.readlinkSync(path.join(resolved, 'SingletonLock')); // "hostname-12345"
-    orphanPid = parseInt(lockTarget.split('-').pop() || '', 10);
+    lockTarget = fs.readlinkSync(path.join(resolved, 'SingletonLock')); // "hostname-12345"
   } catch {
     return; // no lock (ENOENT) or not a symlink (EINVAL) — nothing holds the profile
   }
-  if (!orphanPid || !isProcessAlive(orphanPid)) return;
+
+  const separator = lockTarget.lastIndexOf('-');
+  if (separator <= 0) return;
+  const lockHost = lockTarget.slice(0, separator);
+  const pidText = lockTarget.slice(separator + 1);
+  if (lockHost !== os.hostname() || !/^\d+$/.test(pidText)) return;
+
+  const orphanPid = Number.parseInt(pidText, 10);
+  if (!orphanPid || !processMatchesProfile(orphanPid, resolved)) return;
   safeKill(orphanPid, 'SIGTERM');
   await new Promise(resolve => setTimeout(resolve, 1000));
-  if (isProcessAlive(orphanPid)) {
+  // Re-check ownership before escalating. The original Chromium may have
+  // exited and its PID may already belong to an unrelated process.
+  if (isProcessAlive(orphanPid) && processMatchesProfile(orphanPid, resolved)) {
     safeKill(orphanPid, 'SIGKILL');
     await new Promise(resolve => setTimeout(resolve, 500));
   }

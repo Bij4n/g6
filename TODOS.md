@@ -39,15 +39,16 @@ reviewers to discount the signal.
 
 ### P3: A `process.exit(0)` teardown can truncate a whole free-suite shard
 
-**What:** Browser tests end `afterAll` with `setTimeout(() => process.exit(0), 500)`
-because `BrowserManager.close()` races a 5s internal timeout that collides with bun's
-hook limit. Whichever such file finishes first can kill the shard before later files
-run: shard 13 of 20 reported 0 tests across 7 files. Tests that never execute look
-identical to tests that pass.
+**What:** Some legacy browser tests end `afterAll` with
+`setTimeout(() => process.exit(0), 500)`. Whichever such file finishes first can
+kill the shard before later files run. Tests that never execute look identical to
+tests that pass. New browser regression suites use `BrowserManager.close()` now
+that its intentional-disconnect path resolves promptly, but the older suites still
+need to be migrated and their newly exposed baseline failures repaired.
 
-**How:** Either give `close()` a fast path that resolves inside bun's hook budget, or
-have the shard runner isolate browser tests one file per process, or fail a shard
-that reports fewer tests than it enumerated.
+**How:** Convert the remaining forced-exit hooks to `await BrowserManager.close()`,
+repair the stale failures they expose, and make the shard runner fail when it runs
+fewer files than it enumerated.
 
 **Priority:** P3 — silent coverage loss, no incorrect behavior shipped.
 
