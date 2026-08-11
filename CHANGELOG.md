@@ -1,5 +1,46 @@
 # Changelog
 
+## [1.46.0.0] - 2026-07-29
+
+## **`browse click @e5` now clicks the element the snapshot showed you.**
+
+Snapshot refs were built by counting elements one way and then indexing into a different set, so a ref could land on a real, visible, *wrong* element and report success. Five separate versions of that bug are fixed. Two mattered most: an icon-only button's ref could fire a named button's handler, and any accessible name containing `: `, ` #`, or a quote (`Status: Active`, `Order #1234`, `Delete "Q3 Report"`) was dropped from the snapshot entirely, shifting every later ref of that role. One of these was caught in the wild: a file input carries `role=button` and its label `choose a file to upload` contains `upload`, so `click` on the real upload button hit a strict-mode error instead.
+
+Reusing a ref number after a new snapshot also used to say only `Ref @e40 not found`. It now tells you what that ref used to be, whether a snapshot renumbered it or a navigation cleared it, and — when role and name genuinely identify one element — which ref to look at instead, hedged, because role and name are not identity.
+
+### The numbers that matter
+
+| | |
+|---|---|
+| Ref-resolution bugs fixed | 5 |
+| Commands that share the fixed resolver | `click`, `fill`, `select`, `hover`, `wait`, `scroll`, read commands, `batch` |
+| New tests | 18 across 4 files, 9 fixtures |
+| Free suite | 3857 pass, no new failures |
+
+### What this means
+
+If you drive `browse` for QA, a passing click now means more than it did. The failure this fixes was invisible by design: you would go debug your app, find nothing wrong, and lose an afternoon. The new skill guidance closes the other half of that trap — discarding a command's output made a real error look exactly like success.
+
+### Itemized changes
+
+### Fixed
+- Snapshot refs resolve to the element the snapshot listed. `getByRole`'s `name` option is a case-insensitive substring match unless `exact: true` is passed, and unnamed nodes pass no name at all — so named refs now match exactly and are counted per role+name, while unnamed refs are counted per role across named siblings.
+- Occurrence counters advance for every parsed node before the `-d`, `-i`, and `-c` output filters, so a filtered-out element no longer shifts the refs after it.
+- Aria lines whose accessible name is escaped or YAML-quoted by Playwright are parsed instead of silently dropped. Names are unescaped, so `exact: true` compares `Open C:\temp` rather than `Open C:\\temp`. Hyphenated roles (`doc-abstract`) parse too.
+- `snapshot -s <sel>` no longer mints a ref for the scope element itself, which used to resolve to a descendant sharing its role.
+- `snapshot -s <sel>` keeps a generic scope's only accessible descendant instead of mistaking that child for the scope root and returning an empty interactive snapshot.
+- Reusing a ref number reports what the ref was and why it went away, instead of a bare "not found". A replacement is named only when role+name identified exactly one element in both the old and the current set.
+- Archived ref names are truncated and sentinel-escaped. They come from the page, and error strings do not pass through the untrusted-content envelope that snapshot output does.
+- Startup failures name the real layer. When the daemon starts but the CLI's health probe can't reach it, a raw TCP probe now separates "loopback networking is broken on this machine — reboot" (connect times out) from "the daemon is wedged" (TCP connects, `/health` never answers), and stops the unreachable daemon instead of leaving it running. Previously both cases surfaced as `Server failed to start:` plus whatever the daemon last wrote to stderr — on a machine with broken loopback that pinned a kernel fault on an unrelated welcome-page warning.
+- Chromium profile cleanup validates the lock hostname, executable, and exact `--user-data-dir` before sending a signal, so a stale lock with a recycled PID cannot terminate an unrelated process.
+- New browser regression suites close Chromium normally instead of exiting the shared test process, so they cannot truncate the rest of their free-test shard.
+
+### Changed
+- `browse` skill guidance: never discard output from a state-changing command, chain with `&&` rather than `;`, don't pipe a command whose exit code you rely on (a pipe reports the last command's status — use `set -o pipefail`), and re-read ref numbers from the newest snapshot because every snapshot renumbers them.
+
+### Known limits
+- Ref identity is still reconstructed from role and index, so `aria-owns` and `<slot>` reordering can make the accessibility-tree order disagree with DOM order. Playwright's own `aria-ref` engine would remove this whole class; tracked as a follow-up.
+
 ## [1.45.0.0] - 2026-07-12
 
 ## **Six new skills — health-data compliance, a self-hosting toolkit, and a way to actually teach the codebase.**

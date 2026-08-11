@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html>
+<head><title>Fill Controlled Input</title></head>
+<body>
+  <h1>Controlled Input</h1>
+  <p id="log">none</p>
+  <p id="events">events:</p>
+
+  <!-- Stands in for a React controlled input: the submit handler reads the
+       framework's state variable, NOT the DOM value. If `fill` sets .value
+       without dispatching an input event, state stays empty and submit is
+       refused — a click that reports success while nothing happens. -->
+  <input id="origin" type="text" />
+  <button id="submit">submit</button>
+
+  <script>
+    let state = '';
+    const input = document.getElementById('origin');
+    const seen = [];
+    for (const type of ['input', 'change']) {
+      input.addEventListener(type, e => {
+        seen.push(type);
+        if (type === 'input') state = e.target.value;
+        document.getElementById('events').textContent = 'events:' + seen.join(',');
+      });
+    }
+    document.getElementById('submit').addEventListener('click', () => {
+      document.getElementById('log').textContent =
+        state ? 'submitted:' + state : 'blocked-empty-state';
+    });
+  </script>
+</body>
+</html>

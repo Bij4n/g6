@@ -16,6 +16,7 @@ import { writeSecureFile, mkdirSecure } from './file-permissions';
 import { resolveConfig, ensureStateDir, readVersionHash } from './config';
 import { parseProxyConfig, computeConfigHash, ProxyConfigError } from './proxy-config';
 import { redactProxyUrl } from './proxy-redact';
+import { tcpProbe, classifyStartupFailure, startupFailureMessage } from './startup-diagnosis';
 
 const config = resolveConfig();
 const IS_WINDOWS = process.platform === 'win32';
@@ -258,6 +259,25 @@ async function startServer(extraEnv?: Record<string, string>): Promise<ServerSta
       return state;
     }
     await Bun.sleep(100);
+  }
+
+  // Server didn't become reachable in time. Before blaming the daemon,
+  // check whether it actually started: if its PID is alive, a raw TCP probe
+  // separates "loopback networking is broken" (connect times out) from
+  // "daemon is wedged" (connects but /health never answered). Both used to
+  // fall through to the generic path below, which surfaces daemon stderr —
+  // on 2026-07-29 that pinned a broken-loopback machine fault on an
+  // unrelated welcome-page warning.
+  const lastState = readState();
+  if (lastState && isProcessAlive(lastState.pid)) {
+    const tcp = await tcpProbe('127.0.0.1', lastState.port, 1500);
+    const kind = classifyStartupFailure(true, tcp);
+    if (kind !== 'not-started') {
+      // Don't leave an unreachable daemon (and its Chromium) running.
+      await killServer(lastState.pid);
+      safeUnlink(config.stateFile);
+      throw new Error(startupFailureMessage(kind, lastState.pid, lastState.port));
+    }
   }
 
   // Server didn't start in time — try to get error details

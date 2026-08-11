@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html>
+<head><title>Ref Renumber</title></head>
+<body>
+  <h1>Ref Renumber</h1>
+  <p id="log">none</p>
+
+  <!-- Clicking "collapse" removes the filler buttons, so a fresh snapshot
+       renumbers "mark complete" to a much lower ref. Mirrors the side-panel
+       re-render that produced the ThePetroleumExchange bug report. -->
+  <button onclick="document.getElementById('fillers').remove()">collapse</button>
+
+  <div id="fillers">
+    <button onclick="fire('filler-1')">filler 1</button>
+    <button onclick="fire('filler-2')">filler 2</button>
+    <button onclick="fire('filler-3')">filler 3</button>
+    <button onclick="fire('filler-4')">filler 4</button>
+    <button onclick="fire('filler-5')">filler 5</button>
+    <button onclick="fire('filler-6')">filler 6</button>
+    <button onclick="fire('filler-7')">filler 7</button>
+    <button onclick="fire('filler-8')">filler 8</button>
+    <button onclick="fire('filler-9')">filler 9</button>
+    <button onclick="fire('filler-10')">filler 10</button>
+  </div>
+
+  <button onclick="fire('mark-complete')">mark complete</button>
+
+  <script>
+    function fire(which) { document.getElementById('log').textContent = which; }
+  </script>
+</body>
+</html>
