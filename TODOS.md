@@ -403,6 +403,34 @@ scope of that PR; deliberately deferred to keep PTY-import small.
 
 ## Testing
 
+## P0: 103 pre-existing free-suite failures, surfaced by v1.46.1.0
+
+**What:** `bun test` on main is red: 103 failures across 12 files, out of 4556 tests in 263 files. They are not new. Until v1.46.1.0 the suite exited 0 after ~180 of 263 files, so 83 files never ran and the failures it did record were discarded with the process. Fixing the reporting made them visible; nothing has fixed them.
+
+**Where they are** (clean-load run, `main` @ 6b42f99):
+
+| Failures | File |
+|---|---|
+| 73 | `browse/test/sidebar-ux.test.ts` |
+| 12 | `browse/test/gstack-config.test.ts` |
+| 6 | `design/test/feedback-roundtrip.test.ts` |
+| 4 | `browse/test/server-auth.test.ts` |
+| 1 each | `combined-gate`, `watchdog`, `snapshot`, `sidebar-tabs`, `security-integration`, `gstack-update-check`, `daemon-mismatch-refuse`, `commands` |
+
+**Why:** `bun test` is the pre-commit gate CLAUDE.md mandates, and it is the only place the full free suite runs at all (see the Infrastructure TODO on Actions never having run on this fork). A red gate that everyone learns to ignore is the same failure mode we just fixed, one layer up.
+
+**Pros:** This is four investigations, not 103. The 73 in `sidebar-ux` are content assertions against a refactored sidebar and were verified byte-identical on a clean tree back in the v1.46.0.0 work, so that block is almost certainly one root cause.
+**Cons:** Some are environment-sensitive. Counts drift 103-107 between runs, and a heavily loaded machine inflates them badly (one run under ~3.6x load reported 215). Always baseline on a quiet machine before attributing anything.
+
+**Context:** Start with `sidebar-ux.test.ts` — 71% of the failures. The v1.14.0.0 sidebar refactor replaced `sidebar-agent.ts` with `sidepanel-terminal.js`, and `scripts/test-free-shards.ts` already carries a `sidebar-agent.ts` Windows-fragile pattern noting those tests "have been broken on every platform since v1.14". That note is probably the whole story for this block.
+
+**Watch out for:** `browse/test/stealth-webdriver.test.ts` passes 8/8 in isolation but sometimes fails under full-suite concurrency. Verify in isolation before counting anything as a real failure.
+
+**Priority:** P0.
+**Effort:** M (CC: ~2-3h for the sidebar-ux block; the rest are singles). Captured 2026-08-17 from the v1.46.1.0 test-runner fix.
+
+---
+
 ## P2: Per-finding AskUserQuestion count assertion for /plan-ceo-review
 
 **What:** PTY E2E test that drives /plan-ceo-review through Step 0 with a stable fixture diff containing N known findings, asserts that exactly N distinct AskUserQuestions fire (one per finding) before plan_ready.
@@ -1321,6 +1349,23 @@ Linux cookie import shipped in v0.11.11.0 (Wave 3). Supports Chrome, Chromium, B
 **Depends on:** Browse sessions
 
 ## Infrastructure
+
+## P0: GitHub Actions has never run on this fork
+
+**What:** `GET /repos/Bij4n/g6/actions/runs` returns `total_count: 0`. Not "no runs recently" — zero workflow runs in the repository's entire history. PRs #1 through #12 all merged with no CI of any kind.
+
+**Why:** All nine workflows report `state: active` and `GET /actions/permissions` returns `enabled: true`, so it looks fine from the API and from the workflow list. The repo is `fork: true`, and GitHub gates Actions on forks behind a separate one-time opt-in on the Actions tab that the permissions endpoint does not reflect. Until someone clicks it, `gh pr checks` reports "no checks reported" and a green PR means only that nobody looked.
+
+**What we are losing:** `actionlint`, `skill-docs` freshness, `version-gate`, `pr-title-sync`, `windows-free-tests`, `make-pdf-gate`, and the gate-tier `evals` all silently do nothing. The Windows job matters most, since nothing else on any developer machine exercises the Windows-safe subset.
+
+**Fix:** Open the Actions tab on github.com/Bij4n/g6 and accept the fork prompt. Cannot be done from the CLI or REST API. Then push a trivial commit and confirm `gh run list` is non-empty.
+
+**Watch out for:** The workflows target `runs-on: ubicloud-standard-8` and `evals.yml` pulls `ghcr.io/${{ github.repository }}/ci`. Neither has ever been exercised on this fork, so expect the first real run to surface runner-availability or image-permission problems that have been invisible so far. Budget for that rather than assuming enabling it is a one-click fix.
+
+**Priority:** P0.
+**Effort:** S to enable, M to get the first run actually green. Captured 2026-08-17 while merging #11 and #12.
+
+---
 
 ### /setup-gstack-upload skill (S3 bucket)
 
