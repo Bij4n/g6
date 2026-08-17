@@ -15,6 +15,7 @@ import { describe, test, expect, beforeAll, afterAll, beforeEach } from 'bun:tes
 import * as fs from 'fs';
 import * as path from 'path';
 import { startTestServer } from './test-server';
+import { closeBrowserQuietly } from './teardown';
 import { BrowserManager } from '../src/browser-manager';
 import {
   datamarkContent, getSessionMarker, resetSessionMarker,
@@ -422,9 +423,9 @@ describe('Hidden element stripping', () => {
     await bm.launch();
   });
 
-  afterAll(() => {
+  afterAll(async () => {
     try { testServer.server.stop(); } catch {}
-    setTimeout(() => process.exit(0), 500);
+    await closeBrowserQuietly(bm);
   });
 
   test('detects CSS-hidden elements on injection-hidden page', async () => {

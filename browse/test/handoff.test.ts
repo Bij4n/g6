@@ -7,6 +7,7 @@
 
 import { describe, test, expect, beforeAll, afterAll } from 'bun:test';
 import { startTestServer } from './test-server';
+import { closeBrowserQuietly } from './teardown';
 import { BrowserManager, type BrowserState } from '../src/browser-manager';
 import { handleWriteCommand as _handleWriteCommand } from '../src/write-commands';
 import { handleMetaCommand } from '../src/meta-commands';
@@ -26,9 +27,9 @@ beforeAll(async () => {
   await bm.launch();
 });
 
-afterAll(() => {
+afterAll(async () => {
   try { testServer.server.stop(); } catch {}
-  setTimeout(() => process.exit(0), 500);
+  await closeBrowserQuietly(bm);
 });
 
 // ─── Unit Tests: Failure Tracking (no browser needed) ────────────

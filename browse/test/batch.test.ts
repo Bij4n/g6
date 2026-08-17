@@ -7,6 +7,7 @@
 
 import { describe, test, expect, beforeAll, afterAll } from 'bun:test';
 import { startTestServer } from './test-server';
+import { closeBrowserQuietly } from './teardown';
 import { BrowserManager } from '../src/browser-manager';
 
 let testServer: ReturnType<typeof startTestServer>;
@@ -42,9 +43,9 @@ beforeAll(async () => {
   // The test needs to start a server. Let's use the existing server infrastructure.
 });
 
-afterAll(() => {
+afterAll(async () => {
   try { testServer.server.stop(); } catch {}
-  setTimeout(() => process.exit(0), 500);
+  await closeBrowserQuietly(bm);
 });
 
 // We need a running browse server for HTTP tests.
