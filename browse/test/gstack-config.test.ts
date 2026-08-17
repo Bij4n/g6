@@ -41,8 +41,16 @@ afterEach(() => {
 
 describe('gstack-config', () => {
   // ─── get ──────────────────────────────────────────────────
-  test('get on missing file returns empty, exit 0', () => {
+  test('get on missing file falls back to the built-in default, exit 0', () => {
     const { exitCode, stdout } = run(['get', 'auto_upgrade']);
+    expect(exitCode).toBe(0);
+    expect(stdout).toBe('false');
+  });
+
+  // cross_project_learnings is the one key whose default is deliberately empty:
+  // callers use "unset" to trigger the first-time prompt.
+  test('get returns empty for a key whose default is intentionally unset', () => {
+    const { exitCode, stdout } = run(['get', 'cross_project_learnings']);
     expect(exitCode).toBe(0);
     expect(stdout).toBe('');
   });
@@ -110,10 +118,12 @@ describe('gstack-config', () => {
     expect(stdout).toContain('update_check: false');
   });
 
-  test('list on missing file returns empty, exit 0', () => {
+  test('list on missing file shows the active defaults, exit 0', () => {
     const { exitCode, stdout } = run(['list']);
     expect(exitCode).toBe(0);
-    expect(stdout).toBe('');
+    expect(stdout).toContain('Active values (including defaults for unset keys)');
+    expect(stdout).toContain('auto_upgrade:');
+    expect(stdout).toContain('(default)');
   });
 
   // ─── usage ────────────────────────────────────────────────
@@ -176,9 +186,9 @@ describe('gstack-config', () => {
   });
 
   // ─── routing_declined ──────────────────────────────────────
-  test('routing_declined defaults to empty (not set)', () => {
+  test('routing_declined defaults to false when unset', () => {
     const { stdout } = run(['get', 'routing_declined']);
-    expect(stdout).toBe('');
+    expect(stdout).toBe('false');
   });
 
   test('routing_declined can be set and read', () => {
