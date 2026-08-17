@@ -419,15 +419,23 @@ scope of that PR; deliberately deferred to keep PTY-import small.
 
 **Why:** `bun test` is the pre-commit gate CLAUDE.md mandates, and it is the only place the full free suite runs at all (see the Infrastructure TODO on Actions never having run on this fork). A red gate that everyone learns to ignore is the same failure mode we just fixed, one layer up.
 
-**Pros:** This is four investigations, not 103. The 73 in `sidebar-ux` are content assertions against a refactored sidebar and were verified byte-identical on a clean tree back in the v1.46.0.0 work, so that block is almost certainly one root cause.
-**Cons:** Some are environment-sensitive. Counts drift 103-107 between runs, and a heavily loaded machine inflates them badly (one run under ~3.6x load reported 215). Always baseline on a quiet machine before attributing anything.
+**Diagnosed 2026-08-17. Four root causes, each a separate refactor the test never followed. No product bugs.**
 
-**Context:** Start with `sidebar-ux.test.ts` — 71% of the failures. The v1.14.0.0 sidebar refactor replaced `sidebar-agent.ts` with `sidepanel-terminal.js`, and `scripts/test-free-shards.ts` already carries a `sidebar-agent.ts` Windows-fragile pattern noting those tests "have been broken on every platform since v1.14". That note is probably the whole story for this block.
+| Block | n | Broke at | Root cause |
+|---|---|---|---|
+| `sidebar-ux` | 73 | `ed1e4be` v1.14.0.0 | Moved `spawnClaude` to `terminal-agent.ts` and `systemPrompt` to `security.ts`, and deleted `sidebar-agent.ts`. Test still reads `src/server.ts` and the deleted file. |
+| `feedback-roundtrip` | 6 | `1868636` v0.15.16.0 | `handleWriteCommand` gained `session: TabSession` as its 3rd param. The design test imports it directly and passes `bm` there, so `session.clearLoadedHtml is not a function`. Browse tests use a local wrapper; this one never got it. |
+| `server-auth` | 4 | (marker removed) | `sliceBetween` anchors on a `Sidebar endpoints` comment that no longer exists in `server.ts`. Throws `End marker not found`. |
+| `gstack-config` | 3-12 | `22a4451` v1.3.0.0 | Added a built-in defaults table, so `get auto_upgrade` on a missing file correctly returns `false`. Test still asserts the pre-defaults `""`. Product is right, test is stale. |
 
-**Watch out for:** `browse/test/stealth-webdriver.test.ts` passes 8/8 in isolation but sometimes fails under full-suite concurrency. Verify in isolation before counting anything as a real failure.
+**The pattern, and why re-anchoring is the wrong fix.** Three of the four assert on *implementation shape* (source-file text, an internal function signature) rather than behavior. `sidebar-ux` is the worst: it extracts a region with `serverSrc.slice(indexOf(marker), ...)`, and when the marker is gone `indexOf` returns -1 and the slice yields `""`. Every `toContain` then fails, and every `not.toContain` **passes vacuously**. So that file is not merely 73 red tests, it is also an unknown number of green ones asserting nothing. Updating the string anchors would restore the green and rebuild the same trap. Prefer deleting tests that cover deleted code and rewriting the rest against behavior. `server-auth` is the one to copy: it throws loudly on a missing marker instead of silently slicing.
+
+**Watch out for:** `browse/test/stealth-webdriver.test.ts` passes 8/8 in isolation but sometimes fails under full-suite concurrency. Counts drift 103-107 between runs, and a loaded machine inflates them badly (one run under ~3.6x load reported 215 fail / 94 errors). Baseline on a quiet machine, and confirm any single failure in isolation before believing it.
+
+**Also found:** the `test` script lists `browse/test/ test/ make-pdf/test/`, but bun treats positional args as path *filters*, so `design/test/` is swept in too (4 files, including `feedback-roundtrip`). Either intend that and document it, or scope the args.
 
 **Priority:** P0.
-**Effort:** M (CC: ~2-3h for the sidebar-ux block; the rest are singles). Captured 2026-08-17 from the v1.46.1.0 test-runner fix.
+**Effort:** M. `feedback-roundtrip` and `server-auth` are ~15 min each. `gstack-config` is a 3-line expectation update. `sidebar-ux` is the real work and is a scope decision (delete vs rewrite), not a typing exercise. Captured 2026-08-17 from the v1.46.1.0 test-runner fix; diagnosed same day.
 
 ---
 
