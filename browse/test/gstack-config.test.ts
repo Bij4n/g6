@@ -14,11 +14,21 @@ const SCRIPT = join(import.meta.dir, '..', '..', 'bin', 'gstack-config');
 
 let stateDir: string;
 
+// The script resolves its state dir as G6_HOME → GSTACK_HOME → GSTACK_STATE_DIR, and
+// we inherit process.env. Other suites in the shared bun process set GSTACK_HOME at
+// module scope (domain-skills-storage, domain-skills-e2e), which outranks the
+// GSTACK_STATE_DIR this file used to set alone and silently redirected the script to
+// another directory. Point every rung of the chain at the same dir so precedence
+// cannot decide the outcome.
+function stateEnv(dir: string): Record<string, string> {
+  return { G6_HOME: dir, GSTACK_HOME: dir, GSTACK_STATE_DIR: dir };
+}
+
 function run(args: string[] = [], extraEnv: Record<string, string> = {}) {
   const result = Bun.spawnSync(['bash', SCRIPT, ...args], {
     env: {
       ...process.env,
-      GSTACK_STATE_DIR: stateDir,
+      ...stateEnv(stateDir),
       ...extraEnv,
     },
     stdout: 'pipe',
@@ -104,7 +114,7 @@ describe('gstack-config', () => {
 
   test('set creates state dir if missing', () => {
     const nestedDir = join(stateDir, 'nested', 'dir');
-    const { exitCode } = run(['set', 'foo', 'bar'], { GSTACK_STATE_DIR: nestedDir });
+    const { exitCode } = run(['set', 'foo', 'bar'], stateEnv(nestedDir));
     expect(exitCode).toBe(0);
     expect(existsSync(join(nestedDir, 'config.yaml'))).toBe(true);
   });
@@ -186,6 +196,44 @@ describe('gstack-config', () => {
   });
 
   // ─── routing_declined ──────────────────────────────────────
+  // ─── state-dir precedence ──────────────────────────────────
+  // Documented in bin/gstack-config: G6_HOME wins, then GSTACK_HOME, then the legacy
+  // GSTACK_STATE_DIR alias. Untested until now, which is how a leaked GSTACK_HOME from
+  // another suite could silently redirect this whole file.
+  test('G6_HOME outranks GSTACK_HOME and GSTACK_STATE_DIR', () => {
+    const winner = mkdtempSync(join(tmpdir(), 'gstack-config-win-'));
+    const loser = mkdtempSync(join(tmpdir(), 'gstack-config-lose-'));
+    try {
+      run(['set', 'telemetry', 'on'], {
+        G6_HOME: winner,
+        GSTACK_HOME: loser,
+        GSTACK_STATE_DIR: loser,
+      });
+      expect(existsSync(join(winner, 'config.yaml'))).toBe(true);
+      expect(existsSync(join(loser, 'config.yaml'))).toBe(false);
+    } finally {
+      rmSync(winner, { recursive: true, force: true });
+      rmSync(loser, { recursive: true, force: true });
+    }
+  });
+
+  test('GSTACK_HOME outranks the legacy GSTACK_STATE_DIR alias', () => {
+    const winner = mkdtempSync(join(tmpdir(), 'gstack-config-win-'));
+    const loser = mkdtempSync(join(tmpdir(), 'gstack-config-lose-'));
+    try {
+      run(['set', 'telemetry', 'on'], {
+        G6_HOME: '',
+        GSTACK_HOME: winner,
+        GSTACK_STATE_DIR: loser,
+      });
+      expect(existsSync(join(winner, 'config.yaml'))).toBe(true);
+      expect(existsSync(join(loser, 'config.yaml'))).toBe(false);
+    } finally {
+      rmSync(winner, { recursive: true, force: true });
+      rmSync(loser, { recursive: true, force: true });
+    }
+  });
+
   test('routing_declined defaults to false when unset', () => {
     const { stdout } = run(['get', 'routing_declined']);
     expect(stdout).toBe('false');
