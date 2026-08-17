@@ -7,6 +7,7 @@
 
 import { describe, test, expect, beforeAll, afterAll } from 'bun:test';
 import { startTestServer } from './test-server';
+import { closeBrowserQuietly } from './teardown';
 import { BrowserManager } from '../src/browser-manager';
 import { resolveServerScript } from '../src/cli';
 import { handleReadCommand as _handleReadCommand } from '../src/read-commands';
@@ -35,11 +36,9 @@ beforeAll(async () => {
   await bm.launch();
 });
 
-afterAll(() => {
-  // Force kill browser instead of graceful close (avoids hang)
+afterAll(async () => {
   try { testServer.server.stop(); } catch {}
-  // bm.close() can hang — just let process exit handle it
-  setTimeout(() => process.exit(0), 500);
+  await closeBrowserQuietly(bm);
 });
 
 // ─── Navigation ─────────────────────────────────────────────────
