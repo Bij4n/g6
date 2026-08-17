@@ -25,6 +25,7 @@ import * as fs from 'fs';
 import * as os from 'os';
 import * as path from 'path';
 import { startTestServer } from './test-server';
+import { closeBrowserQuietly } from './teardown';
 import { BrowserManager } from '../src/browser-manager';
 import {
   markHiddenElements,
@@ -56,9 +57,9 @@ describe('defense-in-depth — live Playwright fixture', () => {
     await bm.launch();
   });
 
-  afterAll(() => {
+  afterAll(async () => {
     try { testServer.server.stop(); } catch {}
-    setTimeout(() => process.exit(0), 500);
+    await closeBrowserQuietly(bm);
   });
 
   test('L2 — content-security.ts hidden-element stripper detects the .sneaky div', async () => {

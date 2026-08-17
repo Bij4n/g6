@@ -10,6 +10,7 @@
 
 import { describe, test, expect, beforeAll, afterAll } from 'bun:test';
 import { startTestServer } from './test-server';
+import { closeBrowserQuietly } from './teardown';
 import { BrowserManager } from '../src/browser-manager';
 import { handleWriteCommand as _handleWriteCommand } from '../src/write-commands';
 import { handleMetaCommand } from '../src/meta-commands';
@@ -31,7 +32,7 @@ beforeAll(async () => {
 
 afterAll(async () => {
   try { testServer.server.stop(); } catch {}
-  await bm.close();
+  await closeBrowserQuietly(bm);
 });
 
 /** Ref whose snapshot line is exactly `[button] "<name>"`. */
