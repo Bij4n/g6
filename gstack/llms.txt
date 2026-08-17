@@ -21,6 +21,7 @@ Conventions:
 - [/codex](codex/SKILL.md): OpenAI Codex CLI wrapper — three modes.
 - [/context-restore](context-restore/SKILL.md): Restore working context saved earlier by /context-save.
 - [/context-save](context-save/SKILL.md): Save working context.
+- [/cost-audit](cost-audit/SKILL.md): Burn-rate audit for a founder with no finance team.
 - [/crypto-audit](crypto-audit/SKILL.md): Security audit specific to Bitcoin and cryptocurrency code.
 - [/cso](cso/SKILL.md): Chief Security Officer mode.
 - [/db-audit](db-audit/SKILL.md): Postgres health audit: missing indexes on foreign keys and query columns, table bloat, connection pool sizing, slow query patterns, SQLAlchemy and ActiveRecord N+1 risks at the database level.
@@ -41,6 +42,7 @@ Conventions:
 - [/health](health/SKILL.md): Code quality dashboard.
 - [/incident](incident/SKILL.md): Production incident response.
 - [/investigate](investigate/SKILL.md): Systematic debugging with root cause investigation.
+- [/kill-switch](kill-switch/SKILL.md): Emergency containment map for a founder with no ops team.
 - [/land-and-deploy](land-and-deploy/SKILL.md): Land and deploy workflow.
 - [/landing-report](landing-report/SKILL.md): Read-only queue dashboard for workspace-aware ship.
 - [/learn](learn/SKILL.md): Manage project learnings.
@@ -73,6 +75,7 @@ Conventions:
 - [/ship](ship/SKILL.md): Ship workflow: detect + merge base branch, run tests, review diff, bump VERSION, update CHANGELOG, commit, push, create PR.
 - [/sidekiq-monitor](sidekiq-monitor/SKILL.md): Live Sidekiq queue health monitor for Rails + Sidekiq + Redis stacks.
 - [/skillify](skillify/SKILL.md): Codify the most recent successful /scrape flow into a permanent browser-skill on disk.
+- [/solo-standup](solo-standup/SKILL.md): A daily standup for a team of one.
 - [/stripe-audit](stripe-audit/SKILL.md): Stripe integration security audit: webhook signature verification, live vs test key hygiene, price ID validation, idempotency key usage, customer data handling, subscription state machine correctness, and shared-account multi-product isolation.
 - [/supabase-audit](supabase-audit/SKILL.md): Supabase security audit: Row-Level Security coverage, storage bucket policies, Edge Function auth, auth configuration hardening, service_role key exposure, pg_cron job security, and anonymous access gaps.
 - [/supabase-deploy](supabase-deploy/SKILL.md): Safe Supabase migration deployment.

@@ -1,5 +1,41 @@
 # Changelog
 
+## [1.47.0.0] - 2026-08-17
+
+## **Three skills for the jobs a solo founder has no team for: money, momentum, and the fire drill.**
+
+g6 already covered planning, review, security, and shipping. What it did not cover is the work that lands on you when there is nobody else: knowing what you are actually spending, knowing what you did last week, and knowing which lever to pull when something is on fire at 2am. `/cost-audit` reads your code and config and builds a burn-rate picture from what the codebase implies, then hunts waste. `/solo-standup` is a daily standup for a team of one, pulling commits, open PRs, uncommitted work, TODOs and failing CI into a Shipped / In progress / Blocked summary and picking the one thing most worth doing today. `/kill-switch` inventories every containment lever you have before you need it: secret rotation, feature flags, deploy rollback, token revocation, payment pause.
+
+All three are report-first. `/kill-switch` runs nothing destructive without your explicit confirmation, and its most useful output is often the list of switches you do not have yet.
+
+### The numbers that matter
+
+Counts from `bun run gen:skill-docs --host all` and the free skill suite on this branch.
+
+| | Before | After |
+|---|---|---|
+| Registered skills | 69 | 72 |
+| Skills for solo-operator work | 0 | 3 |
+| Skill validation | 720 pass | 720 pass, 0 fail |
+| Hosts generated for | 12 | 12 |
+
+### What this means
+
+If you run a product alone, the gap in g6 was never the engineering. It was the operator work around it. `/solo-standup` at the start of a session tells you where you left off, `/cost-audit` answers "am I overpaying" without opening a single dashboard, and `/kill-switch` is the one you want to have run before the bad day, not during it. Run `/kill-switch` once this week while nothing is wrong, and fix the gaps it finds.
+
+### Itemized changes
+
+### Added
+- `/cost-audit` — burn-rate audit for a founder with no finance team. Inventories the recurring cost the codebase implies (cloud and deploy hosts, managed DB, auth, storage, queue, email and SMS, LLM and AI API spend, third-party SaaS, payment processing), estimates a rough monthly total, and hunts waste: idle tiers, missing caching that inflates API bills, always-on that could be serverless, free-tier swaps. Quick and full modes. Estimates from code and config, not from your invoices.
+- `/solo-standup` — a daily standup for a team of one. Shipped / In progress / Blocked assembled from commits, merged and open PRs, uncommitted work, TODOs and FIXMEs, saved context, failing CI and stale branches, then picks the single highest-value thing to do today. Forward-looking companion to `/retro`'s weekly look back.
+- `/kill-switch` — emergency containment map for a founder with no ops team. Where secrets live and how to rotate them, feature flags and existing kill switches, deploy rollback, session and token revocation, payment pause, cutting off a compromised integration, plus an ordered playbook per situation (leaked key, breach, runaway cost, bad deploy) and the switches you are missing. Report-first. Covers the first five minutes; `/incident` is the full response.
+
+### Changed
+- README ties the skills into a founder's product loop rather than listing them by category alone.
+
+### Fixed
+- `/kill-switch`'s generated Codex description came in at 950 characters against a 900-character warning threshold. Tightened without dropping any routing trigger.
+
 ## [1.46.1.0] - 2026-08-17
 
 ## **`bun test` was passing while skipping a third of the suite.**
