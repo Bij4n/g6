@@ -671,20 +671,23 @@ export class BrowserManager {
     const page = this.pages.get(tabId);
     if (!page) throw new Error(`Tab ${tabId} not found`);
 
+    // Open the replacement BEFORE closing the last page, not after. Closing the
+    // final page takes Chromium down with it, so the old order raced: the browser
+    // could exit first, the disconnect listener would read that as a crash, and
+    // the daemon exited instead of handing back a blank tab.
+    const isLastTab = this.pages.size === 1;
+    if (isLastTab) await this.newTab();
+
     await page.close();
     this.pages.delete(tabId);
     this.tabSessions.delete(tabId);
     this.tabOwnership.delete(tabId);
 
-    // Switch to another tab if we closed the active one
+    // Switch to another tab if we closed the active one. When isLastTab ran,
+    // newTab() already pointed activeTabId at the replacement.
     if (tabId === this.activeTabId) {
       const remaining = [...this.pages.keys()];
-      if (remaining.length > 0) {
-        this.activeTabId = remaining[remaining.length - 1];
-      } else {
-        // No tabs left — create a new blank one
-        await this.newTab();
-      }
+      this.activeTabId = remaining.length > 0 ? remaining[remaining.length - 1] : 0;
     }
   }
 
