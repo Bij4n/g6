@@ -1,5 +1,40 @@
 # Changelog
 
+## [1.46.1.0] - 2026-08-17
+
+## **`bun test` was passing while skipping a third of the suite.**
+
+Seven browse suites ended their teardown with `setTimeout(() => process.exit(0), 500)`, a workaround for browsers that would not let the process exit. bun runs every test file in one process, so that timer did not tear down one suite, it killed the entire run half a second later with exit code 0. The suite printed no summary, 83 of 263 files never executed, and any failures it had already recorded went out with the process. Every commit made against a green `bun test` since that pattern landed was gated on a third less than it looked.
+
+The file it died in moved between runs, because it is a race between the timer and whatever happens to be running 500ms later. That is why this kept getting rediscovered as a different bug.
+
+### The numbers that matter
+
+Both columns are a full local `bun test` on the same Linux machine, before and after the fix. Reproduce with the `test` script in `package.json`.
+
+| | Before | After |
+|---|---|---|
+| Test files executed | 180 of 263 | 263 of 263 |
+| Files silently skipped | 83 | 0 |
+| Exit code with failures present | 0 | 1 |
+| Run summary printed | none | `Ran 4551 tests across 263 files` |
+| Suites that could kill the run | 10 | 0 |
+
+The 106 failures the suite now reports are not new. They were always failing, in files that either never ran or whose results were thrown away before the summary. `browse/test/sidebar-ux.test.ts` alone accounts for 73 of them and was already documented as pre-existing.
+
+### What this means
+
+`bun test` is the gate this project asks you to run before every commit, and it is the only place the full free suite runs at all: no GitHub workflow runs it on Linux or macOS. So this was not a CI cosmetic. A green run now means 263 files agreed, and a red one fails loudly instead of exiting 0. Expect your first run after upgrading to be red, and to show real work. Read the failures before you trust the previous green.
+
+### Itemized changes
+
+### Fixed
+- Browser suites no longer terminate the shared test process in `afterAll`. `batch`, `commands`, `compare-board`, `content-security`, `handoff`, `security-live-playwright`, and `snapshot` used `process.exit(0)` as teardown, which ended the whole run with a success code and no summary.
+- The three suites added in v1.46.0.0 (`ref-generation`, `click-ref-desync`, `fill-controlled-input`) awaited `bm.close()` directly, which is the other half of the same trap: `close()` races a 5s internal timeout against bun's 5s default hook timeout, so a slow browser fails the hook. `ref-generation.test.ts` was doing this on every full-suite run. v1.46.0.0 fixed this class for new suites but left the seven older ones and hit the timeout collision in its own fix.
+
+### For contributors
+- New `browse/test/teardown.ts` exports `closeBrowserQuietly()`. Any suite that calls `BrowserManager.launch()` should close through it rather than awaiting `close()` or exiting the process. It bounds the close under bun's hook timeout and swallows failures, so a browser that refuses to die is a leaked handle for the rest of the run instead of a red test.
+
 ## [1.46.0.0] - 2026-07-29
 
 ## **`browse click @e5` now clicks the element the snapshot showed you.**
