@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html>
+<head><title>Ref Depth Filter</title></head>
+<body>
+  <h1>Ref Depth Filter</h1>
+  <p id="log">none</p>
+
+  <!-- Two buttons named exactly "act". The first is nested deep enough that
+       `snapshot -d 1` filters it out of the output; the second sits at body
+       level and is kept. Both are still matched by
+       getByRole('button', {name:'act'}), so the kept button's nth() index has
+       to count the filtered one — otherwise -d silently rewires the ref to the
+       hidden button. -->
+  <nav>
+    <ul>
+      <li><button onclick="fire('deep-a')">act</button></li>
+    </ul>
+  </nav>
+
+  <button onclick="fire('shallow-b')">act</button>
+
+  <script>
+    function fire(which) { document.getElementById('log').textContent = which; }
+  </script>
+</body>
+</html>

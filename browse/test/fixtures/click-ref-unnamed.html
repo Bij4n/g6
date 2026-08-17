@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<html>
+<head><title>Click Ref Unnamed</title></head>
+<body>
+  <h1>Ref Unnamed</h1>
+  <p id="log">none</p>
+
+  <!-- One named button, two icon-only buttons with no accessible name.
+       For unnamed nodes snapshot.ts passes `name: undefined`, so the locator
+       is getByRole('button') — which matches EVERY button on the page — while
+       the nth() index was counted over unnamed buttons only. -->
+  <button onclick="fire('submit')">Submit</button>
+  <button onclick="fire('icon-close')"><svg width="10" height="10"></svg></button>
+  <button onclick="fire('icon-menu')"><svg width="10" height="10"></svg></button>
+
+  <script>
+    function fire(which) { document.getElementById('log').textContent = which; }
+  </script>
+</body>
+</html>

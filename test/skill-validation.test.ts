@@ -2,6 +2,7 @@ import { describe, test, expect } from 'bun:test';
 import { validateSkill, extractRemoteSlugPatterns, extractWeightsFromTable } from './helpers/skill-parser';
 import { ALL_COMMANDS, COMMAND_DESCRIPTIONS, READ_COMMANDS, WRITE_COMMANDS, META_COMMANDS } from '../browse/src/commands';
 import { SNAPSHOT_FLAGS } from '../browse/src/snapshot';
+import { externalSkillName } from '../scripts/resolvers/codex-helpers';
 import * as fs from 'fs';
 import * as path from 'path';
 
@@ -1597,32 +1598,38 @@ describe('Codex skill validation', () => {
     cwd: ROOT, stdout: 'pipe', stderr: 'pipe',
   });
 
-  // Discover all shared skills with templates.
+  // Discover all shared skills, including standalone SKILL.md sources.
   // Host-exclusive outside-voice skills are intentionally omitted here:
   // - /codex is Claude-only
   // - /claude is external-host-only
-  const CLAUDE_SKILLS_WITH_TEMPLATES = (() => {
-    const skills: string[] = [];
+  const SHARED_SKILLS = (() => {
+    const skills: Array<{ sourcePath: string; codexName: string }> = [];
     for (const entry of fs.readdirSync(ROOT, { withFileTypes: true })) {
       if (!entry.isDirectory() || entry.name.startsWith('.') || entry.name === 'node_modules') continue;
       if (entry.name === 'codex') continue; // Claude-only skill
       if (entry.name === 'claude') continue; // External-host-only skill
-      if (fs.existsSync(path.join(ROOT, entry.name, 'SKILL.md.tmpl'))) {
-        skills.push(entry.name);
-      }
+      const tmplPath = path.join(ROOT, entry.name, 'SKILL.md.tmpl');
+      const skillPath = path.join(ROOT, entry.name, 'SKILL.md');
+      const sourcePath = fs.existsSync(tmplPath) ? tmplPath : skillPath;
+      if (!fs.existsSync(sourcePath)) continue;
+
+      const source = fs.readFileSync(sourcePath, 'utf-8');
+      const nameMatch = source.match(/^name:\s*(.+)$/m);
+      const skillName = nameMatch ? nameMatch[1].trim() : entry.name;
+      const codexName = externalSkillName(entry.name, skillName);
+      skills.push({ sourcePath, codexName });
     }
     return skills;
   })();
 
   test('all skills (except /codex) have both Claude and Codex variants', () => {
-    for (const skillDir of CLAUDE_SKILLS_WITH_TEMPLATES) {
+    for (const skill of SHARED_SKILLS) {
       // Claude variant
-      const claudeMd = path.join(ROOT, skillDir, 'SKILL.md');
+      const claudeMd = skill.sourcePath.replace(/\.tmpl$/, '');
       expect(fs.existsSync(claudeMd)).toBe(true);
 
       // Codex variant
-      const codexName = skillDir.startsWith('gstack-') ? skillDir : `gstack-${skillDir}`;
-      const codexMd = path.join(AGENTS_DIR, codexName, 'SKILL.md');
+      const codexMd = path.join(AGENTS_DIR, skill.codexName, 'SKILL.md');
       expect(fs.existsSync(codexMd)).toBe(true);
     }
     // Root template has both too

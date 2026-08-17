@@ -113,20 +113,57 @@ export function parseSnapshotArgs(args: string[]): SnapshotOptions {
  *   - textbox "Name"
  *   - paragraph: Some text
  *   - combobox "Role":
+ *   - button "Delete \"Report\""      (name written with JSON.stringify)
+ *   - 'button "Filter: All"'          (whole key YAML-quoted)
+ *
+ * Playwright builds each node key as `role + JSON.stringify(name)`, then YAML-quotes
+ * the entire key when it contains `: `, ` #`, `{`, a backtick, and so on. Failing to
+ * parse one of those lines is NOT harmless: `getByRole` still matches the element, so
+ * an unparsed node silently shifts the nth() index of every later ref that shares its
+ * role — a real, visible, wrong element gets clicked. Names like "Status: Active" and
+ * `Delete "Q3 Report"` are ordinary, so both forms have to round-trip.
  */
 function parseLine(line: string): ParsedNode | null {
-  // Match: (indent)(- )(role)( "name")?( [props])?(: inline)?
-  const match = line.match(/^(\s*)-\s+(\w+)(?:\s+"([^"]*)")?(?:\s+(\[.*?\]))?\s*(?::\s*(.*))?$/);
+  const head = line.match(/^(\s*)-\s+(.*)$/);
+  if (!head) return null;
+  const indent = head[1].length;
+  let body = head[2];
+
+  // Unwrap a YAML single-quoted key, un-doubling '' back to '. Props and inline
+  // children sit outside the quotes, so keep whatever follows.
+  if (body.startsWith("'")) {
+    let unquoted = '';
+    let i = 1;
+    for (; i < body.length; i++) {
+      if (body[i] !== "'") { unquoted += body[i]; continue; }
+      if (body[i + 1] === "'") { unquoted += "'"; i++; continue; }
+      break;
+    }
+    if (i >= body.length) return null; // unterminated — not a node line
+    body = unquoted + body.slice(i + 1);
+  }
+
+  // Roles can contain hyphens (doc-abstract). The name allows backslash escapes.
+  const match = body.match(/^([\w-]+)(?:\s+"((?:[^"\\]|\\.)*)")?(?:\s+(\[.*?\]))?\s*(?::\s*(.*))?$/);
   if (!match) {
     // Skip metadata lines like "- /url: /a"
     return null;
   }
+
+  let name: string | null = match[2] ?? null;
+  if (name !== null) {
+    // The name was written with JSON.stringify, so unescape it. Without this,
+    // `exact: true` compares `Open C:\\temp` against the real name `Open C:\temp`
+    // and the ref resolves to nothing while claiming the element is gone.
+    try { name = JSON.parse(`"${name}"`); } catch { /* malformed — keep the raw capture */ }
+  }
+
   return {
-    indent: match[1].length,
-    role: match[2],
-    name: match[3] ?? null,
-    props: match[4] || '',
-    children: match[5]?.trim() || '',
+    indent,
+    role: match[1],
+    name,
+    props: match[3] || '',
+    children: match[4]?.trim() || '',
     rawLine: line,
   };
 }
@@ -167,22 +204,72 @@ export async function handleSnapshot(
   const output: string[] = [];
   let refCounter = 1;
 
-  // Track role+name occurrences for nth() disambiguation
-  const roleNameCounts = new Map<string, number>();
-  const roleNameSeen = new Map<string, number>();
+  // Occurrence counts for nth() disambiguation.
+  //
+  // The index handed to nth() MUST be counted over the same set of elements the
+  // locator matches, and getByRole matches two different sets depending on whether
+  // we pass a name:
+  //
+  //   named node   → getByRole(role, {name, exact: true})  → that role + that exact name
+  //   unnamed node → getByRole(role)                       → EVERY element of that role
+  //
+  // So unnamed nodes are counted per-role (named siblings included, because the
+  // locator matches them too) and named nodes per role+name. Getting this wrong
+  // indexes into a different population than it counted, and nth() suppresses
+  // strict mode, so the result is a click on a real, visible, wrong element.
+  //
+  // `exact: true` is what makes the named population match the count: without it
+  // getByRole's name option is a case-insensitive SUBSTRING match, so a count of
+  // the one button named "Save" would index into "Save", "Save draft", "Autosave".
+  const namedCounts = new Map<string, number>();
+  const roleCounts = new Map<string, number>();
+  const namedSeen = new Map<string, number>();
+  const roleSeen = new Map<string, number>();
+  const nameKeyOf = (node: ParsedNode) => `${node.role}:${node.name}`;
 
-  // First pass: count role+name pairs for disambiguation
-  for (const line of lines) {
-    const node = parseLine(line);
-    if (!node) continue;
-    const key = `${node.role}:${node.name || ''}`;
-    roleNameCounts.set(key, (roleNameCounts.get(key) || 0) + 1);
+  // Parse once. Both passes and the scope-root check below read the same nodes.
+  const nodes = lines.map(parseLine).filter((n): n is ParsedNode => n !== null);
+
+  // With -s, ariaSnapshot may include a node for the scope element itself, but
+  // `locator(sel).getByRole(...)` matches only its DESCENDANTS. Left in, the scope's
+  // own ref resolves to a descendant that shares its role, and every sibling ref
+  // shifts by one. Do not infer identity from indentation alone: when a generic
+  // scope is pruned and has exactly one accessible child, that child is also the
+  // sole indent-0 node. Intersect the candidate's role locator with rootLocator so
+  // we drop it only when it is the selected element itself.
+  let scopeRoot: ParsedNode | undefined;
+  const topLevelNodes = nodes.filter(node => node.indent === 0);
+  if (opts.selector && topLevelNodes.length === 1) {
+    const candidate = topLevelNodes[0];
+    const roleOptions: { name?: string; exact?: boolean } = candidate.name
+      ? { name: candidate.name, exact: true }
+      : {};
+    const candidateLocator = target.getByRole(candidate.role as any, roleOptions);
+    if (await rootLocator.and(candidateLocator).count() > 0) {
+      scopeRoot = candidate;
+    }
+  }
+  const refNodes = scopeRoot ? nodes.filter(n => n !== scopeRoot) : nodes;
+
+  // First pass: count both populations
+  for (const node of refNodes) {
+    if (node.name) {
+      const key = nameKeyOf(node);
+      namedCounts.set(key, (namedCounts.get(key) || 0) + 1);
+    }
+    roleCounts.set(node.role, (roleCounts.get(node.role) || 0) + 1);
   }
 
   // Second pass: assign refs and build locators
-  for (const line of lines) {
-    const node = parseLine(line);
-    if (!node) continue;
+  for (const node of refNodes) {
+    // Advance the occurrence counters for EVERY node, before any filter below can
+    // skip it. A filtered-out node is still matched by getByRole, so skipping it
+    // here would shift every later ref of the same role.
+    const nameKey = node.name ? nameKeyOf(node) : null;
+    const namedIndex = nameKey ? (namedSeen.get(nameKey) || 0) : 0;
+    if (nameKey) namedSeen.set(nameKey, namedIndex + 1);
+    const roleIndex = roleSeen.get(node.role) || 0;
+    roleSeen.set(node.role, roleIndex + 1);
 
     const depth = Math.floor(node.indent / 2);
     const isInteractive = INTERACTIVE_ROLES.has(node.role);
@@ -190,13 +277,8 @@ export async function handleSnapshot(
     // Depth filter
     if (opts.depth !== undefined && depth > opts.depth) continue;
 
-    // Interactive filter: skip non-interactive but still count for locator indices
-    if (opts.interactive && !isInteractive) {
-      // Still track for nth() counts
-      const key = `${node.role}:${node.name || ''}`;
-      roleNameSeen.set(key, (roleNameSeen.get(key) || 0) + 1);
-      continue;
-    }
+    // Interactive filter
+    if (opts.interactive && !isInteractive) continue;
 
     // Compact filter: skip elements with no name and no inline content that aren't interactive
     if (opts.compact && !isInteractive && !node.name && !node.children) continue;
@@ -206,25 +288,19 @@ export async function handleSnapshot(
     const indent = '  '.repeat(depth);
 
     // Build Playwright locator
-    const key = `${node.role}:${node.name || ''}`;
-    const seenIndex = roleNameSeen.get(key) || 0;
-    roleNameSeen.set(key, seenIndex + 1);
-    const totalCount = roleNameCounts.get(key) || 1;
+    const roleOptions: { name?: string; exact?: boolean } =
+      node.name ? { name: node.name, exact: true } : {};
+    let locator: Locator = opts.selector
+      ? target.locator(opts.selector).getByRole(node.role as any, roleOptions)
+      : target.getByRole(node.role as any, roleOptions);
 
-    let locator: Locator;
-    if (opts.selector) {
-      locator = target.locator(opts.selector).getByRole(node.role as any, {
-        name: node.name || undefined,
-      });
-    } else {
-      locator = target.getByRole(node.role as any, {
-        name: node.name || undefined,
-      });
-    }
-
-    // Disambiguate with nth() if multiple elements share role+name
+    // Disambiguate with nth() only when the matched population has more than one
+    // element — indices and counts both come from that same population.
+    const totalCount = nameKey
+      ? (namedCounts.get(nameKey) || 1)
+      : (roleCounts.get(node.role) || 1);
     if (totalCount > 1) {
-      locator = locator.nth(seenIndex);
+      locator = locator.nth(nameKey ? namedIndex : roleIndex);
     }
 
     refMap.set(ref, { locator, role: node.role, name: node.name || '' });

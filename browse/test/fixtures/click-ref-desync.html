@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<html>
+<head><title>Click Ref Desync</title></head>
+<body>
+  <h1>Ref Desync</h1>
+  <p id="log">none</p>
+
+  <!-- Two buttons named exactly "Save", one named "Save draft".
+       Snapshot counts role+name EXACTLY (2 x "Save"), but getByRole({name})
+       matches by SUBSTRING (3 buttons). The nth() index is therefore computed
+       over a different population than it indexes into. -->
+  <button id="btn-save-a" onclick="fire('save-a')">Save</button>
+  <button id="btn-save-draft" onclick="fire('save-draft')">Save draft</button>
+  <button id="btn-save-b" onclick="fire('save-b')">Save</button>
+
+  <script>
+    function fire(which) { document.getElementById('log').textContent = which; }
+  </script>
+</body>
+</html>

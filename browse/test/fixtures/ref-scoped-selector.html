@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html>
+<head><title>Ref Scoped Selector</title></head>
+<body>
+  <h1>Ref Scoped Selector</h1>
+  <p id="log">none</p>
+
+  <!-- Four buttons named exactly "Save", two in each region. `snapshot -s "#main"`
+       counts only the two inside #main, so the nth() index it hands out is an
+       index into #main — the locator must be scoped to #main too. Unscoped,
+       nth(1) would land on the second SIDEBAR button. -->
+  <div id="sidebar">
+    <button onclick="fire('sidebar-save-a')">Save</button>
+    <button onclick="fire('sidebar-save-b')">Save</button>
+  </div>
+
+  <div id="main">
+    <button onclick="fire('main-save-a')">Save</button>
+    <button onclick="fire('main-save-b')">Save</button>
+  </div>
+
+  <!-- A generic scope with one accessible descendant. The div is pruned from
+       ariaSnapshot, leaving the button as the only indent-zero node. -->
+  <div id="single">
+    <button onclick="fire('single-save')">Only action</button>
+  </div>
+
+  <script>
+    function fire(which) { document.getElementById('log').textContent = which; }
+  </script>
+</body>
+</html>

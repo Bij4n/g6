@@ -20,7 +20,7 @@ import { writeSecureFile, mkdirSecure } from './file-permissions';
 import { addConsoleEntry, addNetworkEntry, addDialogEntry, networkBuffer, type DialogEntry } from './buffers';
 import { validateNavigationUrl } from './url-validation';
 import { TabSession, type RefEntry } from './tab-session';
-import { resolveChromiumProfile, cleanSingletonLocks } from './config';
+import { resolveChromiumProfile, cleanSingletonLocks, killSingletonOrphan } from './config';
 
 /**
  * Detect whether GSTACK_CHROMIUM_PATH points at a custom Chromium build that
@@ -231,6 +231,7 @@ export class BrowserManager {
   }
 
   async launch() {
+    this.intentionalDisconnect = false;
     // ─── Extension Support ────────────────────────────────────
     // BROWSE_EXTENSIONS_DIR points to an unpacked Chrome extension directory.
     // Extensions only work in headed mode, so we use an off-screen window.
@@ -268,7 +269,13 @@ export class BrowserManager {
     });
 
     // Chromium crash → exit with clear message
+    const launchedBrowser = this.browser;
     this.browser.on('disconnected', () => {
+      // Keep this listener installed during graceful shutdown. With Bun and
+      // Playwright 1.58, removeAllListeners('disconnected') can prevent
+      // browser.close() from resolving. A browser replaced during handoff is
+      // intentional too: only the currently managed browser may crash us.
+      if (this.intentionalDisconnect || launchedBrowser !== this.browser) return;
       console.error('[browse] FATAL: Chromium process crashed or was killed. Server exiting.');
       console.error('[browse] Console/network logs flushed to .gstack/browse-*.log');
       process.exit(1);
@@ -578,23 +585,35 @@ export class BrowserManager {
 
   async close() {
     if (this.browser || (this.connectionMode === 'headed' && this.context)) {
+      this.intentionalDisconnect = true;
+      let timeout: ReturnType<typeof setTimeout> | null = null;
+      const closeWithTimeout = async (operation: Promise<unknown>): Promise<void> => {
+        try {
+          await Promise.race([
+            operation,
+            new Promise(resolve => { timeout = setTimeout(resolve, 5000); }),
+          ]);
+        } catch {
+          // Shutdown is best-effort. The daemon is exiting either way.
+        } finally {
+          if (timeout) clearTimeout(timeout);
+          timeout = null;
+        }
+      };
+
       if (this.connectionMode === 'headed') {
         // Headed/persistent context mode: close the context (which closes the browser)
-        this.intentionalDisconnect = true;
-        if (this.browser) this.browser.removeAllListeners('disconnected');
-        await Promise.race([
-          this.context ? this.context.close() : Promise.resolve(),
-          new Promise(resolve => setTimeout(resolve, 5000)),
-        ]).catch(() => {});
+        await closeWithTimeout(this.context ? this.context.close() : Promise.resolve());
       } else {
         // Launched mode: close the browser we spawned
-        this.browser.removeAllListeners('disconnected');
-        await Promise.race([
-          this.browser.close(),
-          new Promise(resolve => setTimeout(resolve, 5000)),
-        ]).catch(() => {});
+        await closeWithTimeout(this.browser.close());
       }
       this.browser = null;
+      this.context = null;
+      this.pages.clear();
+      this.tabSessions.clear();
+      this.tabOwnership.clear();
+      this.activeTabId = 0;
     }
   }
 
@@ -1284,7 +1303,6 @@ export class BrowserManager {
     let newContext: BrowserContext;
     try {
       const fs = require('fs');
-      const path = require('path');
       const extensionPath = this.findExtensionPath();
       const launchArgs = ['--hide-crash-restore-bubble'];
       if (extensionPath) {
@@ -1297,8 +1315,16 @@ export class BrowserManager {
         console.log('[browse] Handoff: extension not found — headed mode without side panel');
       }
 
-      const userDataDir = path.join(process.env.HOME || '/tmp', '.gstack', 'chromium-profile');
+      const userDataDir = resolveChromiumProfile();
       fs.mkdirSync(userDataDir, { recursive: true });
+
+      // An orphan Chromium still owning this profile's singleton (left when a
+      // failed daemon was killed without its Chromium child) makes this launch
+      // defer to it and exit — Playwright reports "Target.createTarget: Failed
+      // to open a new tab". Kill the orphan and clear stale locks, the same
+      // cleanup the connect path (cli.ts) does before launching.
+      await killSingletonOrphan(userDataDir);
+      cleanSingletonLocks(userDataDir);
 
       if (this.sandboxDisabled()) launchArgs.push('--no-sandbox');
       newContext = await chromium.launchPersistentContext(userDataDir, {
@@ -1346,8 +1372,8 @@ export class BrowserManager {
       this.isHeaded = true;
       this.dialogAutoAccept = false;  // User controls dialogs in headed mode
 
-      // 4. Close old headless browser (fire-and-forget)
-      oldBrowser.removeAllListeners('disconnected');
+      // 4. Close old headless browser (fire-and-forget). Its disconnect
+      // listener sees that it is no longer this.browser and exits quietly.
       oldBrowser.close().catch(() => {});
 
       return [

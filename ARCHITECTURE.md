@@ -189,7 +189,9 @@ Refs (`@e1`, `@e2`, `@c1`) are how the agent addresses page elements without wri
 1. Agent runs: $B snapshot -i
 2. Server calls Playwright's page.accessibility.snapshot()
 3. Parser walks the ARIA tree, assigns sequential refs: @e1, @e2, @e3...
-4. For each ref, builds a Playwright Locator: getByRole(role, { name }).nth(index)
+4. For each ref, builds a Playwright Locator:
+     named node   → getByRole(role, { name, exact: true }).nth(i)
+     unnamed node → getByRole(role).nth(i)
 5. Stores Map<string, RefEntry> on the BrowserManager instance (role + name + Locator)
 6. Returns the annotated tree as plain text
 
@@ -197,6 +199,26 @@ Later:
 7. Agent runs: $B click @e3
 8. Server resolves @e3 → Locator → locator.click()
 ```
+
+### Counting the population the locator matches
+
+`nth(i)` is only correct if `i` was counted over the same set of elements the locator matches, and `getByRole` matches two different sets depending on whether a name is passed:
+
+| Snapshot node | Locator | Matches |
+|---|---|---|
+| named (`button "Save"`) | `getByRole('button', { name: 'Save', exact: true })` | that role with that exact name |
+| unnamed (`button`) | `getByRole('button')` | every element of that role, named siblings included |
+
+So named nodes are counted per role+name, and unnamed nodes per role across their named siblings. `exact: true` is what makes the named count match the named population: without it `name` is a case-insensitive **substring** match, so a count of the one button named "Save" would index into "Save", "Save draft", and "Autosave".
+
+Two invariants fall out of the same rule:
+
+- **Every parsed node advances the counters, before the `-i` / `-c` / `-d` output filters run.** A node the snapshot doesn't print is still matched by `getByRole`, so skipping its count shifts every later ref of that role.
+- **Every node in the aria tree has to parse.** Playwright writes each key as `role + JSON.stringify(name)` and YAML-quotes the whole key when it contains `: `, ` #`, a brace, or a backtick. An unparsed line is not a dropped ref, it's a shifted one — the element still exists for `getByRole`, so every later ref of its role moves by one. Names like `Status: Active` and `Delete "Q3 Report"` are ordinary, so both forms round-trip, and names are unescaped before comparison so `exact: true` compares `Open C:\temp` and not `Open C:\\temp`.
+
+Getting this wrong fails *silently*, which is why it's worth the care: `nth()` suppresses Playwright's strict mode, so a mis-indexed ref clicks a real, visible, wrong element and reports success.
+
+With `-s <sel>`, `ariaSnapshot` emits a node for the scope element itself, but `locator(sel).getByRole(...)` matches only its descendants. The scope root therefore gets no ref — minting one made it resolve to a descendant sharing its role and shifted every sibling.
 
 ### Why Locators, not DOM mutation
 
@@ -212,6 +234,8 @@ Playwright Locators are external to the DOM. They use the accessibility tree (wh
 
 Refs are cleared on navigation (the `framenavigated` event on the main frame). This is correct — after navigation, all locators are stale. The agent must run `snapshot` again to get fresh refs. This is by design: stale refs should fail loudly, not click the wrong element.
 
+Refs are also **positional, not stable element ids**. `@e5` is a position in the last snapshot's output; take another snapshot and the same button may be `@e2`. So every new ref set bumps a generation counter on the `TabSession`, and the role+name of the last three superseded sets is retained (`REF_HISTORY_DEPTH`) so a reused number can be explained instead of merely rejected. Archived names are truncated to 80 chars: they are page-controlled, can run to ~900 chars, and the history now outlives the page it came from.
+
 ### Ref staleness detection
 
 SPAs can mutate the DOM without triggering `framenavigated` (e.g. React router transitions, tab switches, modal opens). This makes refs stale even though the page URL didn't change. To catch this, `resolveRef()` performs an async `count()` check before using any ref:
@@ -224,6 +248,8 @@ resolveRef(@e3) → entry = refMap.get("e3")
 ```
 
 This fails fast (~5ms overhead) instead of letting Playwright's 30-second action timeout expire on a missing element. The `RefEntry` stores `role` and `name` metadata alongside the Locator so the error message can tell the agent what the element was.
+
+A ref that isn't in the current set at all takes a different path. `explainMissingRef()` looks the number up in the generation history and reports what the ref used to be, whether a snapshot renumbered it or a navigation cleared it, and — only when role+name identified exactly one element in *both* the prior and the current set — which ref to look at instead. Both sides of that check matter: if the prior set held two "Delete" buttons, the ref never had a role+name identity to begin with, and naming a survivor would point the caller at the wrong row of a destructive action. The suggestion is hedged in the message for the same reason; role and name are not identity. Archived names cross into an error string that does **not** pass through the untrusted-content envelope that snapshot output gets, so they run through `escapeEnvelopeSentinels()` first.
 
 ### Cursor-interactive refs (@c)
 
