@@ -15,11 +15,19 @@
 
 import { describe, test, expect, beforeAll, afterAll } from 'bun:test';
 import { BrowserManager } from '../../browse/src/browser-manager';
-import { handleReadCommand } from '../../browse/src/read-commands';
-import { handleWriteCommand } from '../../browse/src/write-commands';
+import { handleReadCommand as _handleReadCommand } from '../../browse/src/read-commands';
+import { handleWriteCommand as _handleWriteCommand } from '../../browse/src/write-commands';
 import { generateCompareHtml } from '../src/compare';
 import * as fs from 'fs';
 import * as path from 'path';
+
+// Bridge the (cmd, args, bm) call shape these tests were written against to the
+// (cmd, args, session, bm) signature the handlers took in v0.15.16.0, matching the
+// wrapper the browse suites use.
+const handleReadCommand = (cmd: string, args: string[], b: BrowserManager) =>
+  _handleReadCommand(cmd, args, b.getActiveSession());
+const handleWriteCommand = (cmd: string, args: string[], b: BrowserManager) =>
+  _handleWriteCommand(cmd, args, b.getActiveSession(), b);
 
 let bm: BrowserManager;
 let baseUrl: string;
