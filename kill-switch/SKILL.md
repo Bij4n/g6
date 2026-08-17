@@ -4,13 +4,13 @@ preamble-tier: 2
 version: 1.0.0
 description: |
   Emergency containment map for a founder with no ops team. Inventories every lever
-  you can pull when something's on fire — where secrets live and how to rotate them,
-  feature flags and existing kill switches, deploy rollback commands, session/token
-  revocation, payment pause, and how to cut off a compromised integration — then
-  gives you an ordered playbook for the specific situation (leaked key, breach,
-  runaway cost, bad deploy). Report-first: nothing destructive runs without your
-  explicit confirmation. Also flags the switches you're MISSING so you can add them
-  before you need them. The first five minutes; /incident is the full response.
+  you can pull when something's on fire: where secrets live and how to rotate them,
+  feature flags and existing kill switches, deploy rollback, session/token
+  revocation, payment pause, cutting off a compromised integration. Then an ordered
+  playbook for the situation (leaked key, breach, runaway cost, bad deploy), and the
+  switches you're MISSING before you need them. Report-first: nothing destructive
+  runs without your explicit confirmation. The first five minutes; /incident is the
+  full response.
   Use when: "kill switch", "we're compromised", "leaked a key", "rotate secrets",
   "shut it down", "runaway costs", "roll back the deploy", "contain this",
   "emergency shutdown", "revoke access". (g6)
