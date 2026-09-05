@@ -448,6 +448,30 @@ run is the failure mode that teaches people to ignore the gate.
 
 ---
 
+### P2: three paid sidebar evals test endpoints that were deleted in v1.14.0.0
+
+**What:** `sidebar-navigate`, `sidebar-url-accuracy` and `sidebar-css-interaction` in
+`test/skill-e2e-sidebar.test.ts` POST to `/sidebar-session/new` and
+`/sidebar-command`. Both were ripped with the chat queue in ed1e4be. The server
+correctly answers 404, so all three fail on `expect(resp.status).toBe(200)` and have
+been failing since v1.14.0.0.
+
+**Why it matters:** same rot as sidebar-ux, but in the paid suite. They are
+`periodic` tier so they do not block CI, which is exactly why nobody noticed. Any
+change to `browse/src/server.ts` selects them, so they fail every eval run that
+touches the server and train you to expect three reds.
+
+**Also:** their touchfile entries in `test/helpers/touchfiles.ts:291-293` list
+`browse/src/sidebar-agent.ts`, a file that no longer exists, so that half of the
+diff-selection can never match.
+
+**How:** delete them, or rewrite against the PTY surface in `terminal-agent.ts` that
+replaced the queue. Verified 2026-09-05 that they fail identically on `main`.
+
+**Priority:** P2.
+
+---
+
 ### P2: `/sidebar-chat` is still in TUNNEL_PATHS
 
 **What:** `browse/src/server.ts:266` still lists `/sidebar-chat` in `TUNNEL_PATHS`,
