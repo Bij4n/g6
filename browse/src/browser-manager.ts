@@ -117,11 +117,16 @@ export class BrowserManager {
   private connectionMode: 'launched' | 'headed' = 'launched';
   private intentionalDisconnect = false;
 
-  // Called when the headed browser disconnects without intentional teardown
-  // (user closed the window). Wired up by server.ts to run full cleanup
-  // (sidebar-agent, state file, profile locks) before exiting with code 2.
-  // Returns void or a Promise; rejections are caught and fall back to exit(2).
-  public onDisconnect: (() => void | Promise<void>) | null = null;
+  // Called when the browser goes away without intentional teardown: the user
+  // closed a headed window (code 2), or Chromium crashed (code 1). Wired up by
+  // server.ts to run full cleanup (sidebar-agent, state file, profile locks)
+  // before exiting with the code it is handed.
+  //
+  // Being wired is also how BrowserManager knows it owns the process. The
+  // daemon always assigns this before launching; an embedded consumer (tests,
+  // library use) never does, and must not be killed because a browser died.
+  // Returns void or a Promise; rejections fall back to a direct exit.
+  public onDisconnect: ((code?: number) => void | Promise<void>) | null = null;
 
   getConnectionMode(): 'launched' | 'headed' { return this.connectionMode; }
 
@@ -276,9 +281,14 @@ export class BrowserManager {
       // browser.close() from resolving. A browser replaced during handoff is
       // intentional too: only the currently managed browser may crash us.
       if (this.intentionalDisconnect || launchedBrowser !== this.browser) return;
-      console.error('[browse] FATAL: Chromium process crashed or was killed. Server exiting.');
+      console.error('[browse] FATAL: Chromium process crashed or was killed.');
       console.error('[browse] Console/network logs flushed to .gstack/browse-*.log');
-      process.exit(1);
+      // No shutdown handler means we are embedded, not the daemon. Calling
+      // process.exit() here used to end whatever process hosted us — under
+      // `bun test` that is the entire run, which then reported exit 0 with no
+      // summary because the exit raced the reporter.
+      if (!this.onDisconnect) return;
+      this.notifyDisconnect(1);
     });
 
     const contextOptions: BrowserContextOptions = {
@@ -562,18 +572,7 @@ export class BrowserManager {
           process.exit(2);
           return;
         }
-        try {
-          const result = this.onDisconnect();
-          if (result && typeof (result as Promise<void>).catch === 'function') {
-            (result as Promise<void>).catch((err) => {
-              console.error('[browse] onDisconnect rejected:', err);
-              process.exit(2);
-            });
-          }
-        } catch (err) {
-          console.error('[browse] onDisconnect threw:', err);
-          process.exit(2);
-        }
+        this.notifyDisconnect(2);
       });
     }
 
@@ -664,6 +663,27 @@ export class BrowserManager {
     }
 
     return id;
+  }
+
+  /**
+   * Hand the daemon its shutdown signal. A rejecting or throwing handler must
+   * still bring the process down with the code it was given: a live server
+   * holding a dead browser is the wedged-daemon state that leaves an orphan on
+   * the port and produces EADDRINUSE on the next launch.
+   */
+  private notifyDisconnect(code: number): void {
+    try {
+      const result = this.onDisconnect?.(code);
+      if (result && typeof (result as Promise<void>).catch === 'function') {
+        (result as Promise<void>).catch((err) => {
+          console.error('[browse] onDisconnect rejected:', err);
+          process.exit(code);
+        });
+      }
+    } catch (err) {
+      console.error('[browse] onDisconnect threw:', err);
+      process.exit(code);
+    }
   }
 
   async closeTab(id?: number): Promise<void> {
@@ -1362,12 +1382,16 @@ export class BrowserManager {
         await newContext.setExtraHTTPHeaders(this.extraHeaders);
       }
 
-      // Register crash handler on new browser
+      // Register crash handler on new browser. Same contract as launch():
+      // ignore a browser we have since replaced, and only the daemon (the one
+      // consumer that wires onDisconnect) may end the process.
       if (this.browser) {
+        const handedOffBrowser = this.browser;
         this.browser.on('disconnected', () => {
-          if (this.intentionalDisconnect) return;
-          console.error('[browse] FATAL: Chromium process crashed or was killed. Server exiting.');
-          process.exit(1);
+          if (this.intentionalDisconnect || handedOffBrowser !== this.browser) return;
+          console.error('[browse] FATAL: Chromium process crashed or was killed.');
+          if (!this.onDisconnect) return;
+          this.notifyDisconnect(1);
         });
       }
 

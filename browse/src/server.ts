@@ -651,7 +651,7 @@ const browserManager = new BrowserManager();
 // When the user closes the headed browser window, run full cleanup
 // (kill sidebar-agent, save session, remove profile locks, delete state file)
 // before exiting with code 2. Exit code 2 distinguishes user-close from crashes (1).
-browserManager.onDisconnect = () => activeShutdown?.(2);
+browserManager.onDisconnect = (code = 2) => activeShutdown?.(code);
 let isShuttingDown = false;
 
 // Test if a port is available by binding and immediately releasing.
