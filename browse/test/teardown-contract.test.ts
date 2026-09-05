@@ -27,7 +27,9 @@ import * as fs from 'fs';
 import * as path from 'path';
 
 const ROOT = path.resolve(import.meta.dir, '..', '..');
-const TEST_DIRS = ['browse/test', 'design/test'];
+// Every root the gate runs. A BrowserManager suite added anywhere else
+// would leak a browser with this guard none the wiser.
+const TEST_DIRS = ['browse/test', 'design/test', 'test', 'make-pdf/test'];
 
 /** This file names the banned patterns in order to test for them. */
 const SELF = 'browse/test/teardown-contract.test.ts';
@@ -76,7 +78,9 @@ describe('browser teardown contract', () => {
     // Any optional-chained teardown call is a no-op waiting to happen.
     const offenders = testFiles().filter(rel => {
       const src = fs.readFileSync(path.join(ROOT, rel), 'utf-8');
-      return /\bbm\.\w+\?\.\(/.test(src);
+      // Match the method, not the receiver: nothing forces a suite to name
+      // its manager `bm`, and `await manager.cleanup?.()` is the same no-op.
+      return /\.(cleanup|close|closeBrowserQuietly|teardown)\?\.\(/.test(src);
     });
 
     expect(offenders).toEqual([]);

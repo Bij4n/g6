@@ -61,12 +61,6 @@ function sliceFrom(source: string, startMarker: string, length: number): string 
   return source.slice(startIdx, startIdx + length);
 }
 
-// ─── Sidebar HTML tests ──────────────────────────────────────────
-
-describe('sidebar HTML (sidepanel.html)', () => {
-  const html = fs.readFileSync(path.join(ROOT, '..', 'extension', 'sidepanel.html'), 'utf-8');
-
-});
 
 // ─── Sidebar CSS tests ──────────────────────────────────────────
 
@@ -585,7 +579,7 @@ describe('headed launch navigates to welcome page', () => {
     const bmSrc = fs.readFileSync(path.join(ROOT, 'src', 'browser-manager.ts'), 'utf-8');
     // browser-manager.ts should NOT navigate to /welcome because the server
     // isn't listening yet when launchHeaded() runs
-    const launchHeadedSection = sliceBetween(bmSrc, 'async launchHeaded(', '// Browser disconnect handler');
+    const launchHeadedSection = sliceBetween(bmSrc, 'async launchHeaded(', '// Headed mode defaults');
     expect(launchHeadedSection).not.toContain('/welcome');
   });
 });
