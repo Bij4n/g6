@@ -15,6 +15,7 @@
 
 import { describe, test, expect, beforeAll, afterAll } from 'bun:test';
 import { BrowserManager } from '../../browse/src/browser-manager';
+import { closeBrowserQuietly } from '../../browse/test/teardown';
 import { handleReadCommand as _handleReadCommand } from '../../browse/src/read-commands';
 import { handleWriteCommand as _handleWriteCommand } from '../../browse/src/write-commands';
 import { generateCompareHtml } from '../src/compare';
@@ -133,10 +134,10 @@ beforeAll(async () => {
   await bm.launch();
 });
 
-afterAll(() => {
+afterAll(async () => {
+  await closeBrowserQuietly(bm);
   try { server.stop(); } catch {}
   fs.rmSync(tmpDir, { recursive: true, force: true });
-  setTimeout(() => process.exit(0), 500);
 });
 
 // ─── The critical test: browser click → file on disk ─────────────
