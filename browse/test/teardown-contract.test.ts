@@ -35,16 +35,21 @@ const TEST_DIRS = ['browse/test', 'design/test', 'test', 'make-pdf/test'];
 const SELF = 'browse/test/teardown-contract.test.ts';
 
 /**
- * Suites that name process.exit for a reason other than teardown. Keep this
- * list short and justified — every entry is a file the guard stops protecting.
+ * The bodies of every afterAll/afterEach in a file, approximately: from the hook
+ * to its closing `});` at the same indent. Approximate is fine — this is a
+ * lint, and the failure it guards against (a process.exit in teardown) sits at
+ * the top of the hook, not nested deep inside it.
  */
-const EXIT_ALLOWLIST = new Map<string, string>([
-  ['browse/test/learnings-injection.test.ts', 'shell-injection payload passed to a spawned bash script'],
-  ['browse/test/server-no-import-side-effects.test.ts', 'process.exit(0) inside a spawned probe script, not a hook'],
-  ['browse/test/tab-isolation.test.ts', 'locates process.exit(0) in cli.ts source to slice a region'],
-  ['browse/test/sidebar-ux.test.ts', 'asserts cli.ts still exits when BROWSE_NO_AUTOSTART blocks'],
-  ['browse/test/browser-skill-commands.test.ts', 'process.exit(7) inside a fixture skill script'],
-]);
+function teardownHooks(src: string): string[] {
+  const hooks: string[] = [];
+  const re = /\b(afterAll|afterEach)\s*\(/g;
+  let m: RegExpExecArray | null;
+  while ((m = re.exec(src)) !== null) {
+    const close = src.indexOf('\n});', m.index);
+    hooks.push(src.slice(m.index, close === -1 ? m.index + 800 : close));
+  }
+  return hooks;
+}
 
 function testFiles(): string[] {
   return TEST_DIRS.flatMap(dir => {
@@ -82,11 +87,11 @@ describe('browser teardown contract', () => {
   test('no suite uses the process.exit teardown that truncates the whole run', () => {
     const offenders = testFiles().filter(rel => {
       const src = fs.readFileSync(path.join(ROOT, rel), 'utf-8');
-      // Match the hazard, not one shape of it. `afterAll(() => process.exit(0))`
-      // and `setTimeout(() => { process.exit(0); }, 500)` truncate the run just
-      // as thoroughly as the one arrow form this used to look for.
-      if (EXIT_ALLOWLIST.has(rel)) return false;
-      return /process\.exit\s*\(/.test(src);
+      // Look inside teardown hooks rather than at the whole file. Scanning
+      // everything meant an ever-growing allowlist: several suites name
+      // process.exit in a fixture script, a shell-injection payload, or an
+      // assertion about cli.ts source, and none of those truncate a run.
+      return teardownHooks(src).some(hook => /process\.exit\s*\(/.test(hook));
     });
 
     expect(offenders).toEqual([]);
