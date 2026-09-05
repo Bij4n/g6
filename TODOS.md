@@ -403,39 +403,77 @@ scope of that PR; deliberately deferred to keep PTY-import small.
 
 ## Testing
 
-## P0: 103 pre-existing free-suite failures, surfaced by v1.46.1.0
+## P1: what is left of the 103 free-suite failures
 
-**What:** `bun test` on main is red: 103 failures across 12 files, out of 4556 tests in 263 files. They are not new. Until v1.46.1.0 the suite exited 0 after ~180 of 263 files, so 83 files never ran and the failures it did record were discarded with the process. Fixing the reporting made them visible; nothing has fixed them.
+**Status 2026-09-05:** the suite completes now. It never did before: it exited 0
+after ~180 of 263 files with no summary line, so the failure count was whatever
+happened to be recorded before something called `process.exit()`. Fixed on
+`fix/stale-suite-assertions`; `bun run test` now reports
+`Ran 4487 tests across 265 files`, 4028 pass, **15 fail**, exit 1.
 
-**Where they are** (clean-load run, `main` @ 6b42f99):
+**What was actually wrong** (four defects, none of them the "stale assertions"
+the branch was named for):
 
-| Failures | File |
-|---|---|
-| 73 | `browse/test/sidebar-ux.test.ts` |
-| 12 | `browse/test/gstack-config.test.ts` |
-| 6 | `design/test/feedback-roundtrip.test.ts` |
-| 4 | `browse/test/server-auth.test.ts` |
-| 1 each | `combined-gate`, `watchdog`, `snapshot`, `sidebar-tabs`, `security-integration`, `gstack-update-check`, `daemon-mismatch-refuse`, `commands` |
+1. Three suites never closed their browser. `domain-skills-e2e` and `cdp-e2e`
+   called `await bm.cleanup?.()`, and BrowserManager has no `cleanup` method, so
+   optional chaining made it a no-op that never throws. `feedback-roundtrip` still
+   had the `process.exit(0)` teardown, invisible to the v1.46.1.0 sweep because
+   the `test` script never listed `design/test/`.
+2. `browser-manager.ts` called `process.exit()` from three crash handlers. Right
+   for the daemon, fatal for `bun test`. Now routed through `onDisconnect`, which
+   only the daemon wires. The daemon also gained its own cleanup back: the bare
+   exit had been skipping `cleanSingletonLocks()` and the state-file unlink, which
+   is the orphan-holding-the-port state behind the EADDRINUSE cascade.
+3. The gate ran under different limits than the project's own runner.
+   `scripts/test-free-shards.ts` uses `--max-concurrency=1 --timeout=10000`; the
+   `test` script took bun's 5s default. `snapshot.test.ts` passes 45/45 alone and
+   was losing 33 tests to that ceiling.
+4. `sidebar-ux` was 73 of the failures. Its subject was deleted in ed1e4be
+   (v1.14.0.0), not merely renamed. 745 of 1672 lines deleted, the six things that
+   had only moved re-anchored, and all 14 raw `slice(indexOf(...))` extractions
+   replaced with helpers that throw on a missing marker.
 
-**Why:** `bun test` is the pre-commit gate CLAUDE.md mandates, and it is the only place the full free suite runs at all (see the Infrastructure TODO on Actions never having run on this fork). A red gate that everyone learns to ignore is the same failure mode we just fixed, one layer up.
+**The 15 that remain:**
 
-**Diagnosed 2026-08-17. Four root causes, each a separate refactor the test never followed. No product bugs.**
+| n | file | verdict |
+|---|---|---|
+| 6 | `click-ref-desync` | 8/8 in isolation; fails only under full-run contention |
+| 3 | `handoff` | pre-existing, verified identical on main |
+| 1 | `combined-gate` (make-pdf) | `make-pdf/dist/pdf generate` exits non-zero |
+| 1 each | `sidebar-tabs`, `security-integration`, `gstack-update-check` | from the original singleton list, undiagnosed |
 
-| Block | n | Broke at | Root cause |
-|---|---|---|---|
-| `sidebar-ux` | 73 | `ed1e4be` v1.14.0.0 | Moved `spawnClaude` to `terminal-agent.ts` and `systemPrompt` to `security.ts`, and deleted `sidebar-agent.ts`. Test still reads `src/server.ts` and the deleted file. |
-| `feedback-roundtrip` | 6 | `1868636` v0.15.16.0 | `handleWriteCommand` gained `session: TabSession` as its 3rd param. The design test imports it directly and passes `bm` there, so `session.clearLoadedHtml is not a function`. Browse tests use a local wrapper; this one never got it. |
-| `server-auth` | 4 | (marker removed) | `sliceBetween` anchors on a `Sidebar endpoints` comment that no longer exists in `server.ts`. Throws `End marker not found`. |
-| `gstack-config` | 3-12 | `22a4451` v1.3.0.0 | Added a built-in defaults table, so `get auto_upgrade` on a missing file correctly returns `false`. Test still asserts the pre-defaults `""`. Product is right, test is stale. |
+**Priority:** P1. The gate is trustworthy enough to block on now; these are the
+long tail. Do `click-ref-desync` first, since a flake that only fails in the full
+run is the failure mode that teaches people to ignore the gate.
 
-**The pattern, and why re-anchoring is the wrong fix.** Three of the four assert on *implementation shape* (source-file text, an internal function signature) rather than behavior. `sidebar-ux` is the worst: it extracts a region with `serverSrc.slice(indexOf(marker), ...)`, and when the marker is gone `indexOf` returns -1 and the slice yields `""`. Every `toContain` then fails, and every `not.toContain` **passes vacuously**. So that file is not merely 73 red tests, it is also an unknown number of green ones asserting nothing. Updating the string anchors would restore the green and rebuild the same trap. Prefer deleting tests that cover deleted code and rewriting the rest against behavior. `server-auth` is the one to copy: it throws loudly on a missing marker instead of silently slicing.
+---
 
-**Watch out for:** `browse/test/stealth-webdriver.test.ts` passes 8/8 in isolation but sometimes fails under full-suite concurrency. Counts drift 103-107 between runs, and a loaded machine inflates them badly (one run under ~3.6x load reported 215 fail / 94 errors). Baseline on a quiet machine, and confirm any single failure in isolation before believing it.
+### P2: `/sidebar-chat` is still in TUNNEL_PATHS
 
-**Also found:** the `test` script lists `browse/test/ test/ make-pdf/test/`, but bun treats positional args as path *filters*, so `design/test/` is swept in too (4 files, including `feedback-roundtrip`). Either intend that and document it, or scope the args.
+**What:** `browse/src/server.ts:266` still lists `/sidebar-chat` in `TUNNEL_PATHS`,
+the allowlist of paths reachable over the tunnel. The endpoint was ripped with the
+chat queue, so nothing serves it and the entry is inert today.
 
-**Priority:** P0.
-**Effort:** M. `feedback-roundtrip` and `server-auth` are ~15 min each. `gstack-config` is a 3-line expectation update. `sidebar-ux` is the real work and is a scope decision (delete vs rewrite), not a typing exercise. Captured 2026-08-17 from the v1.46.1.0 test-runner fix; diagnosed same day.
+**Why it matters:** the set's own comment says "Updating this set is a deliberate
+security decision. Every addition widens the tunnel attack surface." A stale entry
+for a removed path is harmless right up until someone reuses the path, at which
+point it is exposed over the tunnel without anyone deciding that.
+
+**Priority:** P2. One-line deletion, but it is product code in a security-relevant
+allowlist, so it wants its own review.
+
+---
+
+### P3: dead sidepanel CSS for ripped UI
+
+**What:** `extension/sidepanel.css` still carries `.browser-tabs`, `.browser-tab`,
+`.browser-tab.active`, `.stop-btn`, `.agent-tool` and `.experimental-banner` rules.
+The elements they style came out of sidepanel.{html,js} with the chat queue.
+
+**Context:** the tests guarding the tab-bar rules were deleted 2026-09-05, so
+nothing pins this CSS any more. Found while repairing sidebar-ux.
+
+**Priority:** P3. Dead weight, no behaviour.
 
 ---
 
