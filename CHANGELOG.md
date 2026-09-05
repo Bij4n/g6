@@ -1,5 +1,47 @@
 # Changelog
 
+## [1.48.0.0] - 2026-09-05
+
+## **Closing a tab no longer closes your browser, and a crashed Chromium no longer leaves a daemon squatting on the port.**
+
+Two things could go wrong in a g6 Browser session and both were hard to see. Running `$B tab close` on your second-to-last tab could take Chromium down and shut the daemon with it, because a page opened through `newTab()` was being tracked twice in headed mode and the last-tab check read one too many. It even logged "user closed or crashed" for a close your agent initiated, which is how it stayed misdiagnosed. Separately, when Chromium genuinely crashed the daemon exited without clearing its state file or profile locks, so the next launch hit `EADDRINUSE` and you got an orphan process instead of a browser.
+
+Both are fixed, and the crash path now runs the full shutdown before it exits.
+
+The rest of this release is the test gate. `bun test` had never actually finished. It exited 0 after about 180 of 265 files with no summary line, so every failure count anyone had quoted was whatever got recorded before something called `process.exit()`. Three suites leaked the browser they launched, one of them through `await bm.cleanup?.()` on a method that does not exist, which optional chaining turns into a silent no-op. The gate also ran browser tests against a 5s ceiling the project's own shard runner had already decided was too tight.
+
+### The numbers that matter
+
+| | Before | After |
+|---|---|---|
+| `bun test` completes | never | 4491 tests across 266 files |
+| Reported failures | 103 (from a truncated run) | 15, each with a receipt |
+| Files that actually ran | ~180 of 265 | 266 of 266 |
+| Exit code when red | 0 | 1 |
+| `process.exit()` on the crash path | 3 hand-rolled handlers | 0 |
+
+### What this means
+
+The pre-commit gate CLAUDE.md mandates is worth running again. A red gate that everyone learns to ignore is the same failure mode as a green one that never ran, and this was both. The 15 that remain are the honest long tail: 6 in `click-ref-desync` that pass 8/8 alone and only fail under full-run contention, a few in `handoff` that fail identically on main, and the singletons, all filed in TODOS with what is known about each. The contention-only ones move between runs, which is itself worth fixing next.
+
+If you drive a headed browser, upgrade for the tab-close fix alone.
+
+### Itemized changes
+
+### Fixed
+- `$B tab close` no longer takes down the headed browser and the daemon with it. In headed mode the context `page` listener adopts every new page, and Playwright fires that event for API-created pages too, so `newTab()` registered the same page twice and `closeTab`'s last-tab check missed the real last tab. Proven under xvfb with a real headed browser.
+- A crashed Chromium now runs the full shutdown before exiting, clearing the singleton locks and the state file. The old bare `process.exit(1)` skipped both, leaving the orphan-on-the-port state behind `EADDRINUSE`.
+- An embedded daemon gets the crash handler too. `buildFetchHandler` accepts a caller-supplied browser manager and the module-level instance is not exported, so wiring only the module one left embedders surviving a crash with a dead browser.
+- A Chromium that dies during startup no longer wedges silently. The browser launches before the shutdown handler is installed, and the optional call in that window resolved to nothing, which read as a completed shutdown.
+- A tab id is never 0. `closeTab`'s fallback could set it, ids start at 1, and every later command then threw "No active page".
+- `browse` no longer exits the process that embeds it. The three Chromium crash handlers called `process.exit()` directly, which is right for the daemon and wrong for every other caller.
+
+### Changed
+- The free-suite gate runs with the same limits as the shard runner (`--max-concurrency=1 --timeout=10000`) and names `design/test/` explicitly instead of relying on bun treating it as a path filter. Both runners now enumerate the same roots, enforced by a test.
+
+### Removed
+- 745 lines of `sidebar-ux` tests covering the chat queue, per-tab context and browser tab bar that were deleted in v1.14.0.0 when the interactive PTY replaced them.
+
 ## [1.47.0.0] - 2026-08-17
 
 ## **Three skills for the jobs a solo founder has no team for: money, momentum, and the fire drill.**
