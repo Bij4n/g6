@@ -2,7 +2,8 @@
  * Browser lifecycle manager
  *
  * Chromium crash handling:
- *   browser.on('disconnected') → log error → process.exit(1)
+ *   browser.on('disconnected') → log error → onDisconnect(code) when the
+ *   daemon wired one; an embedded consumer is left alone (see registerCrashHandler)
  *   CLI detects dead server → auto-restarts on next command
  *   We do NOT try to self-heal — don't hide failure.
  *
@@ -17,6 +18,29 @@
 
 import { chromium, type Browser, type BrowserContext, type BrowserContextOptions, type Page, type Locator, type Cookie } from 'playwright';
 import { writeSecureFile, mkdirSecure } from './file-permissions';
+
+/** Chromium died on its own. */
+const CRASH_EXIT = 1;
+const CRASH_MESSAGE = [
+  '[browse] FATAL: Chromium process crashed or was killed.',
+  '[browse] Console/network logs flushed to .gstack/browse-*.log',
+];
+
+/** The user closed the headed window. Distinct from a crash so callers can tell. */
+const USER_CLOSE_EXIT = 2;
+const USER_CLOSE_MESSAGE = [
+  '[browse] Real browser disconnected (user closed or crashed).',
+  '[browse] Run `$B connect` to reconnect.',
+];
+
+/**
+ * How long a wired shutdown gets to finish before we stop waiting and exit.
+ * server.ts's shutdown() awaits buffer flushes and a browser close with no
+ * deadline of its own, and it early-returns when a shutdown is already in
+ * flight, so without this a stalled shutdown leaves the daemon on its port.
+ */
+const DISCONNECT_SHUTDOWN_GRACE_MS = 10_000;
+
 import { addConsoleEntry, addNetworkEntry, addDialogEntry, networkBuffer, type DialogEntry } from './buffers';
 import { validateNavigationUrl } from './url-validation';
 import { TabSession, type RefEntry } from './tab-session';
@@ -273,23 +297,7 @@ export class BrowserManager {
       ...(this.proxyConfig ? { proxy: this.proxyConfig } : {}),
     });
 
-    // Chromium crash → exit with clear message
-    const launchedBrowser = this.browser;
-    this.browser.on('disconnected', () => {
-      // Keep this listener installed during graceful shutdown. With Bun and
-      // Playwright 1.58, removeAllListeners('disconnected') can prevent
-      // browser.close() from resolving. A browser replaced during handoff is
-      // intentional too: only the currently managed browser may crash us.
-      if (this.intentionalDisconnect || launchedBrowser !== this.browser) return;
-      console.error('[browse] FATAL: Chromium process crashed or was killed.');
-      console.error('[browse] Console/network logs flushed to .gstack/browse-*.log');
-      // No shutdown handler means we are embedded, not the daemon. Calling
-      // process.exit() here used to end whatever process hosted us — under
-      // `bun test` that is the entire run, which then reported exit 0 with no
-      // summary because the exit raced the reporter.
-      if (!this.onDisconnect) return;
-      this.notifyDisconnect(1);
-    });
+    this.registerCrashHandler(this.browser, CRASH_EXIT, CRASH_MESSAGE);
 
     const contextOptions: BrowserContextOptions = {
       viewport: { width: this.currentViewport.width, height: this.currentViewport.height },
@@ -558,22 +566,9 @@ export class BrowserManager {
       await this.newTab();
     }
 
-    // Browser disconnect handler — exit code 2 distinguishes from crashes (1).
-    // Calls onDisconnect() to trigger full shutdown (kill sidebar-agent, save
-    // session, clean profile locks + state file) before exit. Falls back to
-    // direct process.exit(2) if no callback is wired up, or if the callback
-    // throws/rejects — never leave the process running with a dead browser.
+    // Exit code 2 distinguishes a user closing the window from a crash (1).
     if (this.browser) {
-      this.browser.on('disconnected', () => {
-        if (this.intentionalDisconnect) return;
-        console.error('[browse] Real browser disconnected (user closed or crashed).');
-        console.error('[browse] Run `$B connect` to reconnect.');
-        if (!this.onDisconnect) {
-          process.exit(2);
-          return;
-        }
-        this.notifyDisconnect(2);
-      });
+      this.registerCrashHandler(this.browser, USER_CLOSE_EXIT, USER_CLOSE_MESSAGE);
     }
 
     // Headed mode defaults
@@ -666,12 +661,46 @@ export class BrowserManager {
   }
 
   /**
+   * Install the disconnect listener for a browser this manager owns.
+   *
+   * All three launch paths share one rule. Ignore a browser we have since
+   * replaced (handoff swaps it) and ignore an intentional teardown, then report.
+   * Only the daemon ends the process: it is the one consumer that wires
+   * onDisconnect, and calling process.exit() from an embedded manager used to
+   * end whatever process hosted us — under `bun test` that is the entire run,
+   * which then reported exit 0 with no summary because the exit raced the
+   * reporter.
+   */
+  private registerCrashHandler(browser: Browser, code: number, lines: string[]): void {
+    // Keep this listener installed during graceful shutdown. With Bun and
+    // Playwright 1.58, removeAllListeners('disconnected') can prevent
+    // browser.close() from resolving.
+    const owned = browser;
+    browser.on('disconnected', () => {
+      if (this.intentionalDisconnect || owned !== this.browser) return;
+      for (const line of lines) console.error(line);
+      if (!this.onDisconnect) return;
+      this.notifyDisconnect(code);
+    });
+  }
+
+  /**
    * Hand the daemon its shutdown signal. A rejecting or throwing handler must
    * still bring the process down with the code it was given: a live server
    * holding a dead browser is the wedged-daemon state that leaves an orphan on
    * the port and produces EADDRINUSE on the next launch.
    */
   private notifyDisconnect(code: number): void {
+    // A handler that hangs, or that short-circuits because a shutdown is
+    // already flagged, resolves to nothing and never reaches the catch paths
+    // below. Without this the daemon sits on its port with a dead browser,
+    // which is the state the whole contract exists to prevent. unref'd so it
+    // never holds an otherwise-idle process open.
+    const watchdog = setTimeout(() => {
+      console.error('[browse] shutdown did not complete; exiting.');
+      process.exit(code);
+    }, DISCONNECT_SHUTDOWN_GRACE_MS);
+    watchdog.unref?.();
     try {
       const result = this.onDisconnect?.(code);
       if (result && typeof (result as Promise<void>).catch === 'function') {
@@ -1382,17 +1411,8 @@ export class BrowserManager {
         await newContext.setExtraHTTPHeaders(this.extraHeaders);
       }
 
-      // Register crash handler on new browser. Same contract as launch():
-      // ignore a browser we have since replaced, and only the daemon (the one
-      // consumer that wires onDisconnect) may end the process.
       if (this.browser) {
-        const handedOffBrowser = this.browser;
-        this.browser.on('disconnected', () => {
-          if (this.intentionalDisconnect || handedOffBrowser !== this.browser) return;
-          console.error('[browse] FATAL: Chromium process crashed or was killed.');
-          if (!this.onDisconnect) return;
-          this.notifyDisconnect(1);
-        });
+        this.registerCrashHandler(this.browser, CRASH_EXIT, CRASH_MESSAGE);
       }
 
       await this.restoreState(state);

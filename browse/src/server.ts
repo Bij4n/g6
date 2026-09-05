@@ -651,7 +651,12 @@ const browserManager = new BrowserManager();
 // When the user closes the headed browser window, run full cleanup
 // (kill sidebar-agent, save session, remove profile locks, delete state file)
 // before exiting with code 2. Exit code 2 distinguishes user-close from crashes (1).
-browserManager.onDisconnect = (code = 2) => activeShutdown?.(code);
+// start() launches the browser BEFORE buildFetchHandler assigns
+// activeShutdown, so a Chromium that dies during startup finds it null. The
+// optional call would then return undefined, which reads as a clean shutdown
+// and leaves the daemon up with a dead browser. Exit directly in that window.
+browserManager.onDisconnect = (code = 2) =>
+  activeShutdown ? activeShutdown(code) : process.exit(code);
 let isShuttingDown = false;
 
 // Test if a port is available by binding and immediately releasing.
@@ -1330,6 +1335,14 @@ export function buildFetchHandler(cfg: ServerConfig): ServerHandle {
   // module reference. Critical for embedders whose cfg.browserManager
   // differs from the module-level instance.
   activeShutdown = shutdown;
+
+  // Wire the crash handler on the cfg instance, not just the module-level one.
+  // BrowserManager treats "onDisconnect is set" as "the daemon owns this
+  // process, so a dead browser must take it down". An embedder supplies its own
+  // cfg.browserManager (the module instance is not exported), so wiring only
+  // that one left every embedded daemon silently surviving a Chromium crash:
+  // port still bound, auth token still live, no browser behind it.
+  cfgBrowserManager.onDisconnect = (code = 2) => shutdown(code);
 
   // Substitute cfgBrowserManager for module-level browserManager in the
   // dispatcher body so all browser-state reads/writes go through the cfg
