@@ -1455,7 +1455,39 @@ Linux cookie import shipped in v0.11.11.0 (Wave 3). Supports Chrome, Chromium, B
 
 ## Infrastructure
 
-## P0: GitHub Actions has never run on this fork
+## P1: 7 of 9 workflows target a runner this fork does not have
+
+**What:** Actions is enabled and firing (first runs ever: 2026-09-05, PR #15), but only
+the two workflows on GitHub-hosted runners complete. `windows-free-tests`
+(`windows-latest`) and the macOS leg of `make-pdf-gate` both passed in ~33s. Every
+workflow using `runs-on: ubicloud-standard-8` sits queued indefinitely:
+`actionlint`, `skill-docs`, `version-gate`, `pr-title-sync`, `evals`, `ci-image`,
+and the Linux leg of `make-pdf-gate`.
+
+**Why:** `GET /repos/Bij4n/g6/actions/runners` returns `total_count: 0`. Ubicloud is a
+third-party runner provider configured on the upstream `garrytan/gstack`; the fork
+inherited the workflow files but not the provider. A PR therefore cannot go green no
+matter how good the code is, which is the same "a green PR means only that nobody
+looked" failure this entry replaced, one layer along.
+
+**Options:** (a) point the lint-and-check jobs (`actionlint`, `version-gate`,
+`pr-title-sync`, `skill-docs`) at `ubuntu-latest` — they have no business needing an
+8-core machine and GitHub-hosted Linux is free here; (b) set Ubicloud up for the fork,
+which is the honest answer for `evals`, since that one also pulls
+`ghcr.io/Bij4n/g6/ci`, an image never built for this fork, so it needs a registry
+permission as well as a runner; (c) accept Windows + macOS as the CI you have.
+
+**Watch out for:** do not quietly downgrade `evals` to a free runner. It is the paid
+E2E gate and it wants the bigger machine.
+
+**Priority:** P1. Captured 2026-09-05 from the first CI run in the repo's history.
+
+---
+
+## ~~P0: GitHub Actions has never run on this fork~~ — RESOLVED 2026-09-05
+
+Fork opt-in accepted by the owner; `total_count` went 0 → 9 on PR #15. The follow-on
+runner problem is the P1 above.
 
 **What:** `GET /repos/Bij4n/g6/actions/runs` returns `total_count: 0`. Not "no runs recently" — zero workflow runs in the repository's entire history. PRs #1 through #12 all merged with no CI of any kind.
 
