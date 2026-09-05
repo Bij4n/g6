@@ -145,8 +145,25 @@ describe('the gate runs under the same limits as the shard runner', () => {
     expect(pkg.scripts.test).toContain(`--timeout=${FREE_TEST_TIMEOUT_MS}`);
   });
 
-  test('bun test runs serially, like the shard runner', () => {
+  test('bun test pins concurrency, like the shard runner', () => {
+    // This flag is a guard, not a speedup. bun's --max-concurrency only bounds
+    // test.concurrent() tests, and no free test is concurrent, so the
+    // 518s -> 320s win came from --timeout=10000 and the browser-leak fixes.
+    // Keeping it pinned means a future test.concurrent() in a suite that shares
+    // one browser process cannot quietly start interleaving.
     expect(pkg.scripts.test).toContain('--max-concurrency=1');
+  });
+
+  test('the shard runner enumerates the same roots the gate runs', () => {
+    // Two definitions of "the free suite" drifting apart is what hid
+    // design/test/feedback-roundtrip from the v1.46.1.0 teardown sweep.
+    const runnerSrc = fs.readFileSync(
+      path.join(import.meta.dir, '..', 'scripts', 'test-free-shards.ts'), 'utf-8',
+    );
+    const roots = (runnerSrc.match(/const TEST_ROOTS = \[([^\]]+)\]/) ?? [])[1] ?? '';
+    for (const root of roots.split(',').map(r => r.trim().replace(/['"]/g, '')).filter(Boolean)) {
+      expect(pkg.scripts.test).toContain(`${root}/`);
+    }
   });
 
   test('bun test names design/test explicitly', () => {
