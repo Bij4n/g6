@@ -488,33 +488,6 @@ allowlist, so it wants its own review.
 
 ---
 
-### P1: `$B tab close` can kill the headed browser and shut the daemon down
-
-**What:** `closeTab` decides "am I closing the last tab" with `this.pages.size === 1`
-(`browse/src/browser-manager.ts:727`). In headed mode `pages` overcounts, because a
-page created by `newTab()` is registered twice: once by the `context.on('page')`
-listener at `:541`, which Playwright also fires for API-created pages, and once by
-`newTab()` itself. So the guard misses the real last tab, `page.close()` takes
-Chromium down with it, and `onDisconnect(2)` shuts the daemon down.
-
-**Proven** 2026-09-05 by an adversarial review running a real `launchHeaded` under
-xvfb: open a tab, close the first, close the second, and Chromium exits. It is also
-mislabelled — the daemon exits with the user-closed code and logs "user closed or
-crashed" for an agent-initiated close, which is how it stays misdiagnosed.
-
-**Why it matters:** headless is unaffected (no context listener), which is why the
-whole free suite is green. The failure only shows up in the g6 Browser session a
-user is watching, on a routine command.
-
-**How:** decide on live pages (`this.context.pages().length`) rather than the map,
-and dedupe the `:541` listener when the page is already tracked. The duplicate also
-double-counts `getTabCount()`, burns tab ids, and wires `wirePageEvents` twice.
-
-**Priority:** P1. User-facing, proven, and the mislabelled exit code makes it hard
-to diagnose from logs.
-
----
-
 ### P2: handoff rollback exits the daemon while reporting success
 
 **What:** `browse/src/browser-manager.ts:1402-1435`. Step 3 swaps `this.browser` to
@@ -549,7 +522,8 @@ externally between the size check and the delete.
 covered code that is still shipping: `syncActiveTabByUrl` (still live at
 `browser-manager.ts:759`, and now with no caller in `browse/src/` — dead public API),
 and `context.on('page') tracks user-created tabs` plus `page close handler removes tab
-from pages map`, which are exactly the invariants the P1 above proves broken.
+from pages map`. Those tab-tracking invariants are now covered behaviourally by
+`browse/test/tab-tracking.test.ts`, added with the headed double-registration fix.
 
 **Correction:** an earlier version of this entry claimed the browser-tab elements came
 out of `sidepanel.{html,js}`. That is wrong for the HTML — `extension/sidepanel.html`

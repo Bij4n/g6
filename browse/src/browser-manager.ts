@@ -537,8 +537,10 @@ export class BrowserManager {
     };
     await this.context.addInitScript(indicatorScript);
 
-    // Track user-created tabs automatically (Cmd+T, link opens in new tab, etc.)
+    // Track user-created tabs automatically (Cmd+T, link opens in new tab, etc.).
+    // Fires for API-created pages too; newTab() reuses whatever id we assign here.
     this.context.on('page', (page) => {
+      if (this.findTabId(page) !== undefined) return;
       const id = this.nextTabId++;
       this.pages.set(id, page);
       this.tabSessions.set(id, new TabSession(page));
@@ -640,18 +642,25 @@ export class BrowserManager {
     }
 
     const page = await this.context.newPage();
-    const id = this.nextTabId++;
-    this.pages.set(id, page);
-    this.tabSessions.set(id, new TabSession(page));
+
+    // In headed mode the context 'page' listener has already adopted this page:
+    // Playwright fires that event for API-created pages too, not just for tabs
+    // the user opened. Registering it again gave one page two ids, so
+    // this.pages over-counted, closeTab's last-tab check missed the real last
+    // tab, and closing it took Chromium (and the daemon) down.
+    const adopted = this.findTabId(page);
+    const id = adopted ?? this.nextTabId++;
+    if (adopted === undefined) {
+      this.pages.set(id, page);
+      this.tabSessions.set(id, new TabSession(page));
+      this.wirePageEvents(page);
+    }
     this.activeTabId = id;
 
     // Record tab ownership for multi-agent isolation
     if (clientId) {
       this.tabOwnership.set(id, clientId);
     }
-
-    // Wire up console/network/dialog capture
-    this.wirePageEvents(page);
 
     if (normalizedUrl) {
       await page.goto(normalizedUrl, { waitUntil: 'domcontentloaded', timeout: 15000 });
@@ -725,6 +734,14 @@ export class BrowserManager {
     }
   }
 
+  /** The tab id already tracking this page, if any. */
+  private findTabId(page: Page): number | undefined {
+    for (const [id, tracked] of this.pages) {
+      if (tracked === page) return id;
+    }
+    return undefined;
+  }
+
   async closeTab(id?: number): Promise<void> {
     const tabId = id ?? this.activeTabId;
     const page = this.pages.get(tabId);
@@ -734,8 +751,11 @@ export class BrowserManager {
     // final page takes Chromium down with it, so the old order raced: the browser
     // could exit first, the disconnect listener would read that as a crash, and
     // the daemon exited instead of handing back a blank tab.
-    const isLastTab = this.pages.size === 1;
-    if (isLastTab) await this.newTab();
+    // Count what Chromium actually has open. The map can hold stale entries for
+    // pages closed out from under us, and closing the last LIVE page is what
+    // takes the browser down.
+    const livePages = this.context?.pages().length ?? this.pages.size;
+    if (livePages <= 1) await this.newTab();
 
     await page.close();
     this.pages.delete(tabId);
@@ -746,7 +766,14 @@ export class BrowserManager {
     // newTab() already pointed activeTabId at the replacement.
     if (tabId === this.activeTabId) {
       const remaining = [...this.pages.keys()];
-      this.activeTabId = remaining.length > 0 ? remaining[remaining.length - 1] : 0;
+      if (remaining.length > 0) {
+        this.activeTabId = remaining[remaining.length - 1];
+      } else {
+        // Should be unreachable now the replacement opens first, but 0 is not a
+        // valid id (ids start at 1), so every later command would throw
+        // "No active page" rather than recovering.
+        await this.newTab();
+      }
     }
   }
 
