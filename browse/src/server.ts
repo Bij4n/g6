@@ -664,6 +664,8 @@ browserManager.onDisconnect = (code = 2) => {
   process.exit(code);
 };
 let isShuttingDown = false;
+// Resolves only when a shutdown has actually finished its cleanup.
+let inFlightShutdown: Promise<void> | null = null;
 
 // Test if a port is available by binding and immediately releasing.
 // Uses net.createServer instead of Bun.serve to avoid a race condition
@@ -1298,8 +1300,15 @@ export function buildFetchHandler(cfg: ServerConfig): ServerHandle {
   // embedders that pass their own BrowserManager get correct teardown.
   // Module-level shutdown was deleted in v1.35.0.0.
   async function shutdown(exitCode: number = 0) {
+    // Hand back the in-flight shutdown rather than resolving to nothing. A
+    // caller that awaits this needs "the shutdown finished", not "someone else
+    // started one": BrowserManager clears its exit watchdog when this settles,
+    // so a bare return disarmed the watchdog while cleanup was still stuck.
+    if (inFlightShutdown) return inFlightShutdown;
     if (isShuttingDown) return;
     isShuttingDown = true;
+    let markDone: () => void = () => {};
+    inFlightShutdown = new Promise<void>(resolve => { markDone = resolve; });
 
     console.log('[browse] Shutting down...');
     try {
@@ -1323,6 +1332,7 @@ export function buildFetchHandler(cfg: ServerConfig): ServerHandle {
 
     cleanSingletonLocks(resolveChromiumProfile());
     safeUnlinkQuiet(config.stateFile);
+    markDone();
     process.exit(exitCode);
   }
 

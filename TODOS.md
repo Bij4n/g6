@@ -488,6 +488,67 @@ allowlist, so it wants its own review.
 
 ---
 
+### P2: buildFetchHandler grants exit authority to a manager it does not own
+
+**What:** `browse/src/server.ts` wires `cfgBrowserManager.onDisconnect` unconditionally
+inside `buildFetchHandler`. BrowserManager treats "onDisconnect is set" as "the daemon
+owns this process", so an injected manager belonging to a harness or a larger
+application now satisfies that check. If its shutdown takes longer than the 10s
+watchdog, or throws, or rejects, the host process exits.
+
+**The tension:** wiring only the module-level instance left embedders alive with a dead
+browser (fixed 2026-09-05). Wiring the cfg instance fixes that and creates this. A
+callback is not by itself evidence of process ownership.
+
+**How:** make exit authority explicit rather than inferred — an `ownsProcess` flag on
+the manager, or keep the hard-exit watchdog in the daemon entry point and let embedders
+opt in. Needs a decision on what `buildFetchHandler` implies about lifecycle.
+
+**Priority:** P2. Found by cross-model (Codex) adversarial review 2026-09-05.
+
+---
+
+### P2: a second buildFetchHandler call leaves two shutdowns competing
+
+**What:** `activeShutdown` is module-global and gets replaced by each
+`buildFetchHandler` call, while the `cfgBrowserManager.onDisconnect` installed by that
+call closes over its own `shutdown`. After a second build, module-level signals and the
+first manager's disconnect can target different shutdowns, and `isShuttingDown` is
+module-global so the older handle's shutdown becomes a silent no-op.
+
+**How:** retire the previous handle explicitly, or refuse a second build without one.
+
+**Priority:** P2. Found by cross-model (Codex) adversarial review 2026-09-05.
+
+---
+
+### P3: closeTab can select a dead tab as the new active one
+
+**What:** `closeTab` now counts live pages, which deliberately tolerates stale entries
+in `this.pages`, but the "switch to another tab" branch picks the next active id from
+that same map without checking liveness. With a newer stale entry present, closing the
+active live page can select a closed one, and every later command targets a dead page.
+
+**How:** prune closed entries, or pick the replacement from live tracked pages.
+
+**Priority:** P3. Found by cross-model (Codex) adversarial review 2026-09-05.
+
+---
+
+### P3: headed startup registers its crash handler after initialization
+
+**What:** in `launchHeaded` the crash handler is registered after several awaited steps,
+including a `newTab()`. A Chromium that dies during that window is not observed at all,
+so whether the daemon survives depends on the surrounding error handling rather than on
+the disconnect contract.
+
+**How:** register the handler immediately after the browser exists, before the awaited
+setup.
+
+**Priority:** P3. Found by cross-model (Codex) adversarial review 2026-09-05.
+
+---
+
 ### P2: handoff rollback exits the daemon while reporting success
 
 **What:** `browse/src/browser-manager.ts:1402-1435`. Step 3 swaps `this.browser` to

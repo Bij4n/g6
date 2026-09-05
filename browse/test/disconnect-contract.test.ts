@@ -90,6 +90,28 @@ describe('browser disconnect contract', () => {
     expect(resolved).toBe(true);
   });
 
+  test('two concurrent closes never strand the browser with zero pages', async () => {
+    // The live-page count is a snapshot, not a reservation. Before closeTab was
+    // serialized, two concurrent closes both read 2, both concluded they were
+    // not closing the last page, and both closed — Chromium lost its final page
+    // and took the daemon with it.
+    const bm = new BrowserManager();
+    await bm.launch();
+    await bm.newTab();
+
+    const crashes: number[] = [];
+    bm.onDisconnect = (code) => { crashes.push(code ?? -1); };
+
+    const ids = [...(bm as unknown as { pages: Map<number, unknown> }).pages.keys()];
+    await Promise.all(ids.map(id => bm.closeTab(id)));
+
+    expect(crashes).toEqual([]);
+    expect(bm.getTabCount()).toBeGreaterThan(0);
+
+    bm.onDisconnect = null;
+    await closeBrowserQuietly(bm);
+  });
+
   test('closing the last tab never looks like a crash', async () => {
     // The closeTab fix is an ORDERING fix: open the replacement before closing
     // the last page, so `pages` never hits zero and Chromium never exits under

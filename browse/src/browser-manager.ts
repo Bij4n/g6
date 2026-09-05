@@ -742,7 +742,22 @@ export class BrowserManager {
     return undefined;
   }
 
+  /**
+   * Serializes closeTab. The live-page count is a snapshot, not a reservation:
+   * two concurrent closes both read 2, both decide they are not closing the last
+   * page, and both close — Chromium loses its final page and the daemon goes
+   * with it, which is the failure the replacement-first ordering exists to stop.
+   */
+  private closeQueue: Promise<void> = Promise.resolve();
+
   async closeTab(id?: number): Promise<void> {
+    const run = this.closeQueue.then(() => this.closeTabExclusive(id));
+    // Keep the chain alive even when one close rejects.
+    this.closeQueue = run.then(() => {}, () => {});
+    return run;
+  }
+
+  private async closeTabExclusive(id?: number): Promise<void> {
     const tabId = id ?? this.activeTabId;
     const page = this.pages.get(tabId);
     if (!page) throw new Error(`Tab ${tabId} not found`);
