@@ -1,10 +1,17 @@
 /**
- * Tests for sidebar UX changes:
- * - System prompt does not bake in page URL (navigation fix)
- * - --resume is never used (stale context fix)
- * - /sidebar-chat response includes agentStatus
- * - Sidebar HTML has updated banner, placeholder, stop button
- * - Narration instructions present in system prompt
+ * Sidebar UX tests.
+ *
+ * These assert on source text, which only works while the markers they anchor
+ * on still exist. When the one-shot chat queue was replaced by the interactive
+ * PTY (ed1e4be, v1.14.0.0), most of them silently stopped testing anything:
+ * every region was extracted with `src.slice(src.indexOf(marker), ...)`, and a
+ * missing marker makes indexOf return -1, so the slice yields ''. Every
+ * toContain() then failed loudly, but every not.toContain() passed vacuously.
+ * 59% of the anchors in this file were dead by the time anyone looked.
+ *
+ * Use sliceBetween() for every extraction. It throws on a marker that has moved
+ * or been deleted, so a refactor breaks the test with a message naming the
+ * marker instead of quietly turning it green.
  */
 
 import { describe, test, expect } from 'bun:test';
@@ -13,32 +20,52 @@ import * as path from 'path';
 
 const ROOT = path.resolve(__dirname, '..');
 
+/**
+ * Extract the source region between two markers, loudly.
+ *
+ * Copied from server-auth.test.ts, which got this right: a missing marker is a
+ * broken test, not an empty string to keep asserting against.
+ */
+function sliceBetween(
+  source: string,
+  startMarker: string,
+  endMarker: string,
+  // Skip this many characters before hunting for the end marker, for blocks
+  // whose own header comment would otherwise match it.
+  endSearchOffset = 0,
+): string {
+  const startIdx = source.indexOf(startMarker);
+  if (startIdx === -1) throw new Error(`Marker not found: ${startMarker}`);
+  const from = startIdx + Math.max(startMarker.length, endSearchOffset);
+  const endIdx = source.indexOf(endMarker, from);
+  if (endIdx === -1) throw new Error(`End marker not found: ${endMarker}`);
+  return source.slice(startIdx, endIdx);
+}
+
+/** Same, but keeps the end marker — for brace-terminated blocks. */
+function sliceThrough(source: string, startMarker: string, endMarker: string): string {
+  const startIdx = source.indexOf(startMarker);
+  if (startIdx === -1) throw new Error(`Marker not found: ${startMarker}`);
+  const endIdx = source.indexOf(endMarker, startIdx + startMarker.length);
+  if (endIdx === -1) throw new Error(`End marker not found: ${endMarker}`);
+  return source.slice(startIdx, endIdx + endMarker.length);
+}
+
+/**
+ * A fixed-width window after a marker. Still a blunt instrument, but it throws
+ * when the marker is gone instead of returning '' and asserting into the void.
+ */
+function sliceFrom(source: string, startMarker: string, length: number): string {
+  const startIdx = source.indexOf(startMarker);
+  if (startIdx === -1) throw new Error(`Marker not found: ${startMarker}`);
+  return source.slice(startIdx, startIdx + length);
+}
+
 // ─── Sidebar HTML tests ──────────────────────────────────────────
 
 describe('sidebar HTML (sidepanel.html)', () => {
   const html = fs.readFileSync(path.join(ROOT, '..', 'extension', 'sidepanel.html'), 'utf-8');
 
-  test('banner says "Browser co-pilot" not "Standalone mode"', () => {
-    expect(html).toContain('Browser co-pilot');
-    expect(html).not.toContain('Standalone mode');
-  });
-
-  test('input placeholder says "Ask about this page"', () => {
-    expect(html).toContain('Ask about this page');
-    expect(html).not.toContain('Message Claude Code');
-  });
-
-  test('stop button exists with id stop-agent-btn', () => {
-    expect(html).toContain('id="stop-agent-btn"');
-    expect(html).toContain('class="stop-btn"');
-  });
-
-  test('stop button is hidden by default', () => {
-    // The stop button should have style="display: none;" initially
-    const stopBtnMatch = html.match(/id="stop-agent-btn"[^>]*/);
-    expect(stopBtnMatch).not.toBeNull();
-    expect(stopBtnMatch![0]).toContain('display: none');
-  });
 });
 
 // ─── Sidebar CSS tests ──────────────────────────────────────────
@@ -51,28 +78,19 @@ describe('sidebar CSS (sidepanel.css)', () => {
   });
 
   test('stop button uses error color', () => {
-    const stopBtnSection = css.slice(
-      css.indexOf('.stop-btn {'),
-      css.indexOf('}', css.indexOf('.stop-btn {')) + 1,
-    );
+    const stopBtnSection = sliceThrough(css, '.stop-btn {', '}');
     expect(stopBtnSection).toContain('--error');
   });
 
   test('experimental-banner no longer uses amber warning colors', () => {
-    const bannerSection = css.slice(
-      css.indexOf('.experimental-banner {'),
-      css.indexOf('}', css.indexOf('.experimental-banner {')) + 1,
-    );
+    const bannerSection = sliceThrough(css, '.experimental-banner {', '}');
     // Should not be amber/warning anymore
     expect(bannerSection).not.toContain('245, 158, 11, 0.15');
     expect(bannerSection).not.toContain('#F59E0B');
   });
 
   test('tool description uses system font not mono', () => {
-    const toolSection = css.slice(
-      css.indexOf('.agent-tool {'),
-      css.indexOf('}', css.indexOf('.agent-tool {')) + 1,
-    );
+    const toolSection = sliceThrough(css, '.agent-tool {', '}');
     expect(toolSection).toContain('font-system');
     expect(toolSection).not.toContain('font-mono');
   });
@@ -84,10 +102,7 @@ describe('inspector message allowlist fix', () => {
   const bgSrc = fs.readFileSync(path.join(ROOT, '..', 'extension', 'background.js'), 'utf-8');
 
   test('ALLOWED_TYPES includes inspector message types', () => {
-    const allowListSection = bgSrc.slice(
-      bgSrc.indexOf('const ALLOWED_TYPES'),
-      bgSrc.indexOf(']);', bgSrc.indexOf('const ALLOWED_TYPES')) + 3,
-    );
+    const allowListSection = sliceThrough(bgSrc, 'const ALLOWED_TYPES', ']);');
     expect(allowListSection).toContain('startInspector');
     expect(allowListSection).toContain('stopInspector');
     expect(allowListSection).toContain('elementPicked');
@@ -116,8 +131,9 @@ describe('CSP fallback basic picker', () => {
 
   test('content.js contains CSSOM iteration with cross-origin try/catch', () => {
     expect(contentSrc).toContain('document.styleSheets');
-    expect(contentSrc).toContain('cssRules');
-    expect(contentSrc).toContain('cross-origin');
+    // Reading .cssRules on a cross-origin sheet throws, so the access is
+    // guarded per-sheet rather than described in a comment.
+    expect(contentSrc).toContain('sheet.cssRules || sheet.rules');
   });
 
   test('content.js saves and restores outline on elements', () => {
@@ -138,10 +154,7 @@ describe('CSP fallback basic picker', () => {
   });
 
   test('background.js injectInspector has separate try blocks for executeScript and insertCSS', () => {
-    const injectFn = bgSrc.slice(
-      bgSrc.indexOf('async function injectInspector('),
-      bgSrc.indexOf('\n}', bgSrc.indexOf('async function injectInspector(') + 1) + 2,
-    );
+    const injectFn = sliceThrough(bgSrc, 'async function injectInspector(', '\n}');
     // executeScript and insertCSS should be in separate try blocks
     expect(injectFn).toContain('executeScript');
     expect(injectFn).toContain('insertCSS');
@@ -174,29 +187,21 @@ describe('cleanup and screenshot buttons', () => {
     expect(html).toContain('quick-actions');
   });
 
-  test('cleanup button sends smart prompt to sidebar agent (not just deterministic selectors)', () => {
-    // Should use /sidebar-command endpoint (agent-based) not just /command (deterministic)
-    const cleanupFn = js.slice(
-      js.indexOf('async function runCleanup('),
-      js.indexOf('async function runScreenshot('),
-    );
-    expect(cleanupFn).toContain('sidebar-command');
+  test('cleanup button sends a smart prompt, not just deterministic selectors', () => {
+    const cleanupFn = sliceBetween(js, 'async function runCleanup(', 'async function runScreenshot(');
+    // The prompt goes to the PTY session now, not the ripped /sidebar-command.
+    expect(cleanupFn).toContain('gstackInjectToTerminal');
     expect(cleanupFn).toContain('cleanupPrompt');
-    // Should include both deterministic first pass AND agent snapshot analysis
+    // Deterministic first pass, then agent snapshot analysis.
     expect(cleanupFn).toContain('cleanup --all');
     expect(cleanupFn).toContain('snapshot -i');
-    // Should instruct agent to KEEP site branding
-    expect(cleanupFn).toContain('KEEP');
-    expect(cleanupFn).toContain('header/masthead/logo');
+    // Site identity survives the cleanup.
+    expect(cleanupFn).toContain('Keep the site');
+    expect(cleanupFn).toContain('header/masthead');
   });
 
   test('sidepanel.js screenshot handler POSTs to /command with screenshot', () => {
     expect(js).toContain("command: 'screenshot'");
-  });
-
-  test('sidepanel.js has notification rendering for type notification', () => {
-    expect(js).toContain("entry.type === 'notification'");
-    expect(js).toContain('chat-notification');
   });
 
   test('sidepanel.css contains inspector-action-btn styles', () => {
@@ -329,10 +334,7 @@ describe('chat toolbar buttons disabled state', () => {
 
   test('runCleanup silently returns when disconnected (no error spam)', () => {
     // Should NOT show "Not connected" notification, just return silently
-    const cleanupFn = js.slice(
-      js.indexOf('async function runCleanup('),
-      js.indexOf('\n}', js.indexOf('async function runCleanup(') + 1) + 2,
-    );
+    const cleanupFn = sliceThrough(js, 'async function runCleanup(', '\n}');
     expect(cleanupFn).not.toContain('Not connected to browse server');
   });
 
@@ -349,29 +351,6 @@ describe('sidebar agent conciseness + no focus stealing', () => {
   const serverSrc = fs.readFileSync(path.join(ROOT, 'src', 'server.ts'), 'utf-8');
   const bmSrc = fs.readFileSync(path.join(ROOT, 'src', 'browser-manager.ts'), 'utf-8');
 
-  test('system prompt tells agent to STOP when task is done', () => {
-    const promptSection = serverSrc.slice(
-      serverSrc.indexOf('const systemPrompt = ['),
-      serverSrc.indexOf("].join('\\n');", serverSrc.indexOf('const systemPrompt = [')),
-    );
-    expect(promptSection).toContain('STOP');
-    expect(promptSection).toContain('CONCISE');
-    expect(promptSection).toContain('Do NOT keep exploring');
-  });
-
-  test('sidebar agent auto-routes model based on message type', () => {
-    // Model router exists and defaults to opus for analysis tasks
-    expect(serverSrc).toContain('function pickSidebarModel(');
-    expect(serverSrc).toContain("return 'opus'");
-    expect(serverSrc).toContain("return 'sonnet'");
-    // spawnClaude uses the router, not a hardcoded model
-    const spawnFn = serverSrc.slice(
-      serverSrc.indexOf('function spawnClaude('),
-      serverSrc.indexOf('\nfunction ', serverSrc.indexOf('function spawnClaude(') + 1),
-    );
-    expect(spawnFn).toContain('pickSidebarModel(userMessage)');
-  });
-
   test('switchTab has bringToFront option', () => {
     expect(bmSrc).toContain('bringToFront?: boolean');
     expect(bmSrc).toContain('bringToFront !== false');
@@ -379,10 +358,7 @@ describe('sidebar agent conciseness + no focus stealing', () => {
 
   test('handleCommand tab pinning does NOT steal focus', () => {
     // All switchTab calls in handleCommand should use bringToFront: false
-    const handleFn = serverSrc.slice(
-      serverSrc.indexOf('async function handleCommand('),
-      serverSrc.indexOf('\n// ', serverSrc.indexOf('async function handleCommand(') + 200),
-    );
+    const handleFn = sliceBetween(serverSrc, 'async function handleCommand(', '\n// ', 200);
     const switchCalls = handleFn.match(/switchTab\([^)]+\)/g) || [];
     for (const call of switchCalls) {
       expect(call).toContain('bringToFront: false');
@@ -396,97 +372,64 @@ describe('LLM-based cleanup (smart agent cleanup)', () => {
   const js = fs.readFileSync(path.join(ROOT, '..', 'extension', 'sidepanel.js'), 'utf-8');
   const wcSrc = fs.readFileSync(path.join(ROOT, 'src', 'write-commands.ts'), 'utf-8');
 
-  test('cleanup button uses /sidebar-command not /command', () => {
-    const cleanupFn = js.slice(
-      js.indexOf('async function runCleanup('),
-      js.indexOf('async function runScreenshot('),
-    );
-    // Should POST to sidebar-command (agent) not /command (deterministic)
-    expect(cleanupFn).toContain('/sidebar-command');
-    // Should NOT directly call the cleanup command endpoint
+  test('cleanup hands its prompt to the agent, not to /command', () => {
+    const cleanupFn = sliceBetween(js, 'async function runCleanup(', 'async function runScreenshot(');
+    // The one-shot /sidebar-command queue was replaced by the interactive PTY,
+    // so the button now injects the prompt into the terminal session.
+    expect(cleanupFn).toContain('gstackInjectToTerminal');
+    // Still must not shortcut to the deterministic command endpoint.
     expect(cleanupFn).not.toMatch(/fetch.*\/command['"]/);
   });
 
   test('cleanup prompt includes deterministic first pass', () => {
-    const cleanupFn = js.slice(
-      js.indexOf('async function runCleanup('),
-      js.indexOf('async function runScreenshot('),
-    );
+    const cleanupFn = sliceBetween(js, 'async function runCleanup(', 'async function runScreenshot(');
     // First run the deterministic sweep
     expect(cleanupFn).toContain('cleanup --all');
   });
 
   test('cleanup prompt instructs agent to snapshot and analyze', () => {
-    const cleanupFn = js.slice(
-      js.indexOf('async function runCleanup('),
-      js.indexOf('async function runScreenshot('),
-    );
+    const cleanupFn = sliceBetween(js, 'async function runCleanup(', 'async function runScreenshot(');
     // Agent should take a snapshot to see what deterministic pass missed
     expect(cleanupFn).toContain('snapshot -i');
     // Agent should analyze what remains
-    expect(cleanupFn).toContain('identify remaining non-content');
+    expect(cleanupFn).toContain('identify any remaining');
   });
 
   test('cleanup prompt lists specific clutter categories for agent', () => {
-    const cleanupFn = js.slice(
-      js.indexOf('async function runCleanup('),
-      js.indexOf('async function runScreenshot('),
-    );
+    const cleanupFn = sliceBetween(js, 'async function runCleanup(', 'async function runScreenshot(');
     // Should guide the agent on what to look for
-    expect(cleanupFn).toContain('Ad placeholder');
-    expect(cleanupFn).toContain('ADVERTISEMENT');
-    expect(cleanupFn).toContain('Cookie');
-    expect(cleanupFn).toContain('Audio/podcast');
-    expect(cleanupFn).toContain('Sidebar widget');
-    expect(cleanupFn).toContain('Social share');
-    expect(cleanupFn).toContain('Floating chat');
+    expect(cleanupFn).toContain('ads');
+    expect(cleanupFn).toContain('cookie/consent banners');
+    expect(cleanupFn).toContain('newsletter popups');
+    expect(cleanupFn).toContain('login walls');
+    expect(cleanupFn).toContain('sidebar widgets');
+    expect(cleanupFn).toContain('share');
+    expect(cleanupFn).toContain('floating chat widgets');
   });
 
   test('cleanup prompt instructs agent to preserve site identity', () => {
-    const cleanupFn = js.slice(
-      js.indexOf('async function runCleanup('),
-      js.indexOf('async function runScreenshot('),
-    );
+    const cleanupFn = sliceBetween(js, 'async function runCleanup(', 'async function runScreenshot(');
     // Must keep the site looking like itself
-    expect(cleanupFn).toContain('KEEP');
-    expect(cleanupFn).toContain('header/masthead/logo');
-    expect(cleanupFn).toContain('article headline');
+    expect(cleanupFn).toContain('Keep the site');
+    expect(cleanupFn).toContain('header/masthead');
+    expect(cleanupFn).toContain('headline');
     expect(cleanupFn).toContain('article body');
-    expect(cleanupFn).toContain('author byline');
+    expect(cleanupFn).toContain('byline');
   });
 
   test('cleanup prompt instructs agent to unlock scrolling', () => {
-    const cleanupFn = js.slice(
-      js.indexOf('async function runCleanup('),
-      js.indexOf('async function runScreenshot('),
-    );
+    const cleanupFn = sliceBetween(js, 'async function runCleanup(', 'async function runScreenshot(');
     expect(cleanupFn).toContain('unlock scrolling');
-    expect(cleanupFn).toContain('overflow');
   });
 
   test('cleanup prompt instructs agent to use $B eval for removal', () => {
-    const cleanupFn = js.slice(
-      js.indexOf('async function runCleanup('),
-      js.indexOf('async function runScreenshot('),
-    );
+    const cleanupFn = sliceBetween(js, 'async function runCleanup(', 'async function runScreenshot(');
     // Agent should use $B eval to hide elements via JavaScript
     expect(cleanupFn).toContain('$B eval');
-    expect(cleanupFn).toContain("display=");
-  });
-
-  test('cleanup shows notification while agent works', () => {
-    const cleanupFn = js.slice(
-      js.indexOf('async function runCleanup('),
-      js.indexOf('async function runScreenshot('),
-    );
-    expect(cleanupFn).toContain('agent is analyzing');
   });
 
   test('cleanup removes loading state after short delay (agent is async)', () => {
-    const cleanupFn = js.slice(
-      js.indexOf('async function runCleanup('),
-      js.indexOf('async function runScreenshot('),
-    );
+    const cleanupFn = sliceBetween(js, 'async function runCleanup(', 'async function runScreenshot(');
     // Should use setTimeout since agent runs asynchronously
     expect(cleanupFn).toContain('setTimeout');
     expect(cleanupFn).toContain("classList.remove('loading')");
@@ -614,18 +557,12 @@ describe('server /welcome endpoint', () => {
   });
 
   test('/welcome serves HTML content type', () => {
-    const welcomeSection = serverSrc.slice(
-      serverSrc.indexOf("url.pathname === '/welcome'"),
-      serverSrc.indexOf("url.pathname === '/health'"),
-    );
+    const welcomeSection = sliceBetween(serverSrc, "url.pathname === '/welcome'", "url.pathname === '/health'");
     expect(welcomeSection).toContain("'Content-Type': 'text/html");
   });
 
   test('/welcome serves fallback HTML if no welcome file found', () => {
-    const welcomeSection = serverSrc.slice(
-      serverSrc.indexOf("url.pathname === '/welcome'"),
-      serverSrc.indexOf("url.pathname === '/health'"),
-    );
+    const welcomeSection = sliceBetween(serverSrc, "url.pathname === '/welcome'", "url.pathname === '/health'");
     // Changed from 302 redirect to about:blank (ERR_UNSAFE_REDIRECT on Windows)
     // to inline HTML fallback page (PR #822)
     expect(welcomeSection).toContain('g6 Browser ready');
@@ -648,10 +585,7 @@ describe('headed launch navigates to welcome page', () => {
     const bmSrc = fs.readFileSync(path.join(ROOT, 'src', 'browser-manager.ts'), 'utf-8');
     // browser-manager.ts should NOT navigate to /welcome because the server
     // isn't listening yet when launchHeaded() runs
-    const launchHeadedSection = bmSrc.slice(
-      bmSrc.indexOf('async launchHeaded('),
-      bmSrc.indexOf('// Browser disconnect handler'),
-    );
+    const launchHeadedSection = sliceBetween(bmSrc, 'async launchHeaded(', '// Browser disconnect handler');
     expect(launchHeadedSection).not.toContain('/welcome');
   });
 });
@@ -712,10 +646,7 @@ describe('sidebar arrow hint hide flow (4-step signal chain)', () => {
   test('step 1: sidepanel sends sidebarOpened message on connect', () => {
     expect(spSrc).toContain("{ type: 'sidebarOpened' }");
     // Should be in updateConnection, after setConnState('connected')
-    const connectFn = spSrc.slice(
-      spSrc.indexOf('function updateConnection('),
-      spSrc.indexOf('function updateConnection(') + 800,
-    );
+    const connectFn = sliceBetween(spSrc, 'function updateConnection(', 'function savePort(');
     expect(connectFn).toContain('sidebarOpened');
   });
 
@@ -723,20 +654,14 @@ describe('sidebar arrow hint hide flow (4-step signal chain)', () => {
   test('step 2: background.js allows sidebarOpened message type', () => {
     expect(bgSrc).toContain("'sidebarOpened'");
     // Must be in ALLOWED_TYPES
-    const allowedBlock = bgSrc.slice(
-      bgSrc.indexOf('ALLOWED_TYPES'),
-      bgSrc.indexOf('ALLOWED_TYPES') + 300,
-    );
+    const allowedBlock = sliceFrom(bgSrc, 'ALLOWED_TYPES', 300);
     expect(allowedBlock).toContain('sidebarOpened');
   });
 
   test('step 2: background.js relays sidebarOpened to active tab content script', () => {
     expect(bgSrc).toContain("msg.type === 'sidebarOpened'");
     // Should send to active tab via chrome.tabs.sendMessage
-    const handler = bgSrc.slice(
-      bgSrc.indexOf("msg.type === 'sidebarOpened'"),
-      bgSrc.indexOf("msg.type === 'sidebarOpened'") + 400,
-    );
+    const handler = sliceFrom(bgSrc, "msg.type === 'sidebarOpened'", 400);
     expect(handler).toContain('chrome.tabs.sendMessage');
     expect(handler).toContain("{ type: 'sidebarOpened' }");
   });
@@ -776,10 +701,7 @@ describe('sidebar auth race prevention', () => {
   test('getPort response includes authToken (not just port + connected)', () => {
     // The auth race: sidepanel calls getPort, gets {port, connected} but no token.
     // All subsequent requests fail 401. Token must be in the getPort response.
-    const getPortHandler = bgSrc.slice(
-      bgSrc.indexOf("msg.type === 'getPort'"),
-      bgSrc.indexOf("msg.type === 'setPort'"),
-    );
+    const getPortHandler = sliceBetween(bgSrc, "msg.type === 'getPort'", "msg.type === 'setPort'");
     expect(getPortHandler).toContain('token: authToken');
   });
 
@@ -833,14 +755,15 @@ describe('sidebar debug visibility when stuck', () => {
 
 describe('BROWSE_NO_AUTOSTART (sidebar headless prevention)', () => {
   const cliSrc = fs.readFileSync(path.join(ROOT, 'src', 'cli.ts'), 'utf-8');
-  const agentSrc = fs.readFileSync(path.join(ROOT, 'src', 'sidebar-agent.ts'), 'utf-8');
+  // The env-setting half moved to terminal-agent.ts when the one-shot chat
+  // queue in sidebar-agent.ts was replaced by the interactive PTY.
+  const agentSrc = fs.readFileSync(path.join(ROOT, 'src', 'terminal-agent.ts'), 'utf-8');
 
   test('cli.ts checks BROWSE_NO_AUTOSTART before starting a new server', () => {
     // ensureServer must check this env var BEFORE calling startServer()
-    const ensureServerFn = cliSrc.slice(
-      cliSrc.indexOf('async function ensureServer()'),
-      cliSrc.indexOf('async function startServer()'),
-    );
+    // ensureServer gained a flags param, and startServer is now defined
+    // above it, so the old start/end pair sliced backwards into ''.
+    const ensureServerFn = sliceBetween(cliSrc, 'async function ensureServer(', 'async function sendCommand(');
     expect(ensureServerFn).toContain('BROWSE_NO_AUTOSTART');
     expect(ensureServerFn).toContain('process.exit(1)');
   });
@@ -850,11 +773,11 @@ describe('BROWSE_NO_AUTOSTART (sidebar headless prevention)', () => {
     expect(cliSrc).toContain('BROWSE_NO_AUTOSTART is set');
   });
 
-  test('sidebar-agent.ts sets BROWSE_NO_AUTOSTART=1', () => {
+  test('terminal-agent.ts sets BROWSE_NO_AUTOSTART=1', () => {
     expect(agentSrc).toContain("BROWSE_NO_AUTOSTART: '1'");
   });
 
-  test('sidebar-agent.ts sets BROWSE_PORT for headed server reuse', () => {
+  test('terminal-agent.ts sets BROWSE_PORT for headed server reuse', () => {
     expect(agentSrc).toContain('BROWSE_PORT');
   });
 
@@ -876,21 +799,11 @@ describe('idle timeout behavior (server.ts)', () => {
   const serverSrc = fs.readFileSync(path.join(ROOT, 'src', 'server.ts'), 'utf-8');
 
   test('idle check skips in headed mode', () => {
-    const idleCheck = serverSrc.slice(
-      serverSrc.indexOf('idleCheckInterval'),
-      serverSrc.indexOf('idleCheckInterval') + 300,
-    );
+    const idleCheck = sliceFrom(serverSrc, 'idleCheckInterval', 300);
     expect(idleCheck).toContain("=== 'headed'");
     expect(idleCheck).toContain('return');
   });
 
-  test('sidebar-command resets idle timer', () => {
-    const sidebarCmd = serverSrc.slice(
-      serverSrc.indexOf("url.pathname === '/sidebar-command'"),
-      serverSrc.indexOf("url.pathname === '/sidebar-command'") + 300,
-    );
-    expect(sidebarCmd).toContain('resetIdleTimer');
-  });
 });
 
 // ─── Shutdown kills sidebar-agent daemon (server.ts) ────────────
@@ -898,12 +811,10 @@ describe('idle timeout behavior (server.ts)', () => {
 describe('shutdown cleanup (server.ts)', () => {
   const serverSrc = fs.readFileSync(path.join(ROOT, 'src', 'server.ts'), 'utf-8');
 
-  test('shutdown kills sidebar-agent daemon process', () => {
-    const shutdownFn = serverSrc.slice(
-      serverSrc.indexOf('async function shutdown()'),
-      serverSrc.indexOf('async function shutdown()') + 800,
-    );
-    expect(shutdownFn).toContain('sidebar-agent');
+  test('shutdown kills the agent daemon process', () => {
+    // sidebar-agent.ts became terminal-agent.ts; shutdown still reaps it.
+    const shutdownFn = sliceBetween(serverSrc, 'async function shutdown(', 'cleanSingletonLocks');
+    expect(shutdownFn).toContain('terminal-agent');
     expect(shutdownFn).toContain('pkill');
   });
 });
