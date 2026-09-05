@@ -17,16 +17,23 @@ import * as fs from 'fs';
 import * as path from 'path';
 import { BrowserManager } from '../src/browser-manager';
 import { closeBrowserQuietly } from './teardown';
+import { sliceBetween } from './source-slice';
 
 const SRC = path.resolve(import.meta.dir, '..', 'src');
 
 /** Drop the browser without going through BrowserManager.close(), which would
  *  set intentionalDisconnect and suppress the handler. This is what a crash
  *  looks like from the manager's point of view. */
-async function simulateCrash(bm: BrowserManager): Promise<void> {
+async function simulateCrash(bm: BrowserManager, settled?: () => boolean): Promise<void> {
   await (bm as unknown as { browser: { close(): Promise<void> } }).browser.close();
-  // The 'disconnected' event is emitted asynchronously.
-  await new Promise(resolve => setTimeout(resolve, 250));
+  // The 'disconnected' event is emitted asynchronously. Poll rather than sleep
+  // a fixed interval — a cold Chromium on a loaded box is exactly when a fixed
+  // wait turns this into a flake, and this suite is part of the gate now.
+  const deadline = Date.now() + 5000;
+  while (Date.now() < deadline) {
+    if (settled?.()) return;
+    await new Promise(resolve => setTimeout(resolve, 25));
+  }
 }
 
 describe('browser disconnect contract', () => {
@@ -37,7 +44,7 @@ describe('browser disconnect contract', () => {
     const codes: Array<number | undefined> = [];
     bm.onDisconnect = (code) => { codes.push(code); };
 
-    await simulateCrash(bm);
+    await simulateCrash(bm, () => codes.length > 0);
 
     // Code 1 is the crash code; 2 means a user closed a headed window.
     expect(codes).toEqual([1]);
@@ -48,10 +55,19 @@ describe('browser disconnect contract', () => {
     await bm.launch();
     // onDisconnect deliberately left null — this is the embedded case.
 
-    await simulateCrash(bm);
+    // Observe that the handler actually RAN and chose not to exit. Asserting
+    // only that the process survived is invisible to the reporter: on
+    // regression the run dies rather than naming a failed test.
+    const errors: string[] = [];
+    const realError = console.error;
+    console.error = (...args: unknown[]) => { errors.push(args.join(' ')); };
+    try {
+      await simulateCrash(bm, () => errors.some(e => e.includes('FATAL')));
+    } finally {
+      console.error = realError;
+    }
 
-    // Reaching this line at all is the assertion: before the fix the handler
-    // called process.exit(1) here and the run died without a summary.
+    expect(errors.some(e => e.includes('Chromium process crashed'))).toBe(true);
     expect(bm.onDisconnect).toBeNull();
 
     await closeBrowserQuietly(bm);
@@ -70,7 +86,7 @@ describe('browser disconnect contract', () => {
       resolved = true;
     };
 
-    await simulateCrash(bm);
+    await simulateCrash(bm, () => resolved);
     expect(resolved).toBe(true);
   });
 
@@ -99,21 +115,24 @@ describe('browser disconnect contract', () => {
 describe('crash handler registration', () => {
   const src = fs.readFileSync(path.join(SRC, 'browser-manager.ts'), 'utf-8');
 
-  test('every disconnect handler goes through the shared registrar', () => {
-    // launch(), launchHeaded() and handoff() each register one. They used to
-    // be three hand-rolled copies that drifted: one printed the log-flush line
+  test('no hand-rolled disconnect handler survives', () => {
+    // The point is not how many times the registrar is named — it is that
+    // nobody re-adds a bare listener. launch(), launchHeaded() and handoff()
+    // each had their own copy and they drifted: one printed the log-flush line
     // and the others did not, and launchHeaded still hard-exited when unwired
     // long after the other two stopped.
-    const registrations = src.match(/registerCrashHandler\(/g) ?? [];
-    // One definition plus three call sites.
-    expect(registrations.length).toBe(4);
+    const listeners = src.match(/\.on\('disconnected',/g) ?? [];
+    expect(listeners.length).toBe(1);
+    // ...and the one that exists lives inside the registrar.
+    const registrar = sliceBetween(src, 'private registerCrashHandler(', '\n  /**');
+    expect(registrar).toContain(".on('disconnected'");
   });
 
-  test('no disconnect handler calls process.exit directly', () => {
-    const handlers = src.match(/on\('disconnected', \(\) => \{[\s\S]*?\n {4}\}\)/g) ?? [];
-    for (const handler of handlers) {
-      expect(handler).not.toContain('process.exit');
-    }
+  test('the only process.exit on the crash path is the watchdog and its fallbacks', () => {
+    // The exits moved down into notifyDisconnect, so asserting the handler body
+    // is clean proves nothing on its own. Assert where they actually live.
+    const registrar = sliceBetween(src, 'private registerCrashHandler(', '\n  /**');
+    expect(registrar).not.toContain('process.exit');
   });
 });
 
@@ -127,10 +146,14 @@ describe('server wires the disconnect handler', () => {
     expect(serverSrc).toContain('cfgBrowserManager.onDisconnect =');
   });
 
-  test('a crash before activeShutdown is installed still exits', () => {
+  test('a crash before activeShutdown is installed still exits, and cleans up', () => {
     // start() launches the browser before buildFetchHandler assigns
     // activeShutdown, so the optional call would resolve to undefined and read
-    // as a clean shutdown.
-    expect(serverSrc).toContain('activeShutdown ? activeShutdown(code) : process.exit(code)');
+    // as a clean shutdown. Exiting bare is not enough either: the state file
+    // and singleton locks have to go, or the next launch hits EADDRINUSE.
+    const wiring = sliceBetween(serverSrc, 'browserManager.onDisconnect =', '\nlet isShuttingDown');
+    expect(wiring).toContain('activeShutdown(code)');
+    expect(wiring).toContain('emergencyCleanup()');
+    expect(wiring.indexOf('emergencyCleanup()')).toBeLessThan(wiring.indexOf('process.exit(code)'));
   });
 });

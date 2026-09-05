@@ -6,6 +6,7 @@
  */
 
 import { describe, test, expect } from 'bun:test';
+import { sliceBetween } from './source-slice';
 import * as fs from 'fs';
 import * as path from 'path';
 
@@ -13,13 +14,6 @@ const SERVER_SRC = fs.readFileSync(path.join(import.meta.dir, '../src/server.ts'
 const CLI_SRC = fs.readFileSync(path.join(import.meta.dir, '../src/cli.ts'), 'utf-8');
 
 // Helper: extract a block of source between two markers
-function sliceBetween(source: string, startMarker: string, endMarker: string): string {
-  const startIdx = source.indexOf(startMarker);
-  if (startIdx === -1) throw new Error(`Marker not found: ${startMarker}`);
-  const endIdx = source.indexOf(endMarker, startIdx + startMarker.length);
-  if (endIdx === -1) throw new Error(`End marker not found: ${endMarker}`);
-  return source.slice(startIdx, endIdx);
-}
 
 describe('Server auth security', () => {
   // Test 1: /health serves token conditionally (headed mode or chrome extension only)

@@ -18,51 +18,9 @@ import { describe, test, expect } from 'bun:test';
 import * as fs from 'fs';
 import * as path from 'path';
 
+import { sliceBetween, sliceThrough, sliceFrom } from './source-slice';
+
 const ROOT = path.resolve(__dirname, '..');
-
-/**
- * Extract the source region between two markers, loudly.
- *
- * Copied from server-auth.test.ts, which got this right: a missing marker is a
- * broken test, not an empty string to keep asserting against.
- */
-function sliceBetween(
-  source: string,
-  startMarker: string,
-  endMarker: string,
-  // Skip this many characters before hunting for the end marker, for blocks
-  // whose own header comment would otherwise match it.
-  endSearchOffset = 0,
-): string {
-  const startIdx = source.indexOf(startMarker);
-  if (startIdx === -1) throw new Error(`Marker not found: ${startMarker}`);
-  const from = startIdx + Math.max(startMarker.length, endSearchOffset);
-  const endIdx = source.indexOf(endMarker, from);
-  if (endIdx === -1) throw new Error(`End marker not found: ${endMarker}`);
-  return source.slice(startIdx, endIdx);
-}
-
-/** Same, but keeps the end marker — for brace-terminated blocks. */
-function sliceThrough(source: string, startMarker: string, endMarker: string): string {
-  const startIdx = source.indexOf(startMarker);
-  if (startIdx === -1) throw new Error(`Marker not found: ${startMarker}`);
-  const endIdx = source.indexOf(endMarker, startIdx + startMarker.length);
-  if (endIdx === -1) throw new Error(`End marker not found: ${endMarker}`);
-  return source.slice(startIdx, endIdx + endMarker.length);
-}
-
-/**
- * A fixed-width window after a marker. Still a blunt instrument, but it throws
- * when the marker is gone instead of returning '' and asserting into the void.
- */
-function sliceFrom(source: string, startMarker: string, length: number): string {
-  const startIdx = source.indexOf(startMarker);
-  if (startIdx === -1) throw new Error(`Marker not found: ${startMarker}`);
-  return source.slice(startIdx, startIdx + length);
-}
-
-
-// ─── Sidebar CSS tests ──────────────────────────────────────────
 
 describe('sidebar CSS (sidepanel.css)', () => {
   const css = fs.readFileSync(path.join(ROOT, '..', 'extension', 'sidepanel.css'), 'utf-8');
@@ -570,7 +528,10 @@ describe('headed launch navigates to welcome page', () => {
   test('server navigates to /welcome after startup in headed mode', () => {
     // Navigation must happen AFTER Bun.serve() starts (not during launchHeaded)
     // because the HTTP server needs to be listening before the browser requests /welcome
-    const afterServe = serverSrc.slice(serverSrc.indexOf('Bun.serve('));
+    // Anchor on the main server, not the first Bun.serve( in the file (that
+    // one is the tunnel listener), and stop at a real marker so a moved anchor
+    // throws instead of widening the window to end-of-file.
+    const afterServe = sliceBetween(serverSrc, 'const server = Bun.serve(', '// Clean up stale state files');
     expect(afterServe).toContain('/welcome');
     expect(afterServe).toContain("getConnectionMode() === 'headed'");
   });
@@ -670,8 +631,13 @@ describe('sidebar arrow hint hide flow (4-step signal chain)', () => {
     // The old pattern was: fire immediately when content script loads.
     // Now it should only fire when sidebarOpened message arrives.
     // Check there's no top-level dispatchEvent outside the message handler.
-    const beforeListener = contentSrc.slice(0, contentSrc.indexOf('chrome.runtime.onMessage'));
-    expect(beforeListener).not.toContain("dispatchEvent(new CustomEvent('gstack-extension-ready'))");
+    // Assert position, not a slice. content.js mentions chrome.runtime.onMessage
+    // in its header comment, so slicing to the first mention yielded comment
+    // text and this assertion could never fail.
+    const dispatch = contentSrc.indexOf("dispatchEvent(new CustomEvent('gstack-extension-ready'))");
+    const listener = contentSrc.indexOf('chrome.runtime.onMessage.addListener');
+    expect(listener).toBeGreaterThan(-1);
+    expect(dispatch).toBeGreaterThan(listener);
   });
 
   // Step 4: welcome page hides arrow on gstack-extension-ready
@@ -701,9 +667,7 @@ describe('sidebar auth race prevention', () => {
 
   test('tryConnect uses token from getPort response', () => {
     // Sidepanel must pass resp.token to updateConnection, not null
-    const start = spSrc.indexOf('function tryConnect()');
-    const end = spSrc.indexOf('\ntryConnect();', start); // top-level call after the function
-    const tryConnectFn = spSrc.slice(start, end);
+    const tryConnectFn = sliceBetween(spSrc, 'function tryConnect()', '\ntryConnect();');
     expect(tryConnectFn).toContain('resp.token');
     expect(tryConnectFn).not.toContain('updateConnection(url, null)');
   });
@@ -778,11 +742,11 @@ describe('BROWSE_NO_AUTOSTART (sidebar headless prevention)', () => {
   test('BROWSE_NO_AUTOSTART check happens before lock acquisition', () => {
     // The guard must be BEFORE the lock acquisition. If it's after,
     // we'd acquire a lock and then exit, leaving a stale lock file.
-    const ensureServerStart = cliSrc.indexOf('async function ensureServer()');
-    const noAutoStart = cliSrc.indexOf('BROWSE_NO_AUTOSTART', ensureServerStart);
-    const lockAcquisition = cliSrc.indexOf('Acquire lock', ensureServerStart);
-    expect(noAutoStart).toBeGreaterThan(0);
-    expect(lockAcquisition).toBeGreaterThan(0);
+    const fn = sliceBetween(cliSrc, 'async function ensureServer(', 'async function sendCommand(');
+    const noAutoStart = fn.indexOf('BROWSE_NO_AUTOSTART');
+    const lockAcquisition = fn.indexOf('Acquire lock');
+    expect(noAutoStart).toBeGreaterThan(-1);
+    expect(lockAcquisition).toBeGreaterThan(-1);
     expect(noAutoStart).toBeLessThan(lockAcquisition);
   });
 });

@@ -655,8 +655,14 @@ const browserManager = new BrowserManager();
 // activeShutdown, so a Chromium that dies during startup finds it null. The
 // optional call would then return undefined, which reads as a clean shutdown
 // and leaves the daemon up with a dead browser. Exit directly in that window.
-browserManager.onDisconnect = (code = 2) =>
-  activeShutdown ? activeShutdown(code) : process.exit(code);
+browserManager.onDisconnect = (code = 2) => {
+  if (activeShutdown) return activeShutdown(code);
+  // No shutdown installed yet. Exiting bare would leave the state file and the
+  // Chromium singleton locks behind, which is the orphan-on-the-port state that
+  // produces EADDRINUSE on the next launch.
+  emergencyCleanup();
+  process.exit(code);
+};
 let isShuttingDown = false;
 
 // Test if a port is available by binding and immediately releasing.

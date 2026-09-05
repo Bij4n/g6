@@ -488,16 +488,77 @@ allowlist, so it wants its own review.
 
 ---
 
-### P3: dead sidepanel CSS for ripped UI
+### P1: `$B tab close` can kill the headed browser and shut the daemon down
 
-**What:** `extension/sidepanel.css` still carries `.browser-tabs`, `.browser-tab`,
-`.browser-tab.active`, `.stop-btn`, `.agent-tool` and `.experimental-banner` rules.
-The elements they style came out of sidepanel.{html,js} with the chat queue.
+**What:** `closeTab` decides "am I closing the last tab" with `this.pages.size === 1`
+(`browse/src/browser-manager.ts:727`). In headed mode `pages` overcounts, because a
+page created by `newTab()` is registered twice: once by the `context.on('page')`
+listener at `:541`, which Playwright also fires for API-created pages, and once by
+`newTab()` itself. So the guard misses the real last tab, `page.close()` takes
+Chromium down with it, and `onDisconnect(2)` shuts the daemon down.
 
-**Context:** the tests guarding the tab-bar rules were deleted 2026-09-05, so
-nothing pins this CSS any more. Found while repairing sidebar-ux.
+**Proven** 2026-09-05 by an adversarial review running a real `launchHeaded` under
+xvfb: open a tab, close the first, close the second, and Chromium exits. It is also
+mislabelled — the daemon exits with the user-closed code and logs "user closed or
+crashed" for an agent-initiated close, which is how it stays misdiagnosed.
 
-**Priority:** P3. Dead weight, no behaviour.
+**Why it matters:** headless is unaffected (no context listener), which is why the
+whole free suite is green. The failure only shows up in the g6 Browser session a
+user is watching, on a routine command.
+
+**How:** decide on live pages (`this.context.pages().length`) rather than the map,
+and dedupe the `:541` listener when the page is already tracked. The duplicate also
+double-counts `getTabCount()`, burns tab ids, and wires `wirePageEvents` twice.
+
+**Priority:** P1. User-facing, proven, and the mislabelled exit code makes it hard
+to diagnose from logs.
+
+---
+
+### P2: handoff rollback exits the daemon while reporting success
+
+**What:** `browse/src/browser-manager.ts:1402-1435`. Step 3 swaps `this.browser` to
+the new headed browser before restoring state. If restore throws, the rollback closes
+`newContext` while `this.browser` still points at it and `intentionalDisconnect` is
+false, so the crash handler fires and the daemon exits with code 1 — on the path whose
+return string promises "Headless browser still running." The old headless browser is
+never closed either, so its Chromium leaks.
+
+**How:** restore `this.browser`/`this.context` (or set `intentionalDisconnect`) before
+closing `newContext`, and close the old browser if it cannot be recovered.
+
+**Priority:** P2. Found by adversarial review 2026-09-05.
+
+---
+
+### P3: `closeTab` can leave `activeTabId = 0`, which is never a valid id
+
+**What:** `browse/src/browser-manager.ts:739` falls back to `activeTabId = 0` when no
+tabs remain. `nextTabId` starts at 1, so 0 addresses nothing and every later command
+throws "No active page" from `getActiveSession()`. Same pattern in the `page.on('close')`
+handler. Reachable through the headed miscount above, and when a page is closed
+externally between the size check and the delete.
+
+**Priority:** P3. Found by adversarial review 2026-09-05.
+
+---
+
+### P3: the sidebar-ux deletion dropped some still-live coverage
+
+**What:** the 2026-09-05 deletion removed blocks for ripped features, but a few
+covered code that is still shipping: `syncActiveTabByUrl` (still live at
+`browser-manager.ts:759`, and now with no caller in `browse/src/` — dead public API),
+and `context.on('page') tracks user-created tabs` plus `page close handler removes tab
+from pages map`, which are exactly the invariants the P1 above proves broken.
+
+**Correction:** an earlier version of this entry claimed the browser-tab elements came
+out of `sidepanel.{html,js}`. That is wrong for the HTML — `extension/sidepanel.html`
+and `extension/sidepanel.css` still carry `.browser-tabs` markup and rules. The `.js`
+half is gone. The CSS and markup are dead weight, not evidence the feature is fully
+removed.
+
+**Priority:** P3. Restore behavioural coverage for the tab-tracking invariants when
+fixing the P1.
 
 ---
 

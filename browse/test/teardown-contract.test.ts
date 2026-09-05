@@ -34,6 +34,18 @@ const TEST_DIRS = ['browse/test', 'design/test', 'test', 'make-pdf/test'];
 /** This file names the banned patterns in order to test for them. */
 const SELF = 'browse/test/teardown-contract.test.ts';
 
+/**
+ * Suites that name process.exit for a reason other than teardown. Keep this
+ * list short and justified — every entry is a file the guard stops protecting.
+ */
+const EXIT_ALLOWLIST = new Map<string, string>([
+  ['browse/test/learnings-injection.test.ts', 'shell-injection payload passed to a spawned bash script'],
+  ['browse/test/server-no-import-side-effects.test.ts', 'process.exit(0) inside a spawned probe script, not a hook'],
+  ['browse/test/tab-isolation.test.ts', 'locates process.exit(0) in cli.ts source to slice a region'],
+  ['browse/test/sidebar-ux.test.ts', 'asserts cli.ts still exits when BROWSE_NO_AUTOSTART blocks'],
+  ['browse/test/browser-skill-commands.test.ts', 'process.exit(7) inside a fixture skill script'],
+]);
+
 function testFiles(): string[] {
   return TEST_DIRS.flatMap(dir => {
     const abs = path.join(ROOT, dir);
@@ -58,7 +70,10 @@ describe('browser teardown contract', () => {
   test('every BrowserManager suite closes it via closeBrowserQuietly', () => {
     const offenders = testFiles().filter(rel => {
       const src = fs.readFileSync(path.join(ROOT, rel), 'utf-8');
-      return launchesViaBrowserManager(src) && !src.includes('closeBrowserQuietly');
+      // Require the call, not the token. The bug this guards against was a
+      // suite that still LOOKED like it tore down (`await bm.cleanup?.()`);
+      // an unused import would read the same way.
+      return launchesViaBrowserManager(src) && !/await\s+closeBrowserQuietly\s*\(/.test(src);
     });
 
     expect(offenders).toEqual([]);
@@ -67,7 +82,11 @@ describe('browser teardown contract', () => {
   test('no suite uses the process.exit teardown that truncates the whole run', () => {
     const offenders = testFiles().filter(rel => {
       const src = fs.readFileSync(path.join(ROOT, rel), 'utf-8');
-      return /setTimeout\s*\(\s*\(\)\s*=>\s*process\.exit/.test(src);
+      // Match the hazard, not one shape of it. `afterAll(() => process.exit(0))`
+      // and `setTimeout(() => { process.exit(0); }, 500)` truncate the run just
+      // as thoroughly as the one arrow form this used to look for.
+      if (EXIT_ALLOWLIST.has(rel)) return false;
+      return /process\.exit\s*\(/.test(src);
     });
 
     expect(offenders).toEqual([]);

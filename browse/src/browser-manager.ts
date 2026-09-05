@@ -700,16 +700,26 @@ export class BrowserManager {
       console.error('[browse] shutdown did not complete; exiting.');
       process.exit(code);
     }, DISCONNECT_SHUTDOWN_GRACE_MS);
+    // unref keeps it from holding an idle loop open, but an unref'd timer still
+    // fires while other work runs. Left armed it would re-introduce a
+    // process.exit inside `bun test`, sourced from src/ where the teardown
+    // guard cannot see it. Clear it the moment the handler settles.
     watchdog.unref?.();
+    const settled = () => clearTimeout(watchdog);
     try {
       const result = this.onDisconnect?.(code);
-      if (result && typeof (result as Promise<void>).catch === 'function') {
-        (result as Promise<void>).catch((err) => {
+      if (result && typeof (result as Promise<void>).then === 'function') {
+        (result as Promise<void>).then(settled, (err) => {
+          settled();
           console.error('[browse] onDisconnect rejected:', err);
           process.exit(code);
         });
+      } else {
+        // A synchronous handler has nothing left to wait for.
+        settled();
       }
     } catch (err) {
+      settled();
       console.error('[browse] onDisconnect threw:', err);
       process.exit(code);
     }
