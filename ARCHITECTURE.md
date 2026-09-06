@@ -368,7 +368,24 @@ Playwright's native errors are rewritten through `wrapError()` to strip internal
 
 ### Crash recovery
 
-The server doesn't try to self-heal. If Chromium crashes (`browser.on('disconnected')`), the server exits immediately. The CLI detects the dead server on the next command and auto-restarts. This is simpler and more reliable than trying to reconnect to a half-dead browser process.
+The server doesn't try to self-heal. If Chromium crashes (`browser.on('disconnected')`), the server shuts down and the CLI auto-restarts it on the next command. Reconnecting to a half-dead browser process is neither simpler nor more reliable.
+
+Two details matter, because getting either wrong has already cost a release:
+
+**It shuts down, it does not exit on the spot.** The crash path runs the full
+`shutdown()` — flush buffers, close the browser, `cleanSingletonLocks()`, delete the
+state file — and only then exits, with code 1 to distinguish a crash from a user
+closing a headed window (code 2). A bare `process.exit()` here skips the lock and
+state-file cleanup, which leaves an orphan holding the port and produces `EADDRINUSE`
+on the next launch. An unref'd watchdog exits anyway if that shutdown stalls.
+
+**Only the daemon may end the process.** `BrowserManager` treats "`onDisconnect` is
+wired" as "I own this process"; `server.ts` wires it on both the module-level instance
+and the `cfg` instance inside `buildFetchHandler`. An embedded consumer — a test
+harness importing `BrowserManager`, or an application embedding the server — never
+wires it and is left alone. Calling `process.exit()` from an embedded manager used to
+end whatever process hosted it; under `bun test` that meant the entire run, which then
+reported exit 0 with no summary because the exit raced the reporter.
 
 ## E2E test infrastructure
 
