@@ -67,13 +67,30 @@ periodic tests run weekly via cron or manually. Use `EVALS_TIER=gate` or
 ## Testing
 
 ```bash
-bun test             # run before every commit — free, <2s
+bun run test         # run before every commit — free, ~5-6 min, ~4500 tests
 bun run test:evals   # run before shipping — paid, diff-based (~$4/run max)
 ```
 
-`bun test` runs skill validation, gen-skill-docs quality checks, and browse
+`bun run test` runs skill validation, gen-skill-docs quality checks, and browse
 integration tests. `bun run test:evals` runs LLM-judge quality evals and E2E
 tests via `claude -p`. Both must pass before creating a PR.
+
+**Reading the result — three things will mislead you:**
+
+1. **No `Ran N tests across M files` line means the run died early.** Everything runs
+   in one bun process, so any `process.exit()` reachable from a test ends it, racing
+   the reporter. Until v1.46.1.0 that produced exit 0 with no summary after ~180 of
+   265 files. Never trust a count without that line.
+2. **The failure count is not yet stable.** Nine runs of one commit spanned 10 to 26,
+   and which files fail moves too. Suite order determines the outcome; TODOS P1 has the
+   trigger and a 10-file reproducer. Do not quote one run's number as the result, and
+   do not attribute a swing to machine load without measuring — the quietest runs have
+   been the worst.
+3. **`--ignore <bare path>` silently matches nothing.** Only globs work. If you exclude
+   a suite, verify by test count, not by exit status.
+
+Suites pass alone and fail in the full run routinely. Confirm any single failure in
+isolation before believing it, and re-run on `main` before calling it pre-existing.
 
 ## Project structure
 
@@ -476,11 +493,29 @@ Repeat for each skill: `gstack-openclaw-ceo-review`, `gstack-openclaw-investigat
 
 ## Deploying to the active skill
 
-The active skill lives at `~/.claude/skills/g6/`. After making changes:
+The active skill lives at `~/.claude/skills/g6/`. **Check what it is before touching it:**
 
-1. Push your branch
-2. Fetch and reset in the skill directory: `cd ~/.claude/skills/g6 && git fetch origin && git reset --hard origin/main`
-3. Rebuild: `cd ~/.claude/skills/g6 && bun run build`
+```bash
+ls -ld ~/.claude/skills/g6
+```
+
+**If it is a symlink to your working tree** (the dev setup — see "Dev symlink
+awareness"), there is nothing to deploy. The active skill already IS your worktree.
+Update it by moving the worktree itself:
+
+```bash
+cd /path/to/your/g6 && git checkout main && git pull && bun run build
+```
+
+**NEVER run `git reset --hard` inside `~/.claude/skills/g6` in that setup.** It resolves
+through the symlink to your working tree and will hard-reset whatever branch you have
+checked out, discarding uncommitted work. This file used to tell you to do exactly that.
+
+**If it is a real directory** (a separate global install), fetch and rebuild there:
+
+```bash
+cd ~/.claude/skills/g6 && git fetch origin && git reset --hard origin/main && bun run build
+```
 
 Or copy the binaries directly:
 - `cp browse/dist/browse ~/.claude/skills/g6/browse/dist/browse`
