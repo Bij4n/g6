@@ -23,6 +23,13 @@ interface Closable {
   close(): Promise<void>;
 }
 
+/** The test file that called us, for attributing a leak to a suite. */
+function callerSuite(): string {
+  const stack = new Error().stack ?? '';
+  const hit = stack.split('\n').find(l => l.includes('.test.ts'));
+  return hit?.match(/([\w.-]+\.test\.ts)/)?.[1] ?? 'unknown suite';
+}
+
 export async function closeBrowserQuietly(
   bm: Closable | undefined | null,
   budgetMs: number = TEARDOWN_BUDGET_MS,
@@ -30,14 +37,29 @@ export async function closeBrowserQuietly(
   if (!bm) return;
 
   let timer: ReturnType<typeof setTimeout> | undefined;
+  // Track what the close DID, not which promise won the race. Setting a flag in
+  // the timer would report a leak for a browser that closed a millisecond later,
+  // and a diagnostic that cries wolf is worse than none.
+  let closed = false;
   try {
     await Promise.race([
-      bm.close(),
+      bm.close().then(() => { closed = true; }),
       new Promise<void>(resolve => { timer = setTimeout(resolve, budgetMs); }),
     ]);
-  } catch {
-    // Best-effort: the run is ending either way.
+  } catch (err) {
+    // Best-effort: the run is ending either way. But say so — a close that
+    // throws leaves the same live browser behind as one that hangs.
+    console.error(`[teardown] ${callerSuite()}: browser close threw:`, err);
   } finally {
     if (timer) clearTimeout(timer);
+  }
+
+  // The whole point of the budget is to yield rather than fail the hook, but
+  // yielding silently means a browser survives into every later file in this
+  // process and nobody can attribute the contention it causes.
+  if (!closed) {
+    console.error(
+      `[teardown] LEAK: ${callerSuite()} exceeded ${budgetMs}ms closing its browser; handle abandoned`,
+    );
   }
 }
