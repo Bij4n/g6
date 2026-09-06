@@ -15,14 +15,14 @@ The rest of this release is the test gate. `bun test` had never actually finishe
 | | Before | After |
 |---|---|---|
 | `bun test` completes | never | 4491 tests across 266 files |
-| Reported failures | 103 (from a truncated run) | 15, each with a receipt |
+| Reported failures | 103, from a run that stopped early | 10-26, and it reports every one |
 | Files that actually ran | ~180 of 265 | 266 of 266 |
 | Exit code when red | 0 | 1 |
 | `process.exit()` on the crash path | 3 hand-rolled handlers | 0 |
 
 ### What this means
 
-The pre-commit gate CLAUDE.md mandates is worth running again. A red gate that everyone learns to ignore is the same failure mode as a green one that never ran, and this was both. The 15 that remain are the honest long tail: 6 in `click-ref-desync` that pass 8/8 alone and only fail under full-run contention, a few in `handoff` that fail identically on main, and the singletons, all filed in TODOS with what is known about each. The contention-only ones move between runs, which is itself worth fixing next.
+The pre-commit gate CLAUDE.md mandates is worth running again. A red gate that everyone learns to ignore is the same failure mode as a green one that never ran, and this was both. What remains is not a tidy list. The count moves between 10 and 26 across runs of the same commit on an idle machine, and the files involved change with it: `snapshot` failed 17 times in one run and 4 in the next, `click-ref-desync` 8 times in one and none in the other. Both pass 45/45 and 8/8 when run alone. So the suite reports honestly now, but what it reports is still order-dependent, and that instability is the next thing to fix. It is tracked in TODOS with the measurements.
 
 If you drive a headed browser, upgrade for the tab-close fix alone.
 

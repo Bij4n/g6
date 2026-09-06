@@ -488,6 +488,38 @@ allowlist, so it wants its own review.
 
 ---
 
+### P1: the free suite's failure count is order-dependent, 10-26 for the same commit
+
+**What:** with the truncation fixed, `bun run test` completes — but the number it
+reports is not stable. Nine full runs of this branch produced 10, 15, 15, 16, 21, 24
+and 26 failures. Two back-to-back runs on an idle machine (6 Chromium, all the user's,
+tree clean, nothing else running) gave **26** and **21**, and disagreed about which
+files failed: `snapshot.test.ts` failed 17 times in one and 4 in the other;
+`click-ref-desync.test.ts` failed 8 times in one and 0 in the other.
+
+Both suites pass alone: `snapshot` 45/45 in 7.6s, `click-ref-desync` 8/8 in 4.8s.
+
+**Why the earlier explanation was wrong:** these were attributed to machine load. That
+does not hold — the clean runs were the *worst* two. The mechanism is order dependence
+inside the single bun process, and the likeliest source is browsers surviving into later
+files: `closeBrowserQuietly` abandons a close after 3500ms and leaks the handle with no
+warning, and `handoff.test.ts` leaks headed browsers onto the shared profile (17 were
+found alive after one run). Later suites then contend with browsers earlier suites left
+behind, which is the same class as the bug this branch fixed, not fully closed.
+
+**How:** log on the teardown-budget timeout so leaks stop being silent; count live
+browsers at file boundaries; consider running browser suites in their own process. The
+shard runner already exists and may be the cheaper answer than fixing isolation in one
+process.
+
+**Watch out for:** do not quote a single run as "the" failure count. Nine runs of the
+same commit spanned 10 to 26.
+
+**Priority:** P1. This is what stands between "the gate completes" and "the gate is
+trustworthy". Measured 2026-09-05.
+
+---
+
 ### P2: buildFetchHandler grants exit authority to a manager it does not own
 
 **What:** `browse/src/server.ts` wires `cfgBrowserManager.onDisconnect` unconditionally
