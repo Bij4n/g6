@@ -536,6 +536,24 @@ so this may be a scheduling constraint rather than a code change; (b) convert it
 `spawnSync` calls to async `Bun.spawn`; (c) if a bun-level repro exists, report it
 upstream.
 
+**Attempted and inconclusive (2026-09-06)** — do not repeat these without fixing the
+confounds:
+
+- `bun test <dirs> --ignore test/gen-skill-docs.test.ts` **silently does nothing**. The
+  run still reported 4499 tests across 266 files, and 390 of those are that file's.
+  A bare path does not match; only globs appear to. Anything relying on `--ignore` to
+  skip a suite should be verified by test count, not assumed.
+- Excluding it by passing an explicit 210-file list produced 42 failures and 36 errors,
+  worse than leaving it in. That is **not** evidence it helps: passing explicit files
+  changes bun's execution order, and order is the variable under study. Two variables
+  moved at once, so the run says nothing either way.
+
+**What is therefore established:** `gen-skill-docs` before browser suites is *a* proven
+trigger, reproducible on demand in 10 files. Whether it is *the* cause of the whole-suite
+swing is open — the full-suite experiments are all confounded by ordering. The likely
+shape of a real fix is process isolation for browser suites generally, not removing one
+file. Any future experiment must hold execution order fixed.
+
 **Why it matters:** this is the difference between a gate that completes and a gate you
 can block a merge on. Until it is fixed, do not quote a single run's failure count —
 nine runs of the same commit spanned 10 to 26.
