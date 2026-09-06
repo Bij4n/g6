@@ -22,7 +22,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubicloud-standard-8, macos-latest]
+        os: [ubuntu-latest, macos-latest]
         # Windows is tolerant-mode — Xpdf / Poppler-Windows extraction
         # differs enough from the Linux/macOS baseline that the strict
         # exact-diff gate is unreliable. Enable once the normalized
