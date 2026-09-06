@@ -651,8 +651,21 @@ const browserManager = new BrowserManager();
 // When the user closes the headed browser window, run full cleanup
 // (kill sidebar-agent, save session, remove profile locks, delete state file)
 // before exiting with code 2. Exit code 2 distinguishes user-close from crashes (1).
-browserManager.onDisconnect = () => activeShutdown?.(2);
+// start() launches the browser BEFORE buildFetchHandler assigns
+// activeShutdown, so a Chromium that dies during startup finds it null. The
+// optional call would then return undefined, which reads as a clean shutdown
+// and leaves the daemon up with a dead browser. Exit directly in that window.
+browserManager.onDisconnect = (code = 2) => {
+  if (activeShutdown) return activeShutdown(code);
+  // No shutdown installed yet. Exiting bare would leave the state file and the
+  // Chromium singleton locks behind, which is the orphan-on-the-port state that
+  // produces EADDRINUSE on the next launch.
+  emergencyCleanup();
+  process.exit(code);
+};
 let isShuttingDown = false;
+// Resolves only when a shutdown has actually finished its cleanup.
+let inFlightShutdown: Promise<void> | null = null;
 
 // Test if a port is available by binding and immediately releasing.
 // Uses net.createServer instead of Bun.serve to avoid a race condition
@@ -1287,8 +1300,15 @@ export function buildFetchHandler(cfg: ServerConfig): ServerHandle {
   // embedders that pass their own BrowserManager get correct teardown.
   // Module-level shutdown was deleted in v1.35.0.0.
   async function shutdown(exitCode: number = 0) {
+    // Hand back the in-flight shutdown rather than resolving to nothing. A
+    // caller that awaits this needs "the shutdown finished", not "someone else
+    // started one": BrowserManager clears its exit watchdog when this settles,
+    // so a bare return disarmed the watchdog while cleanup was still stuck.
+    if (inFlightShutdown) return inFlightShutdown;
     if (isShuttingDown) return;
     isShuttingDown = true;
+    let markDone: () => void = () => {};
+    inFlightShutdown = new Promise<void>(resolve => { markDone = resolve; });
 
     console.log('[browse] Shutting down...');
     try {
@@ -1312,6 +1332,7 @@ export function buildFetchHandler(cfg: ServerConfig): ServerHandle {
 
     cleanSingletonLocks(resolveChromiumProfile());
     safeUnlinkQuiet(config.stateFile);
+    markDone();
     process.exit(exitCode);
   }
 
@@ -1330,6 +1351,14 @@ export function buildFetchHandler(cfg: ServerConfig): ServerHandle {
   // module reference. Critical for embedders whose cfg.browserManager
   // differs from the module-level instance.
   activeShutdown = shutdown;
+
+  // Wire the crash handler on the cfg instance, not just the module-level one.
+  // BrowserManager treats "onDisconnect is set" as "the daemon owns this
+  // process, so a dead browser must take it down". An embedder supplies its own
+  // cfg.browserManager (the module instance is not exported), so wiring only
+  // that one left every embedded daemon silently surviving a Chromium crash:
+  // port still bound, auth token still live, no browser behind it.
+  cfgBrowserManager.onDisconnect = (code = 2) => shutdown(code);
 
   // Substitute cfgBrowserManager for module-level browserManager in the
   // dispatcher body so all browser-state reads/writes go through the cfg

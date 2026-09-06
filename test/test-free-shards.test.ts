@@ -10,6 +10,7 @@ import {
   stableHash,
   assignFilesToShards,
   normalizeRelativePath,
+  FREE_TEST_TIMEOUT_MS,
 } from '../scripts/test-free-shards';
 
 const ROOT = path.resolve(import.meta.dir, '..');
@@ -124,5 +125,51 @@ describe('test-free-shards: sharding', () => {
     const a = assignFilesToShards(files, 5);
     const b = assignFilesToShards(files, 5);
     expect(a).toEqual(b);
+  });
+});
+
+/**
+ * The `test` script in package.json is the pre-commit gate CLAUDE.md mandates,
+ * and it is the only place the whole free suite runs. It used to take bun's
+ * defaults while the shard runner set its own, so the gate ran every browser
+ * test against a 5s ceiling and at default concurrency. snapshot.test.ts passes
+ * 45/45 alone and lost 33 tests to that ceiling in a full run — noise that looks
+ * exactly like a regression.
+ */
+describe('the gate runs under the same limits as the shard runner', () => {
+  const pkg = JSON.parse(
+    fs.readFileSync(path.join(import.meta.dir, '..', 'package.json'), 'utf-8'),
+  ) as { scripts: Record<string, string> };
+
+  test('bun test uses the shard runner timeout', () => {
+    expect(pkg.scripts.test).toContain(`--timeout=${FREE_TEST_TIMEOUT_MS}`);
+  });
+
+  test('bun test pins concurrency, like the shard runner', () => {
+    // This flag is a guard, not a speedup. bun's --max-concurrency only bounds
+    // test.concurrent() tests, and no free test is concurrent, so the
+    // 518s -> 320s win came from --timeout=10000 and the browser-leak fixes.
+    // Keeping it pinned means a future test.concurrent() in a suite that shares
+    // one browser process cannot quietly start interleaving.
+    expect(pkg.scripts.test).toContain('--max-concurrency=1');
+  });
+
+  test('the shard runner enumerates the same roots the gate runs', () => {
+    // Two definitions of "the free suite" drifting apart is what hid
+    // design/test/feedback-roundtrip from the v1.46.1.0 teardown sweep.
+    const runnerSrc = fs.readFileSync(
+      path.join(import.meta.dir, '..', 'scripts', 'test-free-shards.ts'), 'utf-8',
+    );
+    const roots = (runnerSrc.match(/const TEST_ROOTS = \[([^\]]+)\]/) ?? [])[1] ?? '';
+    for (const root of roots.split(',').map(r => r.trim().replace(/['"]/g, '')).filter(Boolean)) {
+      expect(pkg.scripts.test).toContain(`${root}/`);
+    }
+  });
+
+  test('bun test names design/test explicitly', () => {
+    // bun treats these paths as filters, not a file set, so design/test used to
+    // run without being listed. That invisibility is why the v1.46.1.0 teardown
+    // sweep missed design/test/feedback-roundtrip.test.ts.
+    expect(pkg.scripts.test).toContain('design/test/');
   });
 });

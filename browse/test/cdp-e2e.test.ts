@@ -16,6 +16,7 @@ import * as os from 'os';
 import { promises as fs } from 'fs';
 import { startTestServer } from './test-server';
 import { BrowserManager } from '../src/browser-manager';
+import { closeBrowserQuietly } from './teardown';
 
 const TMP_HOME = path.join(os.tmpdir(), `gstack-cdp-e2e-${process.pid}-${Date.now()}`);
 process.env.GSTACK_HOME = TMP_HOME;
@@ -36,7 +37,7 @@ beforeAll(async () => {
 });
 
 afterAll(async () => {
-  try { await bm.cleanup?.(); } catch {}
+  await closeBrowserQuietly(bm);
   try { testServer.server.stop(); } catch {}
   await fs.rm(TMP_HOME, { recursive: true, force: true });
 });

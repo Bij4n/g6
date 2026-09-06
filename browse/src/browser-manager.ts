@@ -2,7 +2,8 @@
  * Browser lifecycle manager
  *
  * Chromium crash handling:
- *   browser.on('disconnected') → log error → process.exit(1)
+ *   browser.on('disconnected') → log error → onDisconnect(code) when the
+ *   daemon wired one; an embedded consumer is left alone (see registerCrashHandler)
  *   CLI detects dead server → auto-restarts on next command
  *   We do NOT try to self-heal — don't hide failure.
  *
@@ -17,6 +18,29 @@
 
 import { chromium, type Browser, type BrowserContext, type BrowserContextOptions, type Page, type Locator, type Cookie } from 'playwright';
 import { writeSecureFile, mkdirSecure } from './file-permissions';
+
+/** Chromium died on its own. */
+const CRASH_EXIT = 1;
+const CRASH_MESSAGE = [
+  '[browse] FATAL: Chromium process crashed or was killed.',
+  '[browse] Console/network logs flushed to .gstack/browse-*.log',
+];
+
+/** The user closed the headed window. Distinct from a crash so callers can tell. */
+const USER_CLOSE_EXIT = 2;
+const USER_CLOSE_MESSAGE = [
+  '[browse] Real browser disconnected (user closed or crashed).',
+  '[browse] Run `$B connect` to reconnect.',
+];
+
+/**
+ * How long a wired shutdown gets to finish before we stop waiting and exit.
+ * server.ts's shutdown() awaits buffer flushes and a browser close with no
+ * deadline of its own, and it early-returns when a shutdown is already in
+ * flight, so without this a stalled shutdown leaves the daemon on its port.
+ */
+const DISCONNECT_SHUTDOWN_GRACE_MS = 10_000;
+
 import { addConsoleEntry, addNetworkEntry, addDialogEntry, networkBuffer, type DialogEntry } from './buffers';
 import { validateNavigationUrl } from './url-validation';
 import { TabSession, type RefEntry } from './tab-session';
@@ -117,11 +141,16 @@ export class BrowserManager {
   private connectionMode: 'launched' | 'headed' = 'launched';
   private intentionalDisconnect = false;
 
-  // Called when the headed browser disconnects without intentional teardown
-  // (user closed the window). Wired up by server.ts to run full cleanup
-  // (sidebar-agent, state file, profile locks) before exiting with code 2.
-  // Returns void or a Promise; rejections are caught and fall back to exit(2).
-  public onDisconnect: (() => void | Promise<void>) | null = null;
+  // Called when the browser goes away without intentional teardown: the user
+  // closed a headed window (code 2), or Chromium crashed (code 1). Wired up by
+  // server.ts to run full cleanup (sidebar-agent, state file, profile locks)
+  // before exiting with the code it is handed.
+  //
+  // Being wired is also how BrowserManager knows it owns the process. The
+  // daemon always assigns this before launching; an embedded consumer (tests,
+  // library use) never does, and must not be killed because a browser died.
+  // Returns void or a Promise; rejections fall back to a direct exit.
+  public onDisconnect: ((code?: number) => void | Promise<void>) | null = null;
 
   getConnectionMode(): 'launched' | 'headed' { return this.connectionMode; }
 
@@ -268,18 +297,7 @@ export class BrowserManager {
       ...(this.proxyConfig ? { proxy: this.proxyConfig } : {}),
     });
 
-    // Chromium crash → exit with clear message
-    const launchedBrowser = this.browser;
-    this.browser.on('disconnected', () => {
-      // Keep this listener installed during graceful shutdown. With Bun and
-      // Playwright 1.58, removeAllListeners('disconnected') can prevent
-      // browser.close() from resolving. A browser replaced during handoff is
-      // intentional too: only the currently managed browser may crash us.
-      if (this.intentionalDisconnect || launchedBrowser !== this.browser) return;
-      console.error('[browse] FATAL: Chromium process crashed or was killed. Server exiting.');
-      console.error('[browse] Console/network logs flushed to .gstack/browse-*.log');
-      process.exit(1);
-    });
+    this.registerCrashHandler(this.browser, CRASH_EXIT, CRASH_MESSAGE);
 
     const contextOptions: BrowserContextOptions = {
       viewport: { width: this.currentViewport.width, height: this.currentViewport.height },
@@ -519,8 +537,10 @@ export class BrowserManager {
     };
     await this.context.addInitScript(indicatorScript);
 
-    // Track user-created tabs automatically (Cmd+T, link opens in new tab, etc.)
+    // Track user-created tabs automatically (Cmd+T, link opens in new tab, etc.).
+    // Fires for API-created pages too; newTab() reuses whatever id we assign here.
     this.context.on('page', (page) => {
+      if (this.findTabId(page) !== undefined) return;
       const id = this.nextTabId++;
       this.pages.set(id, page);
       this.tabSessions.set(id, new TabSession(page));
@@ -548,33 +568,9 @@ export class BrowserManager {
       await this.newTab();
     }
 
-    // Browser disconnect handler — exit code 2 distinguishes from crashes (1).
-    // Calls onDisconnect() to trigger full shutdown (kill sidebar-agent, save
-    // session, clean profile locks + state file) before exit. Falls back to
-    // direct process.exit(2) if no callback is wired up, or if the callback
-    // throws/rejects — never leave the process running with a dead browser.
+    // Exit code 2 distinguishes a user closing the window from a crash (1).
     if (this.browser) {
-      this.browser.on('disconnected', () => {
-        if (this.intentionalDisconnect) return;
-        console.error('[browse] Real browser disconnected (user closed or crashed).');
-        console.error('[browse] Run `$B connect` to reconnect.');
-        if (!this.onDisconnect) {
-          process.exit(2);
-          return;
-        }
-        try {
-          const result = this.onDisconnect();
-          if (result && typeof (result as Promise<void>).catch === 'function') {
-            (result as Promise<void>).catch((err) => {
-              console.error('[browse] onDisconnect rejected:', err);
-              process.exit(2);
-            });
-          }
-        } catch (err) {
-          console.error('[browse] onDisconnect threw:', err);
-          process.exit(2);
-        }
-      });
+      this.registerCrashHandler(this.browser, USER_CLOSE_EXIT, USER_CLOSE_MESSAGE);
     }
 
     // Headed mode defaults
@@ -646,18 +642,25 @@ export class BrowserManager {
     }
 
     const page = await this.context.newPage();
-    const id = this.nextTabId++;
-    this.pages.set(id, page);
-    this.tabSessions.set(id, new TabSession(page));
+
+    // In headed mode the context 'page' listener has already adopted this page:
+    // Playwright fires that event for API-created pages too, not just for tabs
+    // the user opened. Registering it again gave one page two ids, so
+    // this.pages over-counted, closeTab's last-tab check missed the real last
+    // tab, and closing it took Chromium (and the daemon) down.
+    const adopted = this.findTabId(page);
+    const id = adopted ?? this.nextTabId++;
+    if (adopted === undefined) {
+      this.pages.set(id, page);
+      this.tabSessions.set(id, new TabSession(page));
+      this.wirePageEvents(page);
+    }
     this.activeTabId = id;
 
     // Record tab ownership for multi-agent isolation
     if (clientId) {
       this.tabOwnership.set(id, clientId);
     }
-
-    // Wire up console/network/dialog capture
-    this.wirePageEvents(page);
 
     if (normalizedUrl) {
       await page.goto(normalizedUrl, { waitUntil: 'domcontentloaded', timeout: 15000 });
@@ -666,23 +669,124 @@ export class BrowserManager {
     return id;
   }
 
+  /**
+   * Install the disconnect listener for a browser this manager owns.
+   *
+   * All three launch paths share one rule. Ignore a browser we have since
+   * replaced (handoff swaps it) and ignore an intentional teardown, then report.
+   * Only the daemon ends the process: it is the one consumer that wires
+   * onDisconnect, and calling process.exit() from an embedded manager used to
+   * end whatever process hosted us — under `bun test` that is the entire run,
+   * which then reported exit 0 with no summary because the exit raced the
+   * reporter.
+   */
+  private registerCrashHandler(browser: Browser, code: number, lines: string[]): void {
+    // Keep this listener installed during graceful shutdown. With Bun and
+    // Playwright 1.58, removeAllListeners('disconnected') can prevent
+    // browser.close() from resolving.
+    const owned = browser;
+    browser.on('disconnected', () => {
+      if (this.intentionalDisconnect || owned !== this.browser) return;
+      for (const line of lines) console.error(line);
+      if (!this.onDisconnect) return;
+      this.notifyDisconnect(code);
+    });
+  }
+
+  /**
+   * Hand the daemon its shutdown signal. A rejecting or throwing handler must
+   * still bring the process down with the code it was given: a live server
+   * holding a dead browser is the wedged-daemon state that leaves an orphan on
+   * the port and produces EADDRINUSE on the next launch.
+   */
+  private notifyDisconnect(code: number): void {
+    // A handler that hangs, or that short-circuits because a shutdown is
+    // already flagged, resolves to nothing and never reaches the catch paths
+    // below. Without this the daemon sits on its port with a dead browser,
+    // which is the state the whole contract exists to prevent. unref'd so it
+    // never holds an otherwise-idle process open.
+    const watchdog = setTimeout(() => {
+      console.error('[browse] shutdown did not complete; exiting.');
+      process.exit(code);
+    }, DISCONNECT_SHUTDOWN_GRACE_MS);
+    // unref keeps it from holding an idle loop open, but an unref'd timer still
+    // fires while other work runs. Left armed it would re-introduce a
+    // process.exit inside `bun test`, sourced from src/ where the teardown
+    // guard cannot see it. Clear it the moment the handler settles.
+    watchdog.unref?.();
+    const settled = () => clearTimeout(watchdog);
+    try {
+      const result = this.onDisconnect?.(code);
+      if (result && typeof (result as Promise<void>).then === 'function') {
+        (result as Promise<void>).then(settled, (err) => {
+          settled();
+          console.error('[browse] onDisconnect rejected:', err);
+          process.exit(code);
+        });
+      } else {
+        // A synchronous handler has nothing left to wait for.
+        settled();
+      }
+    } catch (err) {
+      settled();
+      console.error('[browse] onDisconnect threw:', err);
+      process.exit(code);
+    }
+  }
+
+  /** The tab id already tracking this page, if any. */
+  private findTabId(page: Page): number | undefined {
+    for (const [id, tracked] of this.pages) {
+      if (tracked === page) return id;
+    }
+    return undefined;
+  }
+
+  /**
+   * Serializes closeTab. The live-page count is a snapshot, not a reservation:
+   * two concurrent closes both read 2, both decide they are not closing the last
+   * page, and both close — Chromium loses its final page and the daemon goes
+   * with it, which is the failure the replacement-first ordering exists to stop.
+   */
+  private closeQueue: Promise<void> = Promise.resolve();
+
   async closeTab(id?: number): Promise<void> {
+    const run = this.closeQueue.then(() => this.closeTabExclusive(id));
+    // Keep the chain alive even when one close rejects.
+    this.closeQueue = run.then(() => {}, () => {});
+    return run;
+  }
+
+  private async closeTabExclusive(id?: number): Promise<void> {
     const tabId = id ?? this.activeTabId;
     const page = this.pages.get(tabId);
     if (!page) throw new Error(`Tab ${tabId} not found`);
+
+    // Open the replacement BEFORE closing the last page, not after. Closing the
+    // final page takes Chromium down with it, so the old order raced: the browser
+    // could exit first, the disconnect listener would read that as a crash, and
+    // the daemon exited instead of handing back a blank tab.
+    // Count what Chromium actually has open. The map can hold stale entries for
+    // pages closed out from under us, and closing the last LIVE page is what
+    // takes the browser down.
+    const livePages = this.context?.pages().length ?? this.pages.size;
+    if (livePages <= 1) await this.newTab();
 
     await page.close();
     this.pages.delete(tabId);
     this.tabSessions.delete(tabId);
     this.tabOwnership.delete(tabId);
 
-    // Switch to another tab if we closed the active one
+    // Switch to another tab if we closed the active one. When isLastTab ran,
+    // newTab() already pointed activeTabId at the replacement.
     if (tabId === this.activeTabId) {
       const remaining = [...this.pages.keys()];
       if (remaining.length > 0) {
         this.activeTabId = remaining[remaining.length - 1];
       } else {
-        // No tabs left — create a new blank one
+        // Should be unreachable now the replacement opens first, but 0 is not a
+        // valid id (ids start at 1), so every later command would throw
+        // "No active page" rather than recovering.
         await this.newTab();
       }
     }
@@ -1359,13 +1463,8 @@ export class BrowserManager {
         await newContext.setExtraHTTPHeaders(this.extraHeaders);
       }
 
-      // Register crash handler on new browser
       if (this.browser) {
-        this.browser.on('disconnected', () => {
-          if (this.intentionalDisconnect) return;
-          console.error('[browse] FATAL: Chromium process crashed or was killed. Server exiting.');
-          process.exit(1);
-        });
+        this.registerCrashHandler(this.browser, CRASH_EXIT, CRASH_MESSAGE);
       }
 
       await this.restoreState(state);

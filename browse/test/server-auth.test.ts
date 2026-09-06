@@ -6,6 +6,7 @@
  */
 
 import { describe, test, expect } from 'bun:test';
+import { sliceBetween } from './source-slice';
 import * as fs from 'fs';
 import * as path from 'path';
 
@@ -13,13 +14,6 @@ const SERVER_SRC = fs.readFileSync(path.join(import.meta.dir, '../src/server.ts'
 const CLI_SRC = fs.readFileSync(path.join(import.meta.dir, '../src/cli.ts'), 'utf-8');
 
 // Helper: extract a block of source between two markers
-function sliceBetween(source: string, startMarker: string, endMarker: string): string {
-  const startIdx = source.indexOf(startMarker);
-  if (startIdx === -1) throw new Error(`Marker not found: ${startMarker}`);
-  const endIdx = source.indexOf(endMarker, startIdx + startMarker.length);
-  if (endIdx === -1) throw new Error(`End marker not found: ${endMarker}`);
-  return source.slice(startIdx, endIdx);
-}
 
 describe('Server auth security', () => {
   // Test 1: /health serves token conditionally (headed mode or chrome extension only)
@@ -63,13 +57,13 @@ describe('Server auth security', () => {
 
   // Test 4: /activity/history requires auth via validateAuth
   test('/activity/history requires authentication', () => {
-    const historyBlock = sliceBetween(SERVER_SRC, "url.pathname === '/activity/history'", 'Sidebar endpoints');
+    const historyBlock = sliceBetween(SERVER_SRC, "url.pathname === '/activity/history'", "url.pathname === '/security-events'");
     expect(historyBlock).toContain('validateAuth');
   });
 
   // Test 5: /activity/history has no wildcard CORS header
   test('/activity/history has no wildcard CORS header', () => {
-    const historyBlock = sliceBetween(SERVER_SRC, "url.pathname === '/activity/history'", 'Sidebar endpoints');
+    const historyBlock = sliceBetween(SERVER_SRC, "url.pathname === '/activity/history'", "url.pathname === '/security-events'");
     expect(historyBlock).not.toContain("'*'");
   });
 
@@ -314,7 +308,7 @@ describe('Server auth security', () => {
   // Regression: connect command crashed with "domains is not defined" because
   // a stray `domains,` variable was in the status fetch body (cli.ts:852).
   test('connect command status fetch body has no undefined variable references', () => {
-    const connectBlock = sliceBetween(CLI_SRC, 'Launching headed Chromium', 'Sidebar agent started');
+    const connectBlock = sliceBetween(CLI_SRC, 'Launching headed Chromium', 'Terminal agent started');
     // The status fetch should use a clean JSON body
     expect(connectBlock).toContain("command: 'status'");
     // Must NOT contain a bare `domains` reference in the fetch body
@@ -335,10 +329,12 @@ describe('Server auth security', () => {
     // The connect subprocess env must override BROWSE_PARENT_PID
     expect(pairBlock).toContain("BROWSE_PARENT_PID");
     expect(pairBlock).toContain("'0'");
-    // The connect command must propagate BROWSE_PARENT_PID=0 to serverEnv
-    const connectBlock = sliceBetween(CLI_SRC, 'Launching headed Chromium', 'Sidebar agent started');
-    expect(connectBlock).toContain("BROWSE_PARENT_PID");
-    expect(connectBlock).toContain("serverEnv.BROWSE_PARENT_PID");
+    // The connect command must propagate BROWSE_PARENT_PID=0 into the serverEnv it
+    // hands to startServer. Match either an inline property or a later assignment —
+    // the contract is the value the server receives, not how it was written.
+    const connectBlock = sliceBetween(CLI_SRC, 'Launching headed Chromium', 'Terminal agent started');
+    const serverEnvBlock = sliceBetween(connectBlock, 'const serverEnv', 'startServer(serverEnv)');
+    expect(serverEnvBlock).toMatch(/BROWSE_PARENT_PID['"]?\s*[:=]\s*['"]0['"]/);
   });
 
   // Regression: newtab returned 403 for scoped tokens because the tab ownership

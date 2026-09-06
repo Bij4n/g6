@@ -403,39 +403,229 @@ scope of that PR; deliberately deferred to keep PTY-import small.
 
 ## Testing
 
-## P0: 103 pre-existing free-suite failures, surfaced by v1.46.1.0
+## P1: what is left of the 103 free-suite failures
 
-**What:** `bun test` on main is red: 103 failures across 12 files, out of 4556 tests in 263 files. They are not new. Until v1.46.1.0 the suite exited 0 after ~180 of 263 files, so 83 files never ran and the failures it did record were discarded with the process. Fixing the reporting made them visible; nothing has fixed them.
+**Status 2026-09-05:** the suite completes now. It never did before: it exited 0
+after ~180 of 263 files with no summary line, so the failure count was whatever
+happened to be recorded before something called `process.exit()`. Fixed on
+`fix/stale-suite-assertions`; `bun run test` now reports
+`Ran 4487 tests across 265 files`, 4028 pass, **15 fail**, exit 1.
 
-**Where they are** (clean-load run, `main` @ 6b42f99):
+**What was actually wrong** (four defects, none of them the "stale assertions"
+the branch was named for):
 
-| Failures | File |
-|---|---|
-| 73 | `browse/test/sidebar-ux.test.ts` |
-| 12 | `browse/test/gstack-config.test.ts` |
-| 6 | `design/test/feedback-roundtrip.test.ts` |
-| 4 | `browse/test/server-auth.test.ts` |
-| 1 each | `combined-gate`, `watchdog`, `snapshot`, `sidebar-tabs`, `security-integration`, `gstack-update-check`, `daemon-mismatch-refuse`, `commands` |
+1. Three suites never closed their browser. `domain-skills-e2e` and `cdp-e2e`
+   called `await bm.cleanup?.()`, and BrowserManager has no `cleanup` method, so
+   optional chaining made it a no-op that never throws. `feedback-roundtrip` still
+   had the `process.exit(0)` teardown, invisible to the v1.46.1.0 sweep because
+   the `test` script never listed `design/test/`.
+2. `browser-manager.ts` called `process.exit()` from three crash handlers. Right
+   for the daemon, fatal for `bun test`. Now routed through `onDisconnect`, which
+   only the daemon wires. The daemon also gained its own cleanup back: the bare
+   exit had been skipping `cleanSingletonLocks()` and the state-file unlink, which
+   is the orphan-holding-the-port state behind the EADDRINUSE cascade.
+3. The gate ran under different limits than the project's own runner.
+   `scripts/test-free-shards.ts` uses `--max-concurrency=1 --timeout=10000`; the
+   `test` script took bun's 5s default. `snapshot.test.ts` passes 45/45 alone and
+   was losing 33 tests to that ceiling.
+4. `sidebar-ux` was 73 of the failures. Its subject was deleted in ed1e4be
+   (v1.14.0.0), not merely renamed. 745 of 1672 lines deleted, the six things that
+   had only moved re-anchored, and all 14 raw `slice(indexOf(...))` extractions
+   replaced with helpers that throw on a missing marker.
 
-**Why:** `bun test` is the pre-commit gate CLAUDE.md mandates, and it is the only place the full free suite runs at all (see the Infrastructure TODO on Actions never having run on this fork). A red gate that everyone learns to ignore is the same failure mode we just fixed, one layer up.
+**The 15 that remain:**
 
-**Diagnosed 2026-08-17. Four root causes, each a separate refactor the test never followed. No product bugs.**
+| n | file | verdict |
+|---|---|---|
+| 6 | `click-ref-desync` | 8/8 in isolation; fails only under full-run contention |
+| 3 | `handoff` | pre-existing, verified identical on main |
+| 1 | `combined-gate` (make-pdf) | `make-pdf/dist/pdf generate` exits non-zero |
+| 1 each | `sidebar-tabs`, `security-integration`, `gstack-update-check` | from the original singleton list, undiagnosed |
 
-| Block | n | Broke at | Root cause |
-|---|---|---|---|
-| `sidebar-ux` | 73 | `ed1e4be` v1.14.0.0 | Moved `spawnClaude` to `terminal-agent.ts` and `systemPrompt` to `security.ts`, and deleted `sidebar-agent.ts`. Test still reads `src/server.ts` and the deleted file. |
-| `feedback-roundtrip` | 6 | `1868636` v0.15.16.0 | `handleWriteCommand` gained `session: TabSession` as its 3rd param. The design test imports it directly and passes `bm` there, so `session.clearLoadedHtml is not a function`. Browse tests use a local wrapper; this one never got it. |
-| `server-auth` | 4 | (marker removed) | `sliceBetween` anchors on a `Sidebar endpoints` comment that no longer exists in `server.ts`. Throws `End marker not found`. |
-| `gstack-config` | 3-12 | `22a4451` v1.3.0.0 | Added a built-in defaults table, so `get auto_upgrade` on a missing file correctly returns `false`. Test still asserts the pre-defaults `""`. Product is right, test is stale. |
+**Priority:** P1. The gate is trustworthy enough to block on now; these are the
+long tail. Do `click-ref-desync` first, since a flake that only fails in the full
+run is the failure mode that teaches people to ignore the gate.
 
-**The pattern, and why re-anchoring is the wrong fix.** Three of the four assert on *implementation shape* (source-file text, an internal function signature) rather than behavior. `sidebar-ux` is the worst: it extracts a region with `serverSrc.slice(indexOf(marker), ...)`, and when the marker is gone `indexOf` returns -1 and the slice yields `""`. Every `toContain` then fails, and every `not.toContain` **passes vacuously**. So that file is not merely 73 red tests, it is also an unknown number of green ones asserting nothing. Updating the string anchors would restore the green and rebuild the same trap. Prefer deleting tests that cover deleted code and rewriting the rest against behavior. `server-auth` is the one to copy: it throws loudly on a missing marker instead of silently slicing.
+---
 
-**Watch out for:** `browse/test/stealth-webdriver.test.ts` passes 8/8 in isolation but sometimes fails under full-suite concurrency. Counts drift 103-107 between runs, and a loaded machine inflates them badly (one run under ~3.6x load reported 215 fail / 94 errors). Baseline on a quiet machine, and confirm any single failure in isolation before believing it.
+### P2: three paid sidebar evals test endpoints that were deleted in v1.14.0.0
 
-**Also found:** the `test` script lists `browse/test/ test/ make-pdf/test/`, but bun treats positional args as path *filters*, so `design/test/` is swept in too (4 files, including `feedback-roundtrip`). Either intend that and document it, or scope the args.
+**What:** `sidebar-navigate`, `sidebar-url-accuracy` and `sidebar-css-interaction` in
+`test/skill-e2e-sidebar.test.ts` POST to `/sidebar-session/new` and
+`/sidebar-command`. Both were ripped with the chat queue in ed1e4be. The server
+correctly answers 404, so all three fail on `expect(resp.status).toBe(200)` and have
+been failing since v1.14.0.0.
 
-**Priority:** P0.
-**Effort:** M. `feedback-roundtrip` and `server-auth` are ~15 min each. `gstack-config` is a 3-line expectation update. `sidebar-ux` is the real work and is a scope decision (delete vs rewrite), not a typing exercise. Captured 2026-08-17 from the v1.46.1.0 test-runner fix; diagnosed same day.
+**Why it matters:** same rot as sidebar-ux, but in the paid suite. They are
+`periodic` tier so they do not block CI, which is exactly why nobody noticed. Any
+change to `browse/src/server.ts` selects them, so they fail every eval run that
+touches the server and train you to expect three reds.
+
+**Also:** their touchfile entries in `test/helpers/touchfiles.ts:291-293` list
+`browse/src/sidebar-agent.ts`, a file that no longer exists, so that half of the
+diff-selection can never match.
+
+**How:** delete them, or rewrite against the PTY surface in `terminal-agent.ts` that
+replaced the queue. Verified 2026-09-05 that they fail identically on `main`.
+
+**Priority:** P2.
+
+---
+
+### P2: `/sidebar-chat` is still in TUNNEL_PATHS
+
+**What:** `browse/src/server.ts:266` still lists `/sidebar-chat` in `TUNNEL_PATHS`,
+the allowlist of paths reachable over the tunnel. The endpoint was ripped with the
+chat queue, so nothing serves it and the entry is inert today.
+
+**Why it matters:** the set's own comment says "Updating this set is a deliberate
+security decision. Every addition widens the tunnel attack surface." A stale entry
+for a removed path is harmless right up until someone reuses the path, at which
+point it is exposed over the tunnel without anyone deciding that.
+
+**Priority:** P2. One-line deletion, but it is product code in a security-relevant
+allowlist, so it wants its own review.
+
+---
+
+### P1: the free suite's failure count is order-dependent, 10-26 for the same commit
+
+**What:** with the truncation fixed, `bun run test` completes — but the number it
+reports is not stable. Nine full runs of this branch produced 10, 15, 15, 16, 21, 24
+and 26 failures. Two back-to-back runs on an idle machine (6 Chromium, all the user's,
+tree clean, nothing else running) gave **26** and **21**, and disagreed about which
+files failed: `snapshot.test.ts` failed 17 times in one and 4 in the other;
+`click-ref-desync.test.ts` failed 8 times in one and 0 in the other.
+
+Both suites pass alone: `snapshot` 45/45 in 7.6s, `click-ref-desync` 8/8 in 4.8s.
+
+**Why the earlier explanation was wrong:** these were attributed to machine load. That
+does not hold — the clean runs were the *worst* two. The mechanism is order dependence
+inside the single bun process, and the likeliest source is browsers surviving into later
+files: `closeBrowserQuietly` abandons a close after 3500ms and leaks the handle with no
+warning, and `handoff.test.ts` leaks headed browsers onto the shared profile (17 were
+found alive after one run). Later suites then contend with browsers earlier suites left
+behind, which is the same class as the bug this branch fixed, not fully closed.
+
+**How:** log on the teardown-budget timeout so leaks stop being silent; count live
+browsers at file boundaries; consider running browser suites in their own process. The
+shard runner already exists and may be the cheaper answer than fixing isolation in one
+process.
+
+**Watch out for:** do not quote a single run as "the" failure count. Nine runs of the
+same commit spanned 10 to 26.
+
+**Priority:** P1. This is what stands between "the gate completes" and "the gate is
+trustworthy". Measured 2026-09-05.
+
+---
+
+### P2: buildFetchHandler grants exit authority to a manager it does not own
+
+**What:** `browse/src/server.ts` wires `cfgBrowserManager.onDisconnect` unconditionally
+inside `buildFetchHandler`. BrowserManager treats "onDisconnect is set" as "the daemon
+owns this process", so an injected manager belonging to a harness or a larger
+application now satisfies that check. If its shutdown takes longer than the 10s
+watchdog, or throws, or rejects, the host process exits.
+
+**The tension:** wiring only the module-level instance left embedders alive with a dead
+browser (fixed 2026-09-05). Wiring the cfg instance fixes that and creates this. A
+callback is not by itself evidence of process ownership.
+
+**How:** make exit authority explicit rather than inferred — an `ownsProcess` flag on
+the manager, or keep the hard-exit watchdog in the daemon entry point and let embedders
+opt in. Needs a decision on what `buildFetchHandler` implies about lifecycle.
+
+**Priority:** P2. Found by cross-model (Codex) adversarial review 2026-09-05.
+
+---
+
+### P2: a second buildFetchHandler call leaves two shutdowns competing
+
+**What:** `activeShutdown` is module-global and gets replaced by each
+`buildFetchHandler` call, while the `cfgBrowserManager.onDisconnect` installed by that
+call closes over its own `shutdown`. After a second build, module-level signals and the
+first manager's disconnect can target different shutdowns, and `isShuttingDown` is
+module-global so the older handle's shutdown becomes a silent no-op.
+
+**How:** retire the previous handle explicitly, or refuse a second build without one.
+
+**Priority:** P2. Found by cross-model (Codex) adversarial review 2026-09-05.
+
+---
+
+### P3: closeTab can select a dead tab as the new active one
+
+**What:** `closeTab` now counts live pages, which deliberately tolerates stale entries
+in `this.pages`, but the "switch to another tab" branch picks the next active id from
+that same map without checking liveness. With a newer stale entry present, closing the
+active live page can select a closed one, and every later command targets a dead page.
+
+**How:** prune closed entries, or pick the replacement from live tracked pages.
+
+**Priority:** P3. Found by cross-model (Codex) adversarial review 2026-09-05.
+
+---
+
+### P3: headed startup registers its crash handler after initialization
+
+**What:** in `launchHeaded` the crash handler is registered after several awaited steps,
+including a `newTab()`. A Chromium that dies during that window is not observed at all,
+so whether the daemon survives depends on the surrounding error handling rather than on
+the disconnect contract.
+
+**How:** register the handler immediately after the browser exists, before the awaited
+setup.
+
+**Priority:** P3. Found by cross-model (Codex) adversarial review 2026-09-05.
+
+---
+
+### P2: handoff rollback exits the daemon while reporting success
+
+**What:** `browse/src/browser-manager.ts:1402-1435`. Step 3 swaps `this.browser` to
+the new headed browser before restoring state. If restore throws, the rollback closes
+`newContext` while `this.browser` still points at it and `intentionalDisconnect` is
+false, so the crash handler fires and the daemon exits with code 1 — on the path whose
+return string promises "Headless browser still running." The old headless browser is
+never closed either, so its Chromium leaks.
+
+**How:** restore `this.browser`/`this.context` (or set `intentionalDisconnect`) before
+closing `newContext`, and close the old browser if it cannot be recovered.
+
+**Priority:** P2. Found by adversarial review 2026-09-05.
+
+---
+
+### P3: `closeTab` can leave `activeTabId = 0`, which is never a valid id
+
+**What:** `browse/src/browser-manager.ts:739` falls back to `activeTabId = 0` when no
+tabs remain. `nextTabId` starts at 1, so 0 addresses nothing and every later command
+throws "No active page" from `getActiveSession()`. Same pattern in the `page.on('close')`
+handler. Reachable through the headed miscount above, and when a page is closed
+externally between the size check and the delete.
+
+**Priority:** P3. Found by adversarial review 2026-09-05.
+
+---
+
+### P3: the sidebar-ux deletion dropped some still-live coverage
+
+**What:** the 2026-09-05 deletion removed blocks for ripped features, but a few
+covered code that is still shipping: `syncActiveTabByUrl` (still live at
+`browser-manager.ts:759`, and now with no caller in `browse/src/` — dead public API),
+and `context.on('page') tracks user-created tabs` plus `page close handler removes tab
+from pages map`. Those tab-tracking invariants are now covered behaviourally by
+`browse/test/tab-tracking.test.ts`, added with the headed double-registration fix.
+
+**Correction:** an earlier version of this entry claimed the browser-tab elements came
+out of `sidepanel.{html,js}`. That is wrong for the HTML — `extension/sidepanel.html`
+and `extension/sidepanel.css` still carry `.browser-tabs` markup and rules. The `.js`
+half is gone. The CSS and markup are dead weight, not evidence the feature is fully
+removed.
+
+**Priority:** P3. Restore behavioural coverage for the tab-tracking invariants when
+fixing the P1.
 
 ---
 
@@ -1358,7 +1548,39 @@ Linux cookie import shipped in v0.11.11.0 (Wave 3). Supports Chrome, Chromium, B
 
 ## Infrastructure
 
-## P0: GitHub Actions has never run on this fork
+## P1: 7 of 9 workflows target a runner this fork does not have
+
+**What:** Actions is enabled and firing (first runs ever: 2026-09-05, PR #15), but only
+the two workflows on GitHub-hosted runners complete. `windows-free-tests`
+(`windows-latest`) and the macOS leg of `make-pdf-gate` both passed in ~33s. Every
+workflow using `runs-on: ubicloud-standard-8` sits queued indefinitely:
+`actionlint`, `skill-docs`, `version-gate`, `pr-title-sync`, `evals`, `ci-image`,
+and the Linux leg of `make-pdf-gate`.
+
+**Why:** `GET /repos/Bij4n/g6/actions/runners` returns `total_count: 0`. Ubicloud is a
+third-party runner provider configured on the upstream `garrytan/gstack`; the fork
+inherited the workflow files but not the provider. A PR therefore cannot go green no
+matter how good the code is, which is the same "a green PR means only that nobody
+looked" failure this entry replaced, one layer along.
+
+**Options:** (a) point the lint-and-check jobs (`actionlint`, `version-gate`,
+`pr-title-sync`, `skill-docs`) at `ubuntu-latest` — they have no business needing an
+8-core machine and GitHub-hosted Linux is free here; (b) set Ubicloud up for the fork,
+which is the honest answer for `evals`, since that one also pulls
+`ghcr.io/Bij4n/g6/ci`, an image never built for this fork, so it needs a registry
+permission as well as a runner; (c) accept Windows + macOS as the CI you have.
+
+**Watch out for:** do not quietly downgrade `evals` to a free runner. It is the paid
+E2E gate and it wants the bigger machine.
+
+**Priority:** P1. Captured 2026-09-05 from the first CI run in the repo's history.
+
+---
+
+## ~~P0: GitHub Actions has never run on this fork~~ — RESOLVED 2026-09-05
+
+Fork opt-in accepted by the owner; `total_count` went 0 → 9 on PR #15. The follow-on
+runner problem is the P1 above.
 
 **What:** `GET /repos/Bij4n/g6/actions/runs` returns `total_count: 0`. Not "no runs recently" — zero workflow runs in the repository's entire history. PRs #1 through #12 all merged with no CI of any kind.
 

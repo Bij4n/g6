@@ -15,11 +15,20 @@
 
 import { describe, test, expect, beforeAll, afterAll } from 'bun:test';
 import { BrowserManager } from '../../browse/src/browser-manager';
-import { handleReadCommand } from '../../browse/src/read-commands';
-import { handleWriteCommand } from '../../browse/src/write-commands';
+import { closeBrowserQuietly } from '../../browse/test/teardown';
+import { handleReadCommand as _handleReadCommand } from '../../browse/src/read-commands';
+import { handleWriteCommand as _handleWriteCommand } from '../../browse/src/write-commands';
 import { generateCompareHtml } from '../src/compare';
 import * as fs from 'fs';
 import * as path from 'path';
+
+// Bridge the (cmd, args, bm) call shape these tests were written against to the
+// (cmd, args, session, bm) signature the handlers took in v0.15.16.0, matching the
+// wrapper the browse suites use.
+const handleReadCommand = (cmd: string, args: string[], b: BrowserManager) =>
+  _handleReadCommand(cmd, args, b.getActiveSession());
+const handleWriteCommand = (cmd: string, args: string[], b: BrowserManager) =>
+  _handleWriteCommand(cmd, args, b.getActiveSession(), b);
 
 let bm: BrowserManager;
 let baseUrl: string;
@@ -125,10 +134,10 @@ beforeAll(async () => {
   await bm.launch();
 });
 
-afterAll(() => {
+afterAll(async () => {
+  await closeBrowserQuietly(bm);
   try { server.stop(); } catch {}
   fs.rmSync(tmpDir, { recursive: true, force: true });
-  setTimeout(() => process.exit(0), 500);
 });
 
 // ─── The critical test: browser click → file on disk ─────────────

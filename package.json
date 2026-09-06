@@ -1,6 +1,6 @@
 {
   "name": "g6",
-  "version": "1.47.0.0",
+  "version": "1.48.0.0",
   "description": "Bij4n's Stack — Claude Code skills + fast headless browser. Private-by-default AI engineering workflow for solo builders.",
   "license": "MIT",
   "type": "module",
@@ -16,7 +16,7 @@
     "gen:skill-docs": "bun run scripts/gen-skill-docs.ts",
     "dev": "bun run browse/src/cli.ts",
     "server": "bun run browse/src/server.ts",
-    "test": "bun test browse/test/ test/ make-pdf/test/ --ignore 'test/skill-e2e-*.test.ts' --ignore test/skill-llm-eval.test.ts --ignore test/skill-routing-e2e.test.ts --ignore test/codex-e2e.test.ts --ignore test/gemini-e2e.test.ts && (bun run slop:diff 2>/dev/null || true)",
+    "test": "bun test browse/test/ design/test/ test/ make-pdf/test/ --max-concurrency=1 --timeout=10000 --ignore 'test/skill-e2e-*.test.ts' --ignore test/skill-llm-eval.test.ts --ignore test/skill-routing-e2e.test.ts --ignore test/codex-e2e.test.ts --ignore test/gemini-e2e.test.ts && (bun run slop:diff 2>/dev/null || true)",
     "test:free": "bun run scripts/test-free-shards.ts",
     "test:windows": "bun run scripts/test-free-shards.ts --windows-only",
     "test:evals": "EVALS=1 bun test --retry 2 --concurrent --max-concurrency ${EVALS_CONCURRENCY:-15} test/skill-llm-eval.test.ts test/skill-e2e-*.test.ts test/skill-routing-e2e.test.ts test/codex-e2e.test.ts test/gemini-e2e.test.ts",

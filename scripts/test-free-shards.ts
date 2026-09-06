@@ -29,7 +29,10 @@ import * as path from 'path';
 import { spawnSync } from 'child_process';
 
 const ROOT = path.resolve(import.meta.dir, '..');
-const TEST_ROOTS = ['browse/test', 'test', 'make-pdf/test'] as const;
+// Must stay in step with package.json's `test` script. design/test used to be
+// missing here while the gate ran it as an unlisted path filter, which is how
+// feedback-roundtrip's process.exit teardown survived the v1.46.1.0 sweep.
+const TEST_ROOTS = ['browse/test', 'design/test', 'test', 'make-pdf/test'] as const;
 const TEST_FILE_REGEX = /\.test\.(?:[cm]?[jt]s|tsx|jsx)$/;
 
 // Tests that require API spend, external services, or e2e harnesses.
