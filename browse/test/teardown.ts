@@ -37,13 +37,14 @@ export async function closeBrowserQuietly(
   if (!bm) return;
 
   let timer: ReturnType<typeof setTimeout> | undefined;
-  let abandoned = false;
+  // Track what the close DID, not which promise won the race. Setting a flag in
+  // the timer would report a leak for a browser that closed a millisecond later,
+  // and a diagnostic that cries wolf is worse than none.
+  let closed = false;
   try {
     await Promise.race([
-      bm.close(),
-      new Promise<void>(resolve => {
-        timer = setTimeout(() => { abandoned = true; resolve(); }, budgetMs);
-      }),
+      bm.close().then(() => { closed = true; }),
+      new Promise<void>(resolve => { timer = setTimeout(resolve, budgetMs); }),
     ]);
   } catch (err) {
     // Best-effort: the run is ending either way. But say so — a close that
@@ -56,7 +57,7 @@ export async function closeBrowserQuietly(
   // The whole point of the budget is to yield rather than fail the hook, but
   // yielding silently means a browser survives into every later file in this
   // process and nobody can attribute the contention it causes.
-  if (abandoned) {
+  if (!closed) {
     console.error(
       `[teardown] LEAK: ${callerSuite()} exceeded ${budgetMs}ms closing its browser; handle abandoned`,
     );
