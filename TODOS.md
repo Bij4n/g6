@@ -488,35 +488,59 @@ allowlist, so it wants its own review.
 
 ---
 
-### P1: the free suite's failure count is order-dependent, 10-26 for the same commit
+### P1: test/gen-skill-docs.test.ts makes every later browser suite hang
 
-**What:** with the truncation fixed, `bun run test` completes — but the number it
-reports is not stable. Nine full runs of this branch produced 10, 15, 15, 16, 21, 24
-and 26 failures. Two back-to-back runs on an idle machine (6 Chromium, all the user's,
-tree clean, nothing else running) gave **26** and **21**, and disagreed about which
-files failed: `snapshot.test.ts` failed 17 times in one and 4 in the other;
-`click-ref-desync.test.ts` failed 8 times in one and 0 in the other.
+**What:** the free suite's failure count wanders between 10 and 26 for the same commit.
+Bisected 2026-09-06 to a single trigger: `test/gen-skill-docs.test.ts`. Run it before
+any browser suite in the same bun process and browser operations stop completing.
 
-Both suites pass alone: `snapshot` 45/45 in 7.6s, `click-ref-desync` 8/8 in 4.8s.
+**Minimal reproducer** (10 files, ~100s, stable):
 
-**Why the earlier explanation was wrong:** these were attributed to machine load. That
-does not hold — the clean runs were the *worst* two. The mechanism is order dependence
-inside the single bun process, and the likeliest source is browsers surviving into later
-files: `closeBrowserQuietly` abandons a close after 3500ms and leaks the handle with no
-warning, and `handoff.test.ts` leaks headed browsers onto the shared profile (17 were
-found alive after one run). Later suites then contend with browsers earlier suites left
-behind, which is the same class as the bug this branch fixed, not fully closed.
+```bash
+bun test test/gen-skill-docs.test.ts \
+  browse/test/domain-skills-e2e.test.ts browse/test/security-live-playwright.test.ts \
+  browse/test/server-factory.test.ts browse/test/compare-board.test.ts \
+  browse/test/batch.test.ts browse/test/fill-controlled-input.test.ts \
+  browse/test/content-security.test.ts browse/test/click-ref-desync.test.ts \
+  --max-concurrency=1 --timeout=10000
+```
 
-**How:** log on the teardown-budget timeout so leaks stop being silent; count live
-browsers at file boundaries; consider running browser suites in their own process. The
-shard runner already exists and may be the cheaper answer than fixing isolation in one
-process.
+| combination | result |
+|---|---|
+| `click-ref-desync` alone | 8 pass, 4.9s |
+| `gen-skill-docs` alone | 390 pass, **1.9s** |
+| the 7 browser suites + `click-ref-desync` | 0 fail, 7.7s |
+| **`gen-skill-docs` + the same 8** | **5-6 fail, 100s** |
+| swap in `gbrain-source-gitignore` instead | 0 fail, 8.0s |
 
-**Watch out for:** do not quote a single run as "the" failure count. Nine runs of the
-same commit spanned 10 to 26.
+**The failure mode is hanging, not slowness.** Failures land on Playwright's own
+ceilings — 30000ms for an action, 15000ms for a `goto` — so browser I/O stops
+completing rather than getting gradually slower.
 
-**Priority:** P1. This is what stands between "the gate completes" and "the gate is
-trustworthy". Measured 2026-09-05.
+**What it is not:** four hypotheses were tested and disproved. Not machine load (the
+two quietest runs were the worst). Not `closeBrowserQuietly` abandoning handles (one
+logged per full run, does not reproduce alone). Not the raw-Playwright suites
+(clean, 4 browsers before and after). Not module-scope `GSTACK_HOME` mutation (minimal
+repro is green in 2s). `gen-skill-docs` leaves no lingering child processes, does not
+touch the repo, and does not change `skill_prefix`.
+
+**Leading hypothesis:** the file makes ~20 `Bun.spawnSync` calls (several not
+`--dry-run`). `Bun.spawnSync` blocks bun's event loop, and Playwright drives Chromium
+over a CDP pipe, so heavy synchronous spawning in a process that later does async
+browser I/O is the obvious suspect. Unconfirmed — it needs a bun-level repro
+independent of this codebase.
+
+**Fixes worth trying, cheapest first:** (a) keep `gen-skill-docs.test.ts` out of any
+process that also runs browser suites — the shard runner already splits by file hash,
+so this may be a scheduling constraint rather than a code change; (b) convert its
+`spawnSync` calls to async `Bun.spawn`; (c) if a bun-level repro exists, report it
+upstream.
+
+**Why it matters:** this is the difference between a gate that completes and a gate you
+can block a merge on. Until it is fixed, do not quote a single run's failure count —
+nine runs of the same commit spanned 10 to 26.
+
+**Priority:** P1. Bisected 2026-09-06.
 
 ---
 
