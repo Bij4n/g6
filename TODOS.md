@@ -562,6 +562,22 @@ nine runs of the same commit spanned 10 to 26.
 
 ---
 
+### P2: evals.yml runs on docs-only PRs
+
+**What:** `.github/workflows/evals.yml` triggers on every pull_request with no
+`paths-ignore`. A PR that only touches markdown queues the paid E2E gate.
+
+**Why it is invisible today:** the workflow targets `ubicloud-standard-8` and this fork
+has no runners, so it sits pending and costs nothing. The moment Ubicloud is set up it
+starts spending — roughly $4 a run — on typo fixes.
+
+**How:** add `paths-ignore: ['**.md', 'docs/**']` to the pull_request trigger, or gate
+the job on a changed-files check. Do this BEFORE wiring up the runner, not after.
+
+**Priority:** P2. Noticed 2026-09-06 while merging a docs-only PR.
+
+---
+
 ### P2: buildFetchHandler grants exit authority to a manager it does not own
 
 **What:** `browse/src/server.ts` wires `cfgBrowserManager.onDisconnect` unconditionally
